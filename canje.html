@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canje de Divisas - InterUnido Exchange</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <img src="assets/logo.jpg" alt="InterUnido" class="img-fluid mb-3" style="max-width: 100px;">
+                        <h1 class="h5">InterUnido</h1>
+                        <p class="small text-muted">CASA DE CAMBIO</p>
+                    </div>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="dashboard.html">
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="venta.html">
+                                Venta
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="canje.html">
+                                Canje
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="mt-4 px-3">
+                        <button id="logoutBtn" class="btn btn-outline-danger w-100">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Canje de Divisas</h1>
+                    <button id="themeToggle" class="btn btn-outline-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="swapForm">
+                                    <div class="mb-3">
+                                        <label for="swapType" class="form-label">Tipo de Canje</label>
+                                        <select class="form-select" id="swapType" required>
+                                            <option value="">Seleccione tipo de canje</option>
+                                            <option value="interno">Interno</option>
+                                            <option value="externo">Externo</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="swapAmount" class="form-label">Monto del Canje</label>
+                                        <input type="number" class="form-control" id="swapAmount" required>
+                                    </div>
+
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="costCommission" class="form-label">Comisión de Costo (%)</label>
+                                            <input type="number" class="form-control" id="costCommission" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="saleCommission" class="form-label">Comisión de Venta (%)</label>
+                                            <input type="number" class="form-control" id="saleCommission" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="difference" class="form-label">Diferencia</label>
+                                        <input type="number" class="form-control" id="difference" readonly>
+                                    </div>
+
+                                    <div id="externalFields" style="display: none;">
+                                        <h4 class="mb-3">Distribución</h4>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label for="payroll" class="form-label">Nómina</label>
+                                                <input type="number" class="form-control" id="payroll" readonly>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="profit" class="form-label">Ganancia</label>
+                                                <input type="number" class="form-control" id="profit" readonly>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="executive" class="form-label">Ejecutivo</label>
+                                                <input type="number" class="form-control" id="executive" readonly>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="office1" class="form-label">Oficina 1</label>
+                                                <input type="number" class="form-control" id="office1" readonly>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="office2" class="form-label">Oficina 2</label>
+                                                <input type="number" class="form-control" id="office2" readonly>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                        <button type="button" class="btn btn-secondary me-md-2" id="backToDashboard">Volver</button>
+                                        <button type="submit" class="btn btn-primary">Procesar Canje</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/canje.js"></script>
+    <script src="js/theme.js"></script>
+</body>
+</html> 

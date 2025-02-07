@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - InterUnido Exchange</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4 logo-container">
+                        <img src="assets/logo.jpg" 
+                             alt="InterUnido" 
+                             class="img-fluid logo-img mb-3" 
+                             style="width: 200px; height: auto;">
+                        <h1 class="h5 mb-0">InterUnido</h1>
+                        <p class="small text-muted">CASA DE CAMBIO</p>
+                    </div>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="dashboard.html">
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="venta.html">
+                                Venta
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="canje.html">
+                                Canje
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="mt-4 px-3">
+                        <button id="logoutBtn" class="btn btn-outline-danger w-100">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Dashboard</h1>
+                    <button id="themeToggle" class="btn btn-outline-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4 mb-4">
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title text-muted">Ventas del Día</h5>
+                                <h2 class="card-text">$25,430</h2>
+                                <p class="card-text text-success">
+                                    <small>+15% vs ayer</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Más cards de stats aquí -->
+                </div>
+
+                <!-- Charts -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-xl-6">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Ventas por Hora</h5>
+                                <canvas id="salesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-6">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Distribución de Operaciones</h5>
+                                <canvas id="operationsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/theme.js"></script>
+</body>
+</html> 
