@@ -1,4 +1,6 @@
-// Constantes y configuración
+/**
+ * Constantes y configuración global
+ */
 const COMMISSION_FACTORS = {
     '100.0000': 1.0000,
     '100.1000': 1.0010,
@@ -8,22 +10,46 @@ const COMMISSION_FACTORS = {
 
 const DISTRIBUTION_FACTORS = {
     OFFICE: 0.30,    // 30% para oficinas
-    EXECUTIVE: 0.40  // 40% para ejecutivo
+    EXECUTIVE: 0.40, // 40% para ejecutivo
+    CLIENT: 0.30     // 30% para cliente
 };
 
+/**
+ * Clase TransactionManager
+ * Maneja toda la lógica de transacciones de venta de divisas
+ */
 class TransactionManager {
+    /**
+     * Constructor de la clase
+     * Inicializa las propiedades básicas y realiza los bindings necesarios
+     */
     constructor() {
-        this.transactions = [];
-        this.totalAmount = 0;
-        this.remainingAmount = 0;
-        this.clientRate = 0;
+        // Propiedades principales
+        this.transactions = [];      // Array para almacenar todas las transacciones
+        this.totalAmount = 0;        // Monto total de la operación
+        this.remainingAmount = 0;    // Monto restante por procesar
+        this.clientRate = 0;         // Tasa del cliente
         
-        // Bindings
+        // Binding de métodos para mantener el contexto
         this.addTransaction = this.addTransaction.bind(this);
         this.calculateTransaction = this.calculateTransaction.bind(this);
+        this.processTransaction = this.processTransaction.bind(this);
+        this.showFinalSummary = this.showFinalSummary.bind(this);
         this.updateGlobalSummary = this.updateGlobalSummary.bind(this);
+
+        console.log('TransactionManager inicializado:', {
+            métodos: Object.getOwnPropertyNames(TransactionManager.prototype)
+        });
     }
 
+    /**
+     * Métodos de Inicialización y Configuración
+     */
+
+    /**
+     * Establece el monto total de la operación y crea la primera transacción
+     * @param {number} amount - Monto total a procesar
+     */
     setTotalAmount(amount) {
         this.totalAmount = amount;
         this.remainingAmount = amount;
@@ -38,45 +64,90 @@ class TransactionManager {
         this.updateUI();
     }
 
+    /**
+     * Configura los event listeners para un formulario de transacción
+     * @param {HTMLElement} form - Formulario de transacción
+     */
+    setupFormEventListeners(form) {
+        // Event listeners para checkboxes de oficinas
+        form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                console.log(`Oficina ${e.target.value} ${e.target.checked ? 'seleccionada' : 'deseleccionada'}`);
+            });
+        });
+
+        // Botón de calcular transacción
+        const calculateBtn = form.querySelector('.calculate-transaction');
+        if (calculateBtn) {
+            calculateBtn.addEventListener('click', () => {
+                this.processTransaction(form);
+            });
+        }
+
+        // Agregar comisión arbitraria
+        const addCommissionBtn = form.querySelector('.add-arbitrary-commission');
+        if (addCommissionBtn) {
+            addCommissionBtn.addEventListener('click', () => {
+                this.addArbitraryCommissionFields(form);
+            });
+        }
+    }
+
+    /**
+     * Métodos de Cálculo y Procesamiento
+     */
+
+    /**
+     * Calcula los resultados de una transacción
+     * @param {Object} transactionData - Datos de la transacción
+     * @returns {Object} Resultados del cálculo
+     */
     calculateTransaction(transactionData) {
-        const totalSale = transactionData.amount * transactionData.sellingRate;
-        const bankCommission = parseFloat(transactionData.bankCommission) / 100;
+        // 1. Cálculos en Bolívares
+        const totalSale = transactionData.amount * transactionData.sellingRate;  // Bs.
         const effectiveRate = transactionData.officeRate || this.clientRate;
         
-        // Calcular diferencia
-        const difference = totalSale - (transactionData.amount * effectiveRate);
+        // Cálculo correcto de la diferencia
+        const baseCost = transactionData.amount * (
+            transactionData.officeRate ? 
+            transactionData.officeRate : 
+            this.clientRate
+        );  // Bs.
+        const difference = totalSale - baseCost;  // Bs.
 
-        // Procesar comisiones arbitrarias
+        console.log('Debug:', {
+            totalSale,
+            baseCost,
+            difference,
+            hasOfficeRate: !!transactionData.officeRate
+        });
+
+        // 2. Procesar comisiones arbitrarias (convertir a USD)
         const arbitraryCommissions = transactionData.arbitraryCommissions.map(comm => ({
             name: comm.name,
             percentage: comm.percentage,
-            amount: (difference * comm.percentage) / 100
+            amount: (difference / transactionData.sellingRate) * (comm.percentage / 100)  // USD
         }));
 
-        const totalArbitraryAmount = arbitraryCommissions.reduce((sum, comm) => sum + comm.amount, 0);
+        const totalArbitraryUSD = arbitraryCommissions.reduce((sum, comm) => sum + comm.amount, 0);
 
-        // Calcular distribución
-        const distribution = {
-            PZO: 0,
-            CCS: 0,
-            executive: 0,
-            clientProfit: 0
-        };
+        // 3. Convertir diferencia a USD y calcular monto a repartir
+        const differenceUSD = difference / transactionData.sellingRate;  // USD
+        const amountToDistribute = differenceUSD - totalArbitraryUSD;  // USD
 
-        const amountToDistribute = difference - totalArbitraryAmount;
-
+        // 4. Calcular distribución
+        let distribution;
         if (transactionData.officeRate) {
-            const selectedOffices = transactionData.selectedOffices;
-            const officeCount = selectedOffices.length;
-            if (officeCount > 0) {
-                const officeShare = amountToDistribute * 0.30 / officeCount;
-                if (selectedOffices.includes('PZO')) distribution.PZO = officeShare;
-                if (selectedOffices.includes('CCS')) distribution.CCS = officeShare;
-            }
-            distribution.executive = amountToDistribute * 0.40;
-            distribution.clientProfit = amountToDistribute * 0.30;
+            // Si hay tasa de oficina, usar distribución normal
+            distribution = this.calculateDistribution(amountToDistribute, transactionData.selectedOffices);
         } else {
-            distribution.clientProfit = amountToDistribute;
+            // Si no hay tasa de oficina, todo va al cliente
+            distribution = {
+                PZO: 0,
+                CCS: 0,
+                executive: 0,
+                clientProfit: differenceUSD  // Usar differenceUSD en lugar de amountToDistribute
+            };
         }
 
         return {
@@ -86,6 +157,67 @@ class TransactionManager {
             amountToDistribute,
             distribution
         };
+    }
+
+    /**
+     * Calcula la distribución del monto entre oficinas, ejecutivo y cliente
+     * @param {number} amount - Monto a distribuir en USD
+     * @param {Array} selectedOffices - Oficinas seleccionadas
+     * @returns {Object} Distribución calculada en USD
+     */
+    calculateDistribution(amount, selectedOffices) {
+        const distribution = {
+            PZO: 0,
+            CCS: 0,
+            executive: 0,
+            clientProfit: 0
+        };
+
+        // Distribución cuando hay oficinas seleccionadas (50% en lugar de 30%)
+        const officeCount = selectedOffices.length;
+        if (officeCount > 0) {
+            const officeShare = amount * 0.30 / officeCount;  // 30% dividido entre las oficinas
+            if (selectedOffices.includes('PZO')) distribution.PZO = officeShare;
+            if (selectedOffices.includes('CCS')) distribution.CCS = officeShare;
+        }
+
+        distribution.executive = amount * 0.40;  // 40% para ejecutivo
+        distribution.clientProfit = amount * 0.30;  // 30% para cliente
+
+        return distribution;
+    }
+
+    /**
+     * Procesa una transacción completa
+     * @param {HTMLElement} form - Formulario de la transacción
+     */
+    processTransaction(form) {
+        console.log('Procesando transacción...');
+        const transactionData = this.collectFormData(form);
+        
+        if (!transactionData) {
+            console.error('Datos de transacción inválidos');
+            return;
+        }
+
+        const calculation = this.calculateTransaction(transactionData);
+        
+        // Agregar la transacción al array
+        this.transactions.push({
+            ...transactionData,
+            ...calculation
+        });
+
+        // Actualizar monto restante
+        this.remainingAmount -= transactionData.amount;
+
+        // Deshabilitar el formulario procesado
+        form.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
+        
+        // Actualizar UI
+        this.updateUI();
+
+        console.log('Transacción procesada exitosamente');
     }
 
     addTransaction(transactionData) {
@@ -119,7 +251,9 @@ class TransactionManager {
     }
 
     updateUI() {
-        // Actualizar montos en la UI
+        console.log('Actualizando UI...');
+        
+        // Actualizar montos mostrados
         const montoTotalElement = document.getElementById('montoTotal');
         const montoRestanteElement = document.getElementById('montoRestante');
         
@@ -240,50 +374,15 @@ class TransactionManager {
         `;
     }
 
-    processTransaction(form) {
-        const transactionData = this.collectFormData(form);
-        if (!transactionData) {
-            alert('Por favor complete todos los campos requeridos');
-            return;
-        }
-
-        // Verificar que el monto no exceda el restante
-        if (transactionData.amount > this.remainingAmount) {
-            alert(`El monto no puede exceder el restante (${this.remainingAmount})`);
-            return;
-        }
-
-        const calculation = this.calculateTransaction(transactionData);
-        
-        // Actualizar el monto restante
-        this.remainingAmount -= transactionData.amount;
-
-        // Agregar la transacción al array
-        this.transactions.push({
-            ...transactionData,
-            ...calculation
-        });
-
-        // Deshabilitar el formulario procesado
-        form.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
-        
-        // Actualizar montos mostrados
-        this.updateUI();
-
-        // Si es la última transacción (monto restante = 0), mostrar Stage 3
-        if (this.remainingAmount === 0) {
-            this.showFinalSummary();
-        }
-    }
-
     // Agregar método para manejar el botón "Continuar a Resumen"
     showFinalSummary() {
+        console.log('Mostrando resumen final...');
+        
         if (this.transactions.length === 0) {
             alert('Debe calcular al menos una transacción antes de continuar.');
             return;
         }
 
-        // Verificar si hay monto restante
         if (this.remainingAmount > 0) {
             alert(`Aún queda un monto restante de $${this.remainingAmount.toFixed(2)} por procesar.`);
             return;
@@ -294,44 +393,84 @@ class TransactionManager {
             stage.style.display = stage.id === 'stage3' ? 'block' : 'none';
         });
 
-        // Asegurarnos de que el Stage 3 tenga la estructura correcta
+        // Renderizar resultados en Stage 3
         const stage3 = document.getElementById('stage3');
         if (stage3) {
-            // Crear la estructura si no existe
-            if (!stage3.querySelector('.card')) {
-                stage3.innerHTML = `
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h5 class="mb-0">Resultado de la Operación</h5>
-                        </div>
-                        <div class="card-body">
-                            <!-- Aquí se insertarán los resultados -->
-                        </div>
+            const content = `
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Resultado de la Operación</h5>
                     </div>
-                `;
-            }
-
-            // Generar el contenido
-            let content = '';
-            this.transactions.forEach((trans, index) => {
-                content += this.renderTransactionResult(trans, index);
-            });
-            content += this.renderGlobalSummary();
-
-            // Insertar el contenido en el card-body
-            const cardBody = stage3.querySelector('.card-body');
-            if (cardBody) {
-                cardBody.innerHTML = content;
-            } else {
-                console.error('No se encontró el card-body en Stage 3');
-            }
-        } else {
-            console.error('No se encontró el Stage 3');
+                    <div class="card-body">
+                        ${this.renderTransactionResults()}
+                        ${this.renderGlobalSummary()}
+                    </div>
+                </div>
+            `;
+            stage3.innerHTML = content;
         }
     }
 
+    /**
+     * Formatea un número para mostrar separadores de miles y decimales
+     * @param {number} number - Número a formatear
+     * @param {string} currency - Símbolo de moneda (Bs. o $)
+     * @returns {string} Número formateado
+     */
+    formatCurrency(number, currency = '$') {
+        return `${currency} ${new Intl.NumberFormat('es-VE', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+            useGrouping: true
+        }).format(number)}`;
+    }
+
+    /**
+     * Renderiza los resultados de una transacción con números formateados
+     */
+    renderTransactionResults() {
+        return this.transactions.map((transaction, index) => `
+            <div class="transaction-result mb-4">
+                <h6 class="text-primary">Transacción ${index + 1} - Operador: ${transaction.operatorName}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Total de la Venta</td>
+                            <td class="text-end">${this.formatCurrency(transaction.totalSale, 'Bs.')}</td>
+                        </tr>
+                        <tr>
+                            <td>Diferencia</td>
+                            <td class="text-end">${this.formatCurrency(transaction.difference, 'Bs.')}</td>
+                        </tr>
+                        ${this.renderArbitraryCommissions(transaction.arbitraryCommissions)}
+                        <tr>
+                            <td>Monto a Repartir</td>
+                            <td class="text-end">${this.formatCurrency(transaction.amountToDistribute)}</td>
+                        </tr>
+                        ${this.renderDistribution(transaction.distribution)}
+                    </table>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    renderGlobalSummary() {
+        const totals = this.calculateGlobalTotals();
+        
+        return `
+            <div class="global-summary mt-4">
+                <h5 class="mb-3">Totales de la Operación</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        ${this.renderGlobalTotalsRows(totals)}
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
     createTransactionForm(transactionNumber) {
-        const formHTML = `
+        return `
             <div class="transaction-form card shadow-sm mb-4" id="transaction-${transactionNumber}">
                 <div class="card-body">
                     <h6 class="text-primary mb-4">Transacción ${transactionNumber}</h6>
@@ -388,47 +527,12 @@ class TransactionManager {
                         </button>
                     </div>
 
-                    <button type="button" class="btn btn-primary w-100 calculate-transaction">
+                    <button type="button" class="btn btn-primary calculate-transaction">
                         Calcular Transacción
                     </button>
                 </div>
             </div>
         `;
-
-        return formHTML;
-    }
-
-    setupFormEventListeners(form) {
-        // Mejorar el manejo de checkboxes de oficinas
-        const officeCheckboxes = form.querySelectorAll('input[type="checkbox"]');
-        officeCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const officeName = e.target.value; // 'PZO' o 'CCS'
-                console.log(`Oficina ${officeName} ${e.target.checked ? 'seleccionada' : 'deseleccionada'}`);
-            });
-        });
-
-        // Manejo de la tasa de oficina
-        const officeRateInput = form.querySelector('.tasaOficina');
-        const officeSelection = form.querySelector('.comisiones-arbitrarias');
-        if (officeRateInput && officeSelection) {
-            officeRateInput.addEventListener('input', (e) => {
-                officeSelection.style.display = e.target.value ? 'block' : 'none';
-            });
-        }
-
-        // Botón de calcular transacción
-        const calculateBtn = form.querySelector('.calculate-transaction');
-        if (calculateBtn) {
-            calculateBtn.addEventListener('click', () => {
-                this.processTransaction(form);
-            });
-        }
-
-        // Agregar comisión arbitraria
-        form.querySelector('.add-arbitrary-commission').addEventListener('click', () => {
-            this.addArbitraryCommissionFields(form);
-        });
     }
 
     collectFormData(form) {
@@ -513,22 +617,143 @@ class TransactionManager {
 
         arbitraryCommissionsDiv.appendChild(commissionElement);
     }
+
+    /**
+     * Métodos Auxiliares de Renderizado y Cálculo
+     */
+
+    /**
+     * Renderiza las comisiones arbitrarias con números formateados
+     */
+    renderArbitraryCommissions(commissions) {
+        return commissions.map(comm => `
+            <tr>
+                <td>${comm.name} (${comm.percentage}%)</td>
+                <td class="text-end">${this.formatCurrency(comm.amount)}</td>
+            </tr>
+        `).join('');
+    }
+
+    /**
+     * Renderiza la distribución con números formateados
+     */
+    renderDistribution(distribution) {
+        let html = '';
+        
+        if (distribution.PZO > 0) {
+            html += `
+                <tr>
+                    <td>Oficina PZO (${DISTRIBUTION_FACTORS.OFFICE * 100 / 2}%)</td>
+                    <td class="text-end">${this.formatCurrency(distribution.PZO)}</td>
+                </tr>
+            `;
+        }
+        
+        if (distribution.CCS > 0) {
+            html += `
+                <tr>
+                    <td>Oficina CCS (${DISTRIBUTION_FACTORS.OFFICE * 100 / 2}%)</td>
+                    <td class="text-end">${this.formatCurrency(distribution.CCS)}</td>
+                </tr>
+            `;
+        }
+        
+        html += `
+            <tr>
+                <td>Ejecutivo (${DISTRIBUTION_FACTORS.EXECUTIVE * 100}%)</td>
+                <td class="text-end">${this.formatCurrency(distribution.executive)}</td>
+            </tr>
+            <tr>
+                <td>Ganancia en Cliente (${DISTRIBUTION_FACTORS.CLIENT * 100}%)</td>
+                <td class="text-end">${this.formatCurrency(distribution.clientProfit)}</td>
+            </tr>
+        `;
+        
+        return html;
+    }
+
+    /**
+     * Calcula los totales globales de todas las transacciones
+     * @returns {Object} Objeto con los totales calculados
+     */
+    calculateGlobalTotals() {
+        return this.transactions.reduce((acc, trans) => ({
+            totalAmount: acc.totalAmount + trans.amount,
+            totalArbitrary: acc.totalArbitrary + trans.arbitraryCommissions.reduce((sum, comm) => sum + comm.amount, 0),
+            totalClientProfit: acc.totalClientProfit + trans.distribution.clientProfit,
+            totalExecutive: acc.totalExecutive + trans.distribution.executive,
+            totalPZO: acc.totalPZO + (trans.distribution.PZO || 0),
+            totalCCS: acc.totalCCS + (trans.distribution.CCS || 0)
+        }), {
+            totalAmount: 0,
+            totalArbitrary: 0,
+            totalClientProfit: 0,
+            totalExecutive: 0,
+            totalPZO: 0,
+            totalCCS: 0
+        });
+    }
+
+    /**
+     * Renderiza las filas de totales globales con números formateados
+     */
+    renderGlobalTotalsRows(totals) {
+        return `
+            <tr>
+                <td>Total Viático</td>
+                <td class="text-end">${this.formatCurrency(totals.totalArbitrary)}</td>
+            </tr>
+            <tr>
+                <td>Total Ganancia en Cliente</td>
+                <td class="text-end">${this.formatCurrency(totals.totalClientProfit)}</td>
+            </tr>
+            <tr>
+                <td>Total Ejecutivo</td>
+                <td class="text-end">${this.formatCurrency(totals.totalExecutive)}</td>
+            </tr>
+            ${totals.totalPZO > 0 ? `
+                <tr>
+                    <td>Total Oficina PZO</td>
+                    <td class="text-end">${this.formatCurrency(totals.totalPZO)}</td>
+                </tr>
+            ` : ''}
+            ${totals.totalCCS > 0 ? `
+                <tr>
+                    <td>Total Oficina CCS</td>
+                    <td class="text-end">${this.formatCurrency(totals.totalCCS)}</td>
+                </tr>
+            ` : ''}
+            <tr>
+                <td>Monto Total Operación</td>
+                <td class="text-end">${this.formatCurrency(this.totalAmount)}</td>
+            </tr>
+            <tr>
+                <td>Monto Vendido</td>
+                <td class="text-end">${this.formatCurrency(totals.totalAmount)}</td>
+            </tr>
+            <tr>
+                <td>Monto Restante</td>
+                <td class="text-end">${this.formatCurrency(this.remainingAmount)}</td>
+            </tr>
+        `;
+    }
 }
 
-// Inicialización
+// Inicialización cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', () => {
-    // Asegurarse de que solo el Stage 1 esté visible inicialmente
-    document.querySelectorAll('.stage').forEach(stage => {
-        stage.style.display = stage.id === 'stage1' ? 'block' : 'none';
-    });
+    console.log('Inicializando sistema de ventas...');
 
+    // Instanciar el TransactionManager
     const transactionManager = new TransactionManager();
 
-    // Agregar cálculo dinámico para el monto que debe recibir el cliente
+    /**
+     * Event Listeners para el Stage 1
+     */
     const amountToSell = document.getElementById('amountToSell');
     const clientRate = document.getElementById('clientRate');
     const amountClientReceives = document.getElementById('amountClientReceives');
 
+    // Función para actualizar el monto que recibe el cliente
     function updateClientAmount() {
         const amount = parseFloat(amountToSell.value) || 0;
         const rate = parseFloat(clientRate.value) || 0;
@@ -544,11 +769,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Agregar event listeners para actualización en tiempo real
+    // Event listeners para actualización en tiempo real
     amountToSell.addEventListener('input', updateClientAmount);
     clientRate.addEventListener('input', updateClientAmount);
 
-    // Asegurarse de que el formulario del Stage 1 funcione correctamente
+    /**
+     * Event Listener para el formulario principal
+     */
     const operationForm = document.getElementById('operationForm');
     if (operationForm) {
         operationForm.addEventListener('submit', (e) => {
@@ -559,58 +786,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (totalAmount > 0 && rate > 0) {
                 window.clientRate = rate;
                 transactionManager.setTotalAmount(totalAmount);
-                
-                // Actualizar visualización de stages
-                document.querySelectorAll('.stage').forEach(stage => {
-                    stage.style.display = stage.id === 'stage2' ? 'block' : 'none';
-                });
-                
-                // Actualizar montos mostrados en Stage 2
-                const montoTotalElement = document.getElementById('montoTotal');
-                const montoRestanteElement = document.getElementById('montoRestante');
-                if (montoTotalElement) montoTotalElement.textContent = totalAmount.toFixed(2);
-                if (montoRestanteElement) montoRestanteElement.textContent = totalAmount.toFixed(2);
             }
         });
     }
 
-    // Agregar event listener para el botón de agregar transacción
-    const addTransactionBtn = document.getElementById('addTransactionBtn');
-    if (addTransactionBtn) {
-        addTransactionBtn.addEventListener('click', () => {
-            const transactionsContainer = document.getElementById('transactionsContainer');
-            const transactionCount = transactionsContainer.children.length + 1;
-            const newTransactionHTML = transactionManager.createTransactionForm(transactionCount);
-            
-            // Crear un contenedor temporal para el nuevo formulario
-            const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = newTransactionHTML;
-            
-            // Agregar el nuevo formulario al contenedor
-            transactionsContainer.appendChild(tempContainer.firstElementChild);
-            
-            // Configurar los event listeners para el nuevo formulario
-            transactionManager.setupFormEventListeners(transactionsContainer.lastElementChild);
-        });
-    }
-
-    // Agregar event listener para el botón "Continuar a Resumen"
-    const continueToSummaryBtn = document.querySelector('[data-continue-to-summary]');
-    if (continueToSummaryBtn) {
-        continueToSummaryBtn.addEventListener('click', () => {
-            transactionManager.showFinalSummary();
-        });
-    }
-
-    // Event listener para el botón de calcular transacción
+    // Event listener para el botón Calcular Transacción
     document.addEventListener('click', (e) => {
         if (e.target.matches('.calculate-transaction')) {
             const form = e.target.closest('.transaction-form');
             if (form) {
+                console.log('Calculando transacción...');
                 transactionManager.processTransaction(form);
+                
+                // Actualizar el stage 3 con los resultados
+                const stage3 = document.getElementById('stage3');
+                if (stage3) {
+                    const resultadoOperacion = stage3.querySelector('#resultadoOperacion');
+                    if (resultadoOperacion) {
+                        resultadoOperacion.innerHTML = transactionManager.renderGlobalSummary();
+                    }
+                }
             }
         }
     });
 
-    console.log('Sistema de ventas inicializado correctamente');
+    // ... resto del código sin cambios ...
 }); 

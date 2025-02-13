@@ -26,13 +26,12 @@
                     </button>
                 </div>
 
-                <!-- Stages Container -->
-                <div class="stages-wrapper">
-                    <!-- Stage 1: Datos de la Operación -->
-                    <div class="stage" id="stage1">
-                        <div class="card h-100">
+                <div class="content-wrapper">
+                    <div class="stages-wrapper">
+                        <!-- Stage 1: Datos de la Operación -->
+                        <div class="stage card" id="stage1">
                             <div class="card-header">
-                                <h5 class="mb-0">Datos de la Operación</h5>
+                                <h5 class="text-primary mb-0">Datos de la Operación</h5>
                             </div>
                             <div class="card-body">
                                 <form id="operationForm">
@@ -42,23 +41,23 @@
                                     </div>
                                     <div class="mb-3">
                                         <label for="amountToSell" class="form-label">Monto que desea vender:</label>
-                                        <input type="number" class="form-control" id="amountToSell" step="0.01" required>
+                                        <input type="number" class="form-control" id="amountToSell" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="currencyType" class="form-label">Tipo de Divisa:</label>
                                         <select class="form-select" id="currencyType" required>
-                                            <option value="">Seleccione una divisa</option>
-                                            <option value="EUR_CASH">Euros en efectivo</option>
-                                            <option value="EUR_TRANSFER">Euro transferencia</option>
-                                            <option value="USD_CASH">Dólares en efectivo</option>
-                                            <option value="USD_ZELLE">Dólares Zelle</option>
-                                            <option value="USD_INTL">Dólares en Bancos internacionales</option>
-                                            <option value="USDT">Binance USDT</option>
+                                            <option value="">Seleccione una opción</option>
+                                            <option value="Euros en efectivo">Euros en efectivo</option>
+                                            <option value="Euro transferencia">Euro transferencia</option>
+                                            <option value="Dólares en efectivo">Dólares en efectivo</option>
+                                            <option value="Dólares Zelle">Dólares Zelle</option>
+                                            <option value="Dólares en Bancos internacionales">Dólares en Bancos internacionales</option>
+                                            <option value="Binance USDT">Binance USDT</option>
                                         </select>
                                     </div>
                                     <div class="mb-3">
                                         <label for="clientRate" class="form-label">Tasa Cliente:</label>
-                                        <input type="number" class="form-control" id="clientRate" step="0.0001" required>
+                                        <input type="number" class="form-control" id="clientRate" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="amountClientReceives" class="form-label">Monto que debe recibir el cliente:</label>
@@ -68,43 +67,31 @@
                                 </form>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Stage 2: Transacciones -->
-                    <div class="stage" id="stage2">
-                        <div class="card h-100">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Transacciones</h5>
-                                <div>
-                                    <span class="text-muted me-3">Monto total a vender: $<span id="montoTotal">0</span></span>
-                                    <span class="text-muted me-3">Monto restante: $<span id="montoRestante">0</span></span>
-                                </div>
+                        <!-- Stage 2: Agregar Transacciones -->
+                        <div class="stage card" id="stage2">
+                            <div class="card-header">
+                                <h5 class="text-primary mb-0">Agregar Transacciones de Venta</h5>
                             </div>
                             <div class="card-body">
-                                <!-- Contenedor para las transacciones dinámicas -->
-                                <div id="transactionsContainer">
-                                    <!-- Las transacciones se agregarán aquí dinámicamente -->
+                                <div id="transactionsContainer" class="transactions-container">
+                                    <!-- Las transacciones se agregarán aquí -->
                                 </div>
-                            </div>
-                            <div class="card-footer d-flex justify-content-between">
-                                <button id="addTransactionBtn" class="btn btn-primary">
-                                    <i class="fas fa-plus"></i> Agregar Transacción
-                                </button>
-                                <button class="btn btn-success" data-continue-to-summary>
-                                    Continuar a Resumen
+                                <button id="addTransactionBtn" class="btn btn-primary w-100 mt-3">
+                                    Agregar Transacción
                                 </button>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Stage 3: Resultados -->
-                    <div class="stage" id="stage3">
-                        <div class="card h-100">
+                        <!-- Stage 3: Resultado -->
+                        <div class="stage card" id="stage3">
                             <div class="card-header">
-                                <h5 class="mb-0">Resultado de la Operación</h5>
+                                <h5 class="text-primary mb-0">Resultado de la Operación</h5>
                             </div>
                             <div class="card-body">
-                                <!-- El contenido se generará dinámicamente -->
+                                <div id="resultadoOperacion" class="results-container">
+                                    <!-- Los resultados se mostrarán aquí -->
+                                </div>
                             </div>
                         </div>
                     </div>

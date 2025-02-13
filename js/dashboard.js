@@ -1,4 +1,86 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Datos de ejemplo - Luego se reemplazarán con datos reales
+    const salesData = {
+        labels: ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'],
+        datasets: [{
+            label: 'Ventas por Hora',
+            data: [4500, 3200, 6800, 2400, 5600, 7800, 4200, 3900],
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    };
+
+    const operationsData = {
+        labels: ['Ventas', 'Canjes Internos', 'Canjes Externos'],
+        datasets: [{
+            data: [45, 30, 25],
+            backgroundColor: [
+                'rgba(13, 110, 253, 0.8)',
+                'rgba(25, 135, 84, 0.8)',
+                'rgba(255, 193, 7, 0.8)'
+            ]
+        }]
+    };
+
+    // Configuración de los gráficos
+    const salesChart = new Chart(document.getElementById('salesChart'), {
+        type: 'line',
+        data: salesData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const operationsChart = new Chart(document.getElementById('operationsChart'), {
+        type: 'doughnut',
+        data: operationsData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Actualizar estadísticas
+    function updateStats() {
+        // Aquí se conectará con la API para obtener datos reales
+        const stats = {
+            dailySales: 25430,
+            percentageChange: 15,
+            totalOperations: 42,
+            averageOperation: 605
+        };
+
+        // Actualizar cards
+        document.getElementById('dailySales').textContent = `$${stats.dailySales.toLocaleString()}`;
+        document.getElementById('percentageChange').textContent = `${stats.percentageChange}% vs ayer`;
+        document.getElementById('totalOperations').textContent = stats.totalOperations;
+        document.getElementById('averageOperation').textContent = `$${stats.averageOperation.toLocaleString()}`;
+    }
+
+    // Inicializar estadísticas
+    updateStats();
+
     // Configuración de colores para los gráficos
     const chartColors = {
         blue: 'rgba(54, 162, 235, 0.2)',
@@ -13,45 +95,6 @@ document.addEventListener('DOMContentLoaded', function() {
         operations: [12, 19, 3],
         volume: [65, 59, 80]
     };
-
-    // Gráfico de Operaciones por Mes
-    const operationsChart = new Chart(
-        document.getElementById('operationsChart').getContext('2d'),
-        {
-            type: 'bar',
-            data: {
-                labels: monthlyData.labels,
-                datasets: [{
-                    label: 'Operaciones',
-                    data: monthlyData.operations,
-                    backgroundColor: chartColors.blue,
-                    borderColor: chartColors.blueBorder,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Operaciones Mensuales'
-                    }
-                }
-            }
-        }
-    );
 
     // Gráfico de Volumen de Transacciones
     const volumeChart = new Chart(
@@ -107,10 +150,4 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('auth_token');
         window.location.href = 'index.html';
     });
-
-    // Función para actualizar las estadísticas
-    function updateStats(stats) {
-        // Esta función se implementará cuando tengamos la conexión con la BD
-        // Actualizará los números y tendencias en las tarjetas de estadísticas
-    }
 });

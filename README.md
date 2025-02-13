@@ -6,10 +6,14 @@
 ```
 proyecto-interunido/
 ├── index.html
+├── venta.html
+├── canje.html
 ├── css/
 │   └── styles.css
 ├── js/
-│   └── script.js
+│   ├── script.js
+│   ├── venta.js
+│   └── canje.js
 └── README.md
 ```
 
@@ -50,28 +54,87 @@ http-server
 ## Características
 
 - Diseño responsive (3 columnas en desktop, scroll vertical en móvil)
+- Sistema de múltiples transacciones parciales
 - Cálculos en tiempo real
-- Gestión de múltiples transacciones
+- Gestión de comisiones arbitrarias
+- Distribución automática de ganancias
 - Interfaz moderna con tema azul/gris
 
 ## Desarrollo
 
-Los archivos están organizados para fácil mantenimiento:
-
-- `index.html`: Estructura de la aplicación
+### Estructura de Archivos
+- `index.html`: Dashboard principal
+- `venta.html`: Módulo de ventas
+- `canje.html`: Módulo de canje
 - `css/styles.css`: Estilos y diseño responsive
-- `js/script.js`: Toda la lógica de la aplicación
+- `js/`:
+  - `script.js`: Lógica general
+  - `venta.js`: Lógica específica de ventas
+  - `canje.js`: Lógica específica de canje
+
+### Convenciones de Código
+
+#### Formularios de Transacción
+Todos los formularios siguen una estructura estandarizada:
+
+1. **Estructura HTML:**
+```html
+<div class="transaction-form card shadow-sm mb-4">
+    <div class="card-body">
+        <!-- Campos del formulario -->
+    </div>
+</div>
+```
+
+2. **Identificación de Campos:**
+- Uso de atributo `name` en lugar de `id`
+- Nombres estandarizados:
+  - `operador`: Nombre del operador
+  - `montoTransaccion`: Monto de la transacción
+  - `tasaVenta`: Tasa de venta
+  - `tasaOficina`: Tasa de oficina
+  - `oficinaPZO`: Checkbox oficina PZO
+  - `oficinaCCS`: Checkbox oficina CCS
+  - `comisionBancaria`: Comisión bancaria
+  - `comisionCalculada`: Comisión calculada
+
+3. **Clases Principales:**
+- `transaction-form`: Contenedor principal del formulario
+- `comisiones-arbitrarias`: Contenedor de comisiones
+- Uso de clases Bootstrap para estilos
 
 ## Pruebas
 
-1. Completa el formulario inicial con datos de ejemplo
-2. Agrega varias transacciones
-3. Verifica los cálculos automáticos
-4. Prueba la edición y eliminación de transacciones
-5. Verifica el diseño responsive ajustando el tamaño de la ventana
+### Módulo de Ventas
+1. Ingresa el monto total a vender en Stage 1
+2. En Stage 2:
+   - Completa el formulario de la primera transacción
+   - Verifica los cálculos parciales
+   - Agrega transacciones adicionales si es necesario
+3. En Stage 3:
+   - Verifica los resultados parciales de cada transacción
+   - Comprueba el resumen global cuando se complete el monto total
 
-## Notas
+### Validaciones Importantes
+- El monto de cada transacción no debe exceder el monto restante
+- Las tasas y comisiones deben ser números válidos
+- Las oficinas seleccionadas deben reflejarse en la distribución
+- Las comisiones arbitrarias deben calcularse correctamente
 
-- Los archivos usan rutas relativas para fácil portabilidad
-- No se requiere conexión a internet
-- Compatible con todos los navegadores modernos
+## Notas Técnicas
+
+- Uso de JavaScript moderno (ES6+)
+- Manejo de estado mediante variables globales controladas
+- Sistema de validación en tiempo real
+- Cálculos precisos con manejo de decimales
+- Compatibilidad con navegadores modernos
+- No requiere conexión a internet
+- Diseño modular para fácil mantenimiento y extensión
+
+## Mantenimiento
+
+Para agregar nuevas funcionalidades:
+1. Seguir las convenciones de nombrado establecidas
+2. Usar la estructura de formularios definida
+3. Mantener la separación de responsabilidades en los archivos
+4. Documentar cambios significativos en este README

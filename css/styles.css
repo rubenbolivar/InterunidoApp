@@ -206,268 +206,16 @@ body {
 
 .btn-primary {
     background-color: var(--primary-color);
+    border-color: var(--primary-color);
     color: white;
+    transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
     background-color: var(--secondary-color);
-}
-
-/* Utilidades */
-.hidden-mobile {
-    display: none;
-}
-
-@media (min-width: 768px) {
-    .hidden-mobile {
-        display: block;
-    }
-}
-
-.hidden-desktop {
-    display: block;
-}
-
-@media (min-width: 1024px) {
-    .hidden-desktop {
-        display: none;
-    }
-}
-
-/* Animaciones */
-@keyframes fadeIn {
-    from { 
-        opacity: 0; 
-    }
-    to { 
-        opacity: 1; 
-    }
-}
-
-.fade-in {
-    animation: fadeIn 0.3s ease-in;
-}
-
-/* Tema claro (default) */
-:root {
-    --primary-color: #1a237e;
-    --secondary-color: #3949ab;
-    --accent-color: #5c6bc0;
-    --background-color: #f5f7fa;
-    --card-background: #ffffff;
-    --text-primary: #2c3e50;
-    --text-secondary: #546e7a;
-    --border-color: #e0e6ed;
-    --success-color: #4caf50;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-    --table-header-bg: #f0f0f0;
-    --table-hover-bg: #f5f7fa;
-    --title-color: #1a237e;
-    --subtitle-color: #3949ab;
-}
-
-/* Tema oscuro */
-[data-theme="dark"] {
-    --primary-color: #5c6bc0;
-    --secondary-color: #3949ab;
-    --accent-color: #1a237e;
-    --background-color: #1a1a1a;
-    --card-background: #2d2d2d;
-    --text-primary: #ffffff;
-    --text-secondary: #b0bec5;
-    --border-color: #404040;
-    --success-color: #66bb6a;
-    --shadow-color: rgba(0, 0, 0, 0.3);
-    --table-header-bg: #404040;
-    --table-hover-bg: #333333;
-    --title-color: #e0e0e0;
-    --subtitle-color: #bdbdbd;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--background-color);
-    color: var(--text-primary);
-    line-height: 1.6;
-    min-height: 100vh;
-}
-
-.container {
-    max-width: 1800px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    padding: 1rem;
-    background-color: var(--card-background);
-    border-radius: 10px;
-    box-shadow: 0 2px 4px var(--shadow-color);
-}
-
-h1, .h1 {
-    color: var(--title-color);
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-h2, .h2 {
-    color: var(--subtitle-color);
-    font-size: 1.8rem;
-    margin-bottom: 1.5rem;
-    font-weight: 500;
-}
-
-h3, .h3 {
-    color: var(--subtitle-color);
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-/* Asegurar que el título principal use el color correcto */
-.container h1,
-header h1,
-#app h1,
-main h1 {
-    color: var(--title-color) !important;
-}
-
-.theme-toggle {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    padding: 10px;
-    border-radius: 50%;
-    width: 45px;
-    height: 45px;
-    background-color: var(--card-background);
-    border: 2px solid var(--border-color);
-    color: var(--text-primary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 5px var(--shadow-color);
-}
-
-.theme-toggle:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 8px var(--shadow-color);
-}
-
-.theme-toggle svg {
-    width: 20px;
-    height: 20px;
-}
-
-.stages-container {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    width: 100%;
-}
-
-@media (min-width: 1024px) {
-    .stages-container {
-        flex-direction: row;
-        justify-content: flex-start;
-        align-items: start;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        padding-bottom: 20px;
-    }
-    
-    .stage {
-        flex: 0 0 calc(33.333% - 20px);
-        min-width: 400px;
-        margin-right: 20px;
-        max-height: calc(100vh - 100px);
-        overflow-y: auto;
-    }
- 
-    .stage:last-child {
-        margin-right: 0;
-    }
-}
-
-.card {
-    background-color: var(--card-background);
-    border-radius: 10px;
-    padding: 25px;
-    box-shadow: 0 4px 6px var(--shadow-color);
-    height: 100%;
-    transition: box-shadow 0.3s ease;
-}
-
-.card:hover {
-    box-shadow: 0 6px 12px var(--shadow-color);
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    background-color: var(--card-background);
-    color: var(--text-primary);
-}
-
-.form-group input:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(92, 107, 192, 0.2);
-}
-
-.form-group input[readonly] {
-    background-color: var(--background-color);
-    color: var(--text-secondary);
-    cursor: not-allowed;
-}
-
-.btn {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    width: 100%;
-}
-
-.btn:hover {
-    background-color: var(--secondary-color);
-    transform: translateY(-1px);
+    border-color: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .btn:active {
@@ -501,16 +249,67 @@ main h1 {
     margin: 5px 0;
 }
 
+/* Estilos para el formulario de transacción */
 .transaction-form {
-    background-color: var(--background-color);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
+    background-color: var(--card-background);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
 }
 
-.transaction-form h3 {
-    color: var(--subtitle-color);
-    margin-bottom: 1rem;
+.transaction-title {
+    margin-bottom: 1.25rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.transaction-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.form-field {
+    margin-bottom: 0.5rem;
+}
+
+.form-field.span-2 {
+    grid-column: span 2;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.office-checkboxes {
+    display: flex;
+    gap: 2rem;
+    padding: 0.5rem;
+    background-color: var(--background-color);
+    border-radius: 0.25rem;
+}
+
+.form-control-sm, .form-select-sm {
+    height: calc(1.5em + 0.5rem + 2px);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+    background-color: white;
+    border: 1px solid var(--border-color);
+}
+
+.form-control-sm:focus, .form-select-sm:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+}
+
+/* Asegurar que los inputs numéricos muestren el contenido */
+input[type="number"] {
+    text-align: right;
+    padding-right: 0.5rem;
 }
 
 .result-table {
@@ -793,41 +592,35 @@ main h1 {
 }
 
 .arbitrary-commission-field {
-    margin-bottom: 10px;
-}
-
-.commission-inputs {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto auto;
-    gap: 10px;
+    display: flex;
+    gap: 0.5rem;
     align-items: center;
+    margin-bottom: 0.5rem;
 }
 
-.commission-name,
-.commission-value {
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 14px;
+.arbitrary-commission-field input {
+    height: 30px;
+    font-size: 0.875rem;
 }
 
-.arbitrary-commissions {
-    margin-top: 10px;
+.arbitrary-commission-field input[type="text"] {
+    flex: 2;
 }
 
-.commission-header {
-    background-color: var(--background-color);
-    font-weight: bold;
-    text-align: center;
+.arbitrary-commission-field input[type="number"] {
+    flex: 1;
+    text-align: right;
 }
 
-.percentage-symbol {
-    color: var(--text-secondary);
-    margin-left: -25px;
+.remove-commission {
+    padding: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--danger-color);
 }
 
-.commission-value {
-    padding-right: 25px !important;
+.remove-commission:hover {
+    color: var(--danger-hover-color);
 }
 
 /* Estilos adicionales de operaciones */
@@ -922,5 +715,336 @@ main h1 {
     .commission-group,
     .distribution-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Trading Layout */
+.trading-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    height: calc(100vh - 120px);
+}  
+
+/* Stage 1 */
+.stage-1 {
+    flex: 0 0 auto;
+}
+
+.stage-1 .card {
+    margin-bottom: 0;
+}
+
+.stage-1 .form-control,
+.stage-1 .form-select {
+    height: 35px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.stage-1 .form-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Stages 2 & 3 Container */
+.stages-container {
+    flex: 1;
+    display: flex;
+    gap: 1rem;
+    min-height: 0; /* Importante para el scroll */
+}
+
+/* Stage 2 */
+.stage-2 {
+    flex: 0 0 60%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Stage 3 */
+.stage-3 {
+    flex: 0 0 40%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Card styles */
+.card {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+}
+
+.card-header {
+    background-color: var(--background-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+}
+
+/* Scrollable areas */
+#transactions,
+#results {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .trading-layout {
+        height: auto;
+    }
+
+    .stages-container {
+        flex-direction: column;
+    }
+
+    .stage-2,
+    .stage-3 {
+        flex: none;
+        height: 500px;
+    }
+}
+
+/* Form styles */
+.form-control-sm, .form-select-sm {
+    font-size: 0.875rem;
+}
+
+.currency-symbol {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+/* Ajustes para los formularios */
+.form-label {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.form-control, .form-select {
+    padding: 0.375rem 0.75rem;
+    height: calc(1.5em + 0.75rem + 2px);
+}
+
+/* ===== Venta de Divisas Styles ===== */
+.stages-wrapper {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    overflow-x: auto;
+    height: calc(100vh - 80px);
+}
+
+.stage {
+    display: block !important;
+    flex: 1;
+    min-width: 350px;
+    margin-right: 1rem;
+    opacity: 1 !important;
+}
+
+.stage.card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.stage .card-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.transactions-container,
+.results-container {
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .stages-wrapper {
+        flex-direction: column;
+        height: auto;
+        padding: 1rem;
+    }
+
+    .stage {
+        min-width: 100%;
+        margin-right: 0;
+        margin-bottom: 1rem;
+        height: auto;
+    }
+
+    .stage .card-body {
+        max-height: none;
+    }
+}
+
+/* Estilos para el header compacto */
+.btn-sm.btn-outline-secondary {
+    padding: 0.25rem 0.5rem;
+}
+
+.h5.mb-0 {
+    color: var(--text-primary);
+}
+
+/* Header compacto */
+.compact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    margin-bottom: 0.5rem;
+}
+
+.header-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.theme-toggle-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Estilos para stages activos/inactivos */
+.stage {
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.stage.active {
+    opacity: 1;
+}
+
+/* Estilos para formulario deshabilitado */
+form:disabled {
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+/* Asegurar que el botón de nueva transacción sea visible */
+#addTransaction {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+@media (max-width: 768px) {
+    .stages-wrapper {
+        height: auto;
+        overflow-x: visible;
+        padding-bottom: 1rem;
+        flex-direction: column;
+    }
+
+    .stage {
+        flex: 1;
+        min-width: 100%;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    #stage1, #stage2, #stage3 {
+        margin-right: 0;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .stages-wrapper {
+        flex-direction: column !important;
+        height: auto !important;
+        padding: 1rem;
+    }
+    
+    .stage {
+        width: 100% !important;
+        min-width: 100% !important;
+        margin-right: 0 !important;
+        margin-bottom: 1rem !important;
+        display: block !important; /* Siempre visible */
+        opacity: 0.7; /* Menos énfasis en stages inactivos */
+    }
+
+    .stage.active {
+        opacity: 1 !important; /* Énfasis en stage activo */
+    }
+
+    /* Animación suave al cambiar stages */
+    .stage {
+        transition: opacity 0.3s ease-in-out;
+    }
+}
+
+/* Ajustes para inputs numéricos */
+.form-control[type="number"] {
+    text-align: right;
+    font-family: monospace;
+    font-size: 1.1rem;
+    min-width: 150px;
+}
+
+/* Contenedor de transacciones */
+.transaction-card {
+    margin-bottom: 1.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.transaction-card .card-body {
+    padding: 1.5rem;
+}
+
+/* Ajustes para inputs de comisiones */
+.commission-inputs {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.commission-name {
+    flex: 2;
+}
+
+.commission-value {
+    flex: 1;
+    min-width: 120px;
+}
+
+/* Estilos para el resumen */
+#stage3 .card {
+    margin-bottom: 1.5rem;
+}
+
+#stage3 .form-control[readonly] {
+    background-color: #f8f9fa;
+    font-weight: 500;
+}
+
+/* Ajustes responsive */
+@media (max-width: 768px) {
+    .commission-inputs {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .commission-value {
+        width: 100%;
     }
 }
