@@ -91,6 +91,14 @@ class TransactionManager {
                 this.addArbitraryCommissionFields(form);
             });
         }
+
+        // Listener para calcular la comisión cuando cambien los valores relevantes
+        const calculateCommission = () => this.calculateCommission(form);
+        
+        form.addEventListener('calculate-commission', calculateCommission);
+        form.querySelector('[name="tasaVenta"]').addEventListener('input', calculateCommission);
+        form.querySelector('[name="tasaOficina"]').addEventListener('input', calculateCommission);
+        form.querySelector('[name="bankCommission"]').addEventListener('change', calculateCommission);
     }
 
     /**
@@ -104,16 +112,12 @@ class TransactionManager {
      */
     calculateTransaction(transactionData) {
         // 1. Cálculos en Bolívares
-        const totalSale = transactionData.amount * transactionData.sellingRate;  // Bs.
-        const effectiveRate = transactionData.officeRate || this.clientRate;
+        const totalSale = transactionData.amount * transactionData.sellingRate;
+        const commission = parseFloat(transactionData.commission);
         
-        // Cálculo correcto de la diferencia
-        const baseCost = transactionData.amount * (
-            transactionData.officeRate ? 
-            transactionData.officeRate : 
-            this.clientRate
-        );  // Bs.
-        const difference = totalSale - baseCost;  // Bs.
+        // Usar la comisión para el cálculo de la diferencia
+        const baseCost = transactionData.amount * commission;
+        const difference = totalSale - baseCost;
 
         console.log('Debug:', {
             totalSale,
@@ -211,8 +215,14 @@ class TransactionManager {
         // Actualizar monto restante
         this.remainingAmount -= transactionData.amount;
 
-        // Deshabilitar el formulario procesado
-        form.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
+        // Primero deshabilitar todos los campos excepto el botón de agregar comisión
+        form.querySelectorAll('input, select, button:not(.add-arbitrary-commission)').forEach(el => el.disabled = true);
+        
+        // Luego ocultar el botón de agregar comisión solo después de calcular
+        const addCommissionBtn = form.querySelector('.add-arbitrary-commission');
+        if (addCommissionBtn) {
+            addCommissionBtn.style.display = 'none';
+        }
         
         // Actualizar UI
         this.updateUI();
@@ -469,68 +479,73 @@ class TransactionManager {
         `;
     }
 
-    createTransactionForm(transactionNumber) {
+    createTransactionForm(index) {
         return `
-            <div class="transaction-form card shadow-sm mb-4" id="transaction-${transactionNumber}">
-                <div class="card-body">
-                    <h6 class="text-primary mb-4">Transacción ${transactionNumber}</h6>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Nombre del Operador:</label>
-                        <input type="text" class="form-control" name="operador" required>
-                    </div>
+            <div class="transaction-form mb-4" data-transaction-index="${index}">
+                <h6 class="text-primary mb-4">Transacción ${index}</h6>
+                
+                <div class="mb-3">
+                    <label class="form-label">Nombre del Operador:</label>
+                    <input type="text" class="form-control" name="operador" required>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Monto:</label>
-                        <input type="number" class="form-control text-end" name="montoTransaccion" step="0.01" required>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Monto:</label>
+                    <input type="number" class="form-control text-end" name="montoTransaccion" step="0.01" required>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Tasa de Venta:</label>
-                        <input type="number" class="form-control text-end" name="tasaVenta" step="0.0001" required>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Tasa de Venta:</label>
+                    <input type="number" class="form-control text-end" name="tasaVenta" step="0.0001" required>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Tasa Oficina:</label>
-                        <input type="number" class="form-control text-end" name="tasaOficina" step="0.0001">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Tasa Oficina:</label>
+                    <input type="number" class="form-control text-end" name="tasaOficina" step="0.0001">
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Selección de Oficinas:</label>
-                        <div>
-                            <div class="form-check form-check-inline">
-                                <input type="checkbox" class="form-check-input" name="oficinaPZO" value="PZO">
-                                <label class="form-check-label">Oficina PZO</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input type="checkbox" class="form-check-input" name="oficinaCCS" value="CCS">
-                                <label class="form-check-label">Oficina CCS</label>
-                            </div>
+                <div class="mb-3">
+                    <label class="form-label">Selección de Oficinas:</label>
+                    <div>
+                        <div class="form-check form-check-inline">
+                            <input type="checkbox" class="form-check-input" name="oficinaPZO" value="PZO">
+                            <label class="form-check-label">Oficina PZO</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input type="checkbox" class="form-check-input" name="oficinaCCS" value="CCS">
+                            <label class="form-check-label">Oficina CCS</label>
                         </div>
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Comisión Bancaria:</label>
-                        <select class="form-select" name="comisionBancaria">
-                            <option value="100.0000">100.0000%</option>
-                            <option value="100.1000">100.1000%</option>
-                            <option value="100.2500">100.2500%</option>
-                            <option value="100.3000">100.3000%</option>
-                        </select>
+                <div class="mb-3">
+                    <label class="form-label">Comisión Bancaria:</label>
+                    <select class="form-select" name="bankCommission" onchange="this.closest('.transaction-form').dispatchEvent(new Event('calculate-commission'))">
+                        <option value="100.0000">100.0000%</option>
+                        <option value="100.1000">100.1000%</option>
+                        <option value="100.2500">100.2500%</option>
+                        <option value="100.3000">100.3000%</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Comisión:</label>
+                    <input type="text" class="form-control" name="commission" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Comisiones Arbitrarias:</label>
+                    <div class="comisiones-arbitrarias">
+                        <!-- Las comisiones arbitrarias se agregarán aquí -->
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Comisiones Arbitrarias:</label>
-                        <div class="comisiones-arbitrarias"></div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-arbitrary-commission">
-                            <i class="fas fa-plus"></i> Agregar Comisión
-                        </button>
-                    </div>
-
-                    <button type="button" class="btn btn-primary calculate-transaction">
-                        Calcular Transacción
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-arbitrary-commission">
+                        <i class="fas fa-plus"></i> Agregar Comisión
                     </button>
                 </div>
+
+                <button type="button" class="btn btn-secondary w-100 calculate-transaction">
+                    Calcular Transacción
+                </button>
             </div>
         `;
     }
@@ -573,7 +588,7 @@ class TransactionManager {
             amount: parseFloat(getValue('[name="montoTransaccion"]')) || 0,
             sellingRate: parseFloat(getValue('[name="tasaVenta"]')) || 0,
             officeRate: parseFloat(getValue('[name="tasaOficina"]')) || null,
-            bankCommission: getValue('[name="comisionBancaria"]') || '100.0000',
+            bankCommission: getValue('[name="bankCommission"]') || '100.0000',
             selectedOffices: selectedOffices,
             arbitraryCommissions: arbitraryCommissions
         };
@@ -736,6 +751,27 @@ class TransactionManager {
                 <td class="text-end">${this.formatCurrency(this.remainingAmount)}</td>
             </tr>
         `;
+    }
+
+    calculateCommission(form) {
+        const sellingRate = parseFloat(form.querySelector('[name="tasaVenta"]').value) || 0;
+        const officeRate = parseFloat(form.querySelector('[name="tasaOficina"]').value) || 0;
+        const bankCommissionStr = form.querySelector('[name="bankCommission"]').value;
+        const bankCommissionFactor = parseFloat(bankCommissionStr) / 100;
+
+        // Determinar qué tasa usar
+        const rateToUse = officeRate || window.clientRate || 0;
+
+        // Calcular la comisión
+        const commission = rateToUse * bankCommissionFactor;
+
+        // Actualizar el campo
+        const commissionField = form.querySelector('[name="commission"]');
+        if (commissionField) {
+            commissionField.value = commission.toFixed(4);
+        }
+
+        return commission;
     }
 }
 
