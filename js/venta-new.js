@@ -14,6 +14,36 @@ const DISTRIBUTION_FACTORS = {
     CLIENT: 0.30     // 30% para cliente
 };
 
+const PRECISION = {
+    DECIMALS: 4,
+    DISPLAY_DECIMALS: 2,
+    RATE_DECIMALS: 4
+};
+
+const VALIDATION_MESSAGES = {
+    INVALID_AMOUNT: 'El monto debe ser un número válido mayor que cero',
+    INVALID_RATE: 'La tasa debe ser un número válido mayor que cero',
+    INVALID_COMMISSION: 'La comisión debe ser un número válido',
+    INSUFFICIENT_AMOUNT: 'El monto excede el disponible',
+    CALCULATION_ERROR: 'Error en el cálculo de la transacción'
+};
+
+// Utilidades para manejo de números
+const NumberUtils = {
+    round: (number, decimals = PRECISION.DECIMALS) => {
+        return Number(Math.round(number + 'e' + decimals) + 'e-' + decimals);
+    },
+    
+    isValidNumber: (number) => {
+        return typeof number === 'number' && !isNaN(number) && isFinite(number);
+    },
+    
+    parseAmount: (value) => {
+        const parsed = parseFloat(value);
+        return NumberUtils.isValidNumber(parsed) ? NumberUtils.round(parsed) : null;
+    }
+};
+
 /**
  * Clase TransactionManager
  * Maneja toda la lógica de transacciones de venta de divisas
@@ -111,82 +141,153 @@ class TransactionManager {
      * @returns {Object} Resultados del cálculo
      */
     calculateTransaction(transactionData) {
-        // 1. Cálculos en Bolívares
-        const totalSale = transactionData.amount * transactionData.sellingRate;
-        const commission = parseFloat(transactionData.commission);
-        
-        // Usar la comisión para el cálculo de la diferencia
-        const baseCost = transactionData.amount * commission;
-        const difference = totalSale - baseCost;
+        try {
+            if (!this.validateTransactionData(transactionData)) {
+                throw new Error(VALIDATION_MESSAGES.INVALID_AMOUNT);
+            }
 
-        console.log('Debug:', {
-            totalSale,
-            baseCost,
-            difference,
-            hasOfficeRate: !!transactionData.officeRate
+            // 1. Cálculo del Total de Venta en Bolívares
+            const totalSale = NumberUtils.round(
+                transactionData.amount * transactionData.sellingRate
+            );
+
+            // 2. Cálculo de la Diferencia
+            const baseCost = NumberUtils.round(
+                transactionData.amount * transactionData.officeRate
+            );
+            const difference = NumberUtils.round(totalSale - baseCost);
+
+            // 3. Procesar comisiones arbitrarias (en USD)
+            const arbitraryCommissions = transactionData.arbitraryCommissions.map(commission => {
+                const amountBs = NumberUtils.round(difference * (commission.percentage / 100));
+                const amountUSD = NumberUtils.round(amountBs / transactionData.sellingRate);
+                return {
+                    ...commission,
+                    amount: amountUSD,
+                    amountBs: amountBs
+                };
+            });
+
+            // 4. Calcular monto total de comisiones en Bs
+            const totalArbitraryCommissionsBs = arbitraryCommissions.reduce(
+                (sum, commission) => sum + commission.amountBs, 
+                0
+            );
+
+            // 5. Calcular monto a repartir en USD
+            const amountToDistribute = NumberUtils.round(
+                (difference - totalArbitraryCommissionsBs) / transactionData.officeRate
+            );
+
+            // 6. Calcular distribución
+            const officeDistributionFactor = transactionData.selectedOffices.length === 2 ? 0.5 : 1;
+            
+            const distribution = {
+                PZO: 0,
+                CCS: 0,
+                executive: NumberUtils.round(amountToDistribute * 0.40), // 40% para ejecutivo
+                clientProfit: 0
+            };
+
+            // Distribución para oficinas (30% total)
+            if (transactionData.selectedOffices.includes('PZO')) {
+                distribution.PZO = NumberUtils.round(
+                    amountToDistribute * 0.30 * officeDistributionFactor
+                );
+            }
+            if (transactionData.selectedOffices.includes('CCS')) {
+                distribution.CCS = NumberUtils.round(
+                    amountToDistribute * 0.30 * officeDistributionFactor
+                );
+            }
+
+            // Ganancia en Cliente es la suma de las oficinas
+            distribution.clientProfit = NumberUtils.round(
+                distribution.PZO + distribution.CCS
+            );
+
+            console.debug('Cálculo de transacción:', {
+                totalSale,
+                baseCost,
+                difference,
+                arbitraryCommissions,
+                amountToDistribute,
+                distribution,
+                originalData: { ...transactionData }
+            });
+
+            return {
+                totalSale,
+                difference,
+                arbitraryCommissions,
+                amountToDistribute,
+                distribution
+            };
+        } catch (error) {
+            console.error('Error en cálculo de transacción:', error);
+            throw error;
+        }
+    }
+
+    // Método auxiliar para validar datos de transacción
+    validateTransactionData(data) {
+        return (
+            data &&
+            NumberUtils.isValidNumber(data.amount) &&
+            data.amount > 0 &&
+            NumberUtils.isValidNumber(data.sellingRate) &&
+            data.sellingRate > 0 &&
+            data.amount <= this.remainingAmount
+        );
+    }
+
+    // Método para calcular comisiones arbitrarias con validación
+    calculateArbitraryCommissions(difference, sellingRate, commissions) {
+        return commissions.map(comm => {
+            const percentage = NumberUtils.parseAmount(comm.percentage);
+            if (!NumberUtils.isValidNumber(percentage)) {
+                throw new Error(`Porcentaje inválido para comisión ${comm.name}`);
+            }
+            
+            return {
+                name: comm.name,
+                percentage: percentage,
+                amount: NumberUtils.round((difference / sellingRate) * (percentage / 100))
+            };
         });
+    }
 
-        // 2. Procesar comisiones arbitrarias (convertir a USD)
-        const arbitraryCommissions = transactionData.arbitraryCommissions.map(comm => ({
-            name: comm.name,
-            percentage: comm.percentage,
-            amount: (difference / transactionData.sellingRate) * (comm.percentage / 100)  // USD
-        }));
+    // Método para calcular distribución con validación
+    calculateValidatedDistribution(amount, hasOfficeRate, selectedOffices) {
+        if (!NumberUtils.isValidNumber(amount)) {
+            throw new Error(VALIDATION_MESSAGES.CALCULATION_ERROR);
+        }
 
-        const totalArbitraryUSD = arbitraryCommissions.reduce((sum, comm) => sum + comm.amount, 0);
-
-        // 3. Convertir diferencia a USD y calcular monto a repartir
-        const differenceUSD = difference / transactionData.sellingRate;  // USD
-        const amountToDistribute = differenceUSD - totalArbitraryUSD;  // USD
-
-        // 4. Calcular distribución
-        let distribution;
-        if (transactionData.officeRate) {
-            // Si hay tasa de oficina, usar distribución normal
-            distribution = this.calculateDistribution(amountToDistribute, transactionData.selectedOffices);
-        } else {
-            // Si no hay tasa de oficina, todo va al cliente
-            distribution = {
+        if (!hasOfficeRate) {
+            return {
                 PZO: 0,
                 CCS: 0,
                 executive: 0,
-                clientProfit: differenceUSD  // Usar differenceUSD en lugar de amountToDistribute
+                clientProfit: NumberUtils.round(amount)
             };
         }
 
-        return {
-            totalSale,
-            difference,
-            arbitraryCommissions,
-            amountToDistribute,
-            distribution
-        };
-    }
-
-    /**
-     * Calcula la distribución del monto entre oficinas, ejecutivo y cliente
-     * @param {number} amount - Monto a distribuir en USD
-     * @param {Array} selectedOffices - Oficinas seleccionadas
-     * @returns {Object} Distribución calculada en USD
-     */
-    calculateDistribution(amount, selectedOffices) {
+        const officeCount = selectedOffices.length;
         const distribution = {
             PZO: 0,
             CCS: 0,
-            executive: 0,
-            clientProfit: 0
+            executive: NumberUtils.round(amount * DISTRIBUTION_FACTORS.EXECUTIVE),
+            clientProfit: NumberUtils.round(amount * DISTRIBUTION_FACTORS.CLIENT)
         };
 
-        // Distribución cuando hay oficinas seleccionadas (50% en lugar de 30%)
-        const officeCount = selectedOffices.length;
         if (officeCount > 0) {
-            const officeShare = amount * 0.30 / officeCount;  // 30% dividido entre las oficinas
+            const officeShare = NumberUtils.round(
+                (amount * DISTRIBUTION_FACTORS.OFFICE) / officeCount
+            );
+            
             if (selectedOffices.includes('PZO')) distribution.PZO = officeShare;
             if (selectedOffices.includes('CCS')) distribution.CCS = officeShare;
         }
-
-        distribution.executive = amount * 0.40;  // 40% para ejecutivo
-        distribution.clientProfit = amount * 0.30;  // 30% para cliente
 
         return distribution;
     }
@@ -197,37 +298,48 @@ class TransactionManager {
      */
     processTransaction(form) {
         console.log('Procesando transacción...');
-        const transactionData = this.collectFormData(form);
-        
-        if (!transactionData) {
-            console.error('Datos de transacción inválidos');
-            return;
+        try {
+            const transactionData = this.collectFormData(form);
+            
+            if (!transactionData) {
+                console.error('Datos de transacción inválidos');
+                return;
+            }
+
+            console.log('Datos recolectados:', transactionData);
+
+            const calculation = this.calculateTransaction(transactionData);
+            console.log('Cálculos realizados:', calculation);
+            
+            // Agregar la transacción al array
+            this.transactions.push({
+                ...transactionData,
+                ...calculation
+            });
+
+            // Actualizar monto restante
+            this.remainingAmount -= transactionData.amount;
+
+            // Deshabilitar campos del formulario
+            form.querySelectorAll('input, select, button:not(.add-arbitrary-commission)').forEach(el => el.disabled = true);
+            
+            // Ocultar botón de agregar comisión
+            const addCommissionBtn = form.querySelector('.add-arbitrary-commission');
+            if (addCommissionBtn) {
+                addCommissionBtn.style.display = 'none';
+            }
+            
+            // Actualizar UI y mostrar Stage 3
+            this.updateUI();
+            document.getElementById('stage3').style.display = 'block';
+
+            console.log('Transacción procesada exitosamente');
+            return true;
+        } catch (error) {
+            console.error('Error en processTransaction:', error);
+            alert('Error al procesar la transacción: ' + error.message);
+            return false;
         }
-
-        const calculation = this.calculateTransaction(transactionData);
-        
-        // Agregar la transacción al array
-        this.transactions.push({
-            ...transactionData,
-            ...calculation
-        });
-
-        // Actualizar monto restante
-        this.remainingAmount -= transactionData.amount;
-
-        // Primero deshabilitar todos los campos excepto el botón de agregar comisión
-        form.querySelectorAll('input, select, button:not(.add-arbitrary-commission)').forEach(el => el.disabled = true);
-        
-        // Luego ocultar el botón de agregar comisión solo después de calcular
-        const addCommissionBtn = form.querySelector('.add-arbitrary-commission');
-        if (addCommissionBtn) {
-            addCommissionBtn.style.display = 'none';
-        }
-        
-        // Actualizar UI
-        this.updateUI();
-
-        console.log('Transacción procesada exitosamente');
     }
 
     addTransaction(transactionData) {
@@ -275,112 +387,185 @@ class TransactionManager {
     }
 
     updateGlobalSummary() {
-        const totals = this.transactions.reduce((acc, trans) => ({
-            totalAmount: acc.totalAmount + trans.amount,
-            totalArbitrary: acc.totalArbitrary + trans.arbitraryCommissions.reduce((sum, comm) => sum + comm.amount, 0),
-            totalClientProfit: acc.totalClientProfit + trans.distribution.clientProfit,
-            totalExecutive: acc.totalExecutive + trans.distribution.executive,
-            totalPZO: acc.totalPZO + (trans.distribution.PZO || 0),
-            totalCCS: acc.totalCCS + (trans.distribution.CCS || 0)
-        }), {
-            totalAmount: 0,
-            totalArbitrary: 0,
-            totalClientProfit: 0,
-            totalExecutive: 0,
-            totalPZO: 0,
-            totalCCS: 0
-        });
+        try {
+            const totals = this.transactions.reduce((acc, trans) => ({
+                totalAmount: NumberUtils.round(acc.totalAmount + trans.amount),
+                totalArbitrary: NumberUtils.round(acc.totalArbitrary + trans.arbitraryCommissions.reduce((sum, comm) => sum + comm.amount, 0)),
+                totalClientProfit: NumberUtils.round(acc.totalClientProfit + trans.distribution.clientProfit),
+                totalExecutive: NumberUtils.round(acc.totalExecutive + trans.distribution.executive),
+                totalPZO: NumberUtils.round(acc.totalPZO + (trans.distribution.PZO || 0)),
+                totalCCS: NumberUtils.round(acc.totalCCS + (trans.distribution.CCS || 0))
+            }), {
+                totalAmount: 0,
+                totalArbitrary: 0,
+                totalClientProfit: 0,
+                totalExecutive: 0,
+                totalPZO: 0,
+                totalCCS: 0
+            });
 
-        return `
-            <div class="global-summary mt-4">
-                <h5 class="mb-3">Totales de la Operación</h5>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <tr>
-                            <td>Total Viático (2%)</td>
-                            <td class="text-end">$ ${totals.totalArbitrary.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Ganancia en Cliente</td>
-                            <td class="text-end">$ ${totals.totalClientProfit.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Ejecutivo</td>
-                            <td class="text-end">$ ${totals.totalExecutive.toFixed(2)}</td>
-                        </tr>
-                        ${totals.totalPZO > 0 ? `
-                            <tr>
-                                <td>Total Oficina PZO</td>
-                                <td class="text-end">$ ${totals.totalPZO.toFixed(2)}</td>
-                            </tr>
-                        ` : ''}
-                        ${totals.totalCCS > 0 ? `
-                            <tr>
-                                <td>Total Oficina CCS</td>
-                                <td class="text-end">$ ${totals.totalCCS.toFixed(2)}</td>
-                            </tr>
-                        ` : ''}
-                        <tr>
-                            <td>Monto Vendido</td>
-                            <td class="text-end">$ ${totals.totalAmount.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Monto Restante</td>
-                            <td class="text-end">$ ${this.remainingAmount.toFixed(2)}</td>
-                        </tr>
-                    </table>
+            // Validar totales
+            Object.keys(totals).forEach(key => {
+                if (!NumberUtils.isValidNumber(totals[key])) {
+                    console.error(`Error en el cálculo de ${key}:`, totals[key]);
+                    totals[key] = 0;
+                }
+            });
+
+            return `
+                <div class="global-summary mt-4">
+                    <h5 class="mb-3">Totales de la Operación</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <tbody>
+                                <tr>
+                                    <td>Total Viático (2%)</td>
+                                    <td class="text-end fw-bold">${this.formatCurrency(totals.totalArbitrary)}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Ganancia en Cliente</td>
+                                    <td class="text-end fw-bold">${this.formatCurrency(totals.totalClientProfit)}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Ejecutivo</td>
+                                    <td class="text-end fw-bold">${this.formatCurrency(totals.totalExecutive)}</td>
+                                </tr>
+                                ${totals.totalPZO > 0 ? `
+                                    <tr>
+                                        <td>Total Oficina PZO</td>
+                                        <td class="text-end fw-bold">${this.formatCurrency(totals.totalPZO)}</td>
+                                    </tr>
+                                ` : ''}
+                                ${totals.totalCCS > 0 ? `
+                                    <tr>
+                                        <td>Total Oficina CCS</td>
+                                        <td class="text-end fw-bold">${this.formatCurrency(totals.totalCCS)}</td>
+                                    </tr>
+                                ` : ''}
+                                <tr class="table-info">
+                                    <td>Monto Total Operación</td>
+                                    <td class="text-end fw-bold">${this.formatCurrency(this.totalAmount)}</td>
+                                </tr>
+                                <tr class="table-success">
+                                    <td>Monto Vendido</td>
+                                    <td class="text-end fw-bold">${this.formatCurrency(totals.totalAmount)}</td>
+                                </tr>
+                                <tr class="table-warning">
+                                    <td>Monto Restante</td>
+                                    <td class="text-end fw-bold">${this.formatCurrency(this.remainingAmount)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        } catch (error) {
+            console.error('Error en updateGlobalSummary:', error);
+            return `<div class="alert alert-danger">Error al calcular el resumen global: ${error.message}</div>`;
+        }
     }
 
     renderTransactionResult(transaction, index) {
-        return `
-            <div class="transaction-result mb-4">
-                <h6 class="text-primary">Transacción ${index + 1} - Operador: ${transaction.operatorName}</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <tr>
-                            <td>Total de la Venta</td>
-                            <td class="text-end">Bs. ${transaction.totalSale.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Diferencia</td>
-                            <td class="text-end">Bs. ${transaction.difference.toFixed(2)}</td>
-                        </tr>
-                        ${transaction.arbitraryCommissions.map(comm => `
-                            <tr>
-                                <td>${comm.name} (${comm.percentage}%)</td>
-                                <td class="text-end">$ ${comm.amount.toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
-                        <tr>
-                            <td>Monto a Repartir (después de comisiones)</td>
-                            <td class="text-end">$ ${transaction.amountToDistribute.toFixed(2)}</td>
-                        </tr>
-                        ${transaction.distribution.PZO > 0 ? `
-                            <tr>
-                                <td>Oficina PZO (50%)</td>
-                                <td class="text-end">$ ${transaction.distribution.PZO.toFixed(2)}</td>
-                            </tr>
-                        ` : ''}
-                        ${transaction.distribution.CCS > 0 ? `
-                            <tr>
-                                <td>Oficina CCS (50%)</td>
-                                <td class="text-end">$ ${transaction.distribution.CCS.toFixed(2)}</td>
-                            </tr>
-                        ` : ''}
-                        <tr>
-                            <td>Ejecutivo</td>
-                            <td class="text-end">$ ${transaction.distribution.executive.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Ganancia en Cliente</td>
-                            <td class="text-end">$ ${transaction.distribution.clientProfit.toFixed(2)}</td>
-                        </tr>
-                    </table>
+        try {
+            // Validar datos de la transacción
+            if (!transaction || !NumberUtils.isValidNumber(transaction.totalSale)) {
+                throw new Error('Datos de transacción inválidos');
+            }
+
+            return `
+                <div class="transaction-result mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="text-primary mb-0">
+                                <i class="fas fa-exchange-alt me-2"></i>
+                                Transacción ${index + 1} - Operador: ${transaction.operatorName}
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <tbody>
+                                        <tr>
+                                            <td>Total de la Venta</td>
+                                            <td class="text-end fw-bold">${this.formatCurrency(transaction.totalSale, 'Bs.')}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Diferencia</td>
+                                            <td class="text-end fw-bold">${this.formatCurrency(transaction.difference, 'Bs.')}</td>
+                                        </tr>
+                                        ${this.renderValidatedArbitraryCommissions(transaction.arbitraryCommissions)}
+                                        <tr class="table-info">
+                                            <td>Monto a Repartir</td>
+                                            <td class="text-end fw-bold">${this.formatCurrency(transaction.amountToDistribute)}</td>
+                                        </tr>
+                                        ${this.renderValidatedDistribution(transaction.distribution)}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            `;
+        } catch (error) {
+            console.error('Error al renderizar transacción:', error);
+            return `
+                <div class="alert alert-danger">
+                    Error al mostrar la transacción ${index + 1}: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    renderValidatedArbitraryCommissions(commissions) {
+        if (!Array.isArray(commissions)) return '';
+        
+        return commissions.map(comm => {
+            if (!comm || !NumberUtils.isValidNumber(comm.amount)) {
+                console.warn('Comisión inválida:', comm);
+                return '';
+            }
+            
+            return `
+                <tr>
+                    <td>${comm.name} (${comm.percentage}%)</td>
+                    <td class="text-end">${this.formatCurrency(comm.amount)}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    renderValidatedDistribution(distribution) {
+        if (!distribution) return '';
+
+        let html = '';
+        
+        if (NumberUtils.isValidNumber(distribution.PZO) && distribution.PZO > 0) {
+            html += `
+                <tr>
+                    <td>Oficina PZO (${DISTRIBUTION_FACTORS.OFFICE * 50}%)</td>
+                    <td class="text-end">${this.formatCurrency(distribution.PZO)}</td>
+                </tr>
+            `;
+        }
+        
+        if (NumberUtils.isValidNumber(distribution.CCS) && distribution.CCS > 0) {
+            html += `
+                <tr>
+                    <td>Oficina CCS (${DISTRIBUTION_FACTORS.OFFICE * 50}%)</td>
+                    <td class="text-end">${this.formatCurrency(distribution.CCS)}</td>
+                </tr>
+            `;
+        }
+        
+        return html + `
+            <tr>
+                <td>Ejecutivo (${DISTRIBUTION_FACTORS.EXECUTIVE * 100}%)</td>
+                <td class="text-end">${this.formatCurrency(distribution.executive)}</td>
+            </tr>
+            <tr>
+                <td>Ganancia en Cliente (${DISTRIBUTION_FACTORS.CLIENT * 100}%)</td>
+                <td class="text-end">${this.formatCurrency(distribution.clientProfit)}</td>
+            </tr>
         `;
     }
 
@@ -452,12 +637,12 @@ class TransactionManager {
                             <td>Diferencia</td>
                             <td class="text-end">${this.formatCurrency(transaction.difference, 'Bs.')}</td>
                         </tr>
-                        ${this.renderArbitraryCommissions(transaction.arbitraryCommissions)}
+                        ${this.renderValidatedArbitraryCommissions(transaction.arbitraryCommissions)}
                         <tr>
                             <td>Monto a Repartir</td>
                             <td class="text-end">${this.formatCurrency(transaction.amountToDistribute)}</td>
                         </tr>
-                        ${this.renderDistribution(transaction.distribution)}
+                        ${this.renderValidatedDistribution(transaction.distribution)}
                     </table>
                 </div>
             </div>
@@ -520,7 +705,7 @@ class TransactionManager {
 
                 <div class="mb-3">
                     <label class="form-label">Comisión Bancaria:</label>
-                    <select class="form-select" name="bankCommission" onchange="this.closest('.transaction-form').dispatchEvent(new Event('calculate-commission'))">
+                    <select class="form-select" name="bankCommission">
                         <option value="100.0000">100.0000%</option>
                         <option value="100.1000">100.1000%</option>
                         <option value="100.2500">100.2500%</option>
@@ -530,12 +715,12 @@ class TransactionManager {
 
                 <div class="mb-3">
                     <label class="form-label">Comisión:</label>
-                    <input type="text" class="form-control" name="commission" readonly>
+                    <input type="text" class="form-control text-end" name="commission" readonly>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Comisiones Arbitrarias:</label>
-                    <div class="comisiones-arbitrarias">
+                    <div class="arbitrary-commissions-container">
                         <!-- Las comisiones arbitrarias se agregarán aquí -->
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-arbitrary-commission">
@@ -543,7 +728,7 @@ class TransactionManager {
                     </button>
                 </div>
 
-                <button type="button" class="btn btn-secondary w-100 calculate-transaction">
+                <button type="button" class="btn btn-primary w-100 calculate-transaction">
                     Calcular Transacción
                 </button>
             </div>
@@ -551,141 +736,74 @@ class TransactionManager {
     }
 
     collectFormData(form) {
-        // Verificar que form es válido
         if (!form) {
             console.error('Formulario no encontrado');
             return null;
         }
 
-        // Obtener los valores con verificación de null
-        const getValue = (selector) => {
-            const element = form.querySelector(selector);
-            return element ? element.value : null;
-        };
+        try {
+            // Obtener el valor de la comisión bancaria
+            const bankCommissionSelect = form.querySelector('[name="bankCommission"]');
+            const bankCommission = bankCommissionSelect ? bankCommissionSelect.value : '100.0000';
+            
+            // Validar que la comisión existe en nuestras constantes
+            if (!COMMISSION_FACTORS[bankCommission]) {
+                console.error('Comisión bancaria no válida:', bankCommission);
+                throw new Error(VALIDATION_MESSAGES.INVALID_COMMISSION);
+            }
 
-        // Obtener los checkboxes marcados
-        const selectedOffices = Array.from(form.querySelectorAll('input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
+            console.debug('Comisión bancaria seleccionada:', bankCommission);
 
-        // Recolectar comisiones arbitrarias
-        const arbitraryCommissions = Array.from(form.querySelectorAll('.arbitrary-commission-item'))
-            .map(item => {
-                const nameInput = item.querySelector('input[type="text"]');
-                const percentageInput = item.querySelector('input[type="number"]');
-                if (nameInput && percentageInput) {
-                    return {
-                        name: nameInput.value,
-                        percentage: parseFloat(percentageInput.value) || 0
-                    };
-                }
-                return null;
-            })
-            .filter(item => item !== null);
+            // Recolectar datos del formulario
+            const data = {
+                operatorName: form.querySelector('[name="operador"]')?.value || '',
+                amount: NumberUtils.parseAmount(form.querySelector('[name="montoTransaccion"]')?.value),
+                sellingRate: NumberUtils.parseAmount(form.querySelector('[name="tasaVenta"]')?.value),
+                officeRate: NumberUtils.parseAmount(form.querySelector('[name="tasaOficina"]')?.value),
+                bankCommission: bankCommission,
+                selectedOffices: Array.from(form.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value),
+                arbitraryCommissions: this.collectArbitraryCommissions(form)
+            };
 
-        // Construir objeto de datos
-        const data = {
-            operatorName: getValue('[name="operador"]'),
-            amount: parseFloat(getValue('[name="montoTransaccion"]')) || 0,
-            sellingRate: parseFloat(getValue('[name="tasaVenta"]')) || 0,
-            officeRate: parseFloat(getValue('[name="tasaOficina"]')) || null,
-            bankCommission: getValue('[name="bankCommission"]') || '100.0000',
-            selectedOffices: selectedOffices,
-            arbitraryCommissions: arbitraryCommissions
-        };
+            console.debug('Datos recolectados:', data);
+            
+            // Validar datos críticos
+            if (!data.amount || !data.sellingRate) {
+                throw new Error('Datos de transacción incompletos');
+            }
 
-        // Verificar datos requeridos
-        if (!data.operatorName || !data.amount || !data.sellingRate) {
-            console.error('Faltan datos requeridos en el formulario');
-            return null;
+            return data;
+        } catch (error) {
+            console.error('Error al recolectar datos del formulario:', error);
+            throw error;
         }
-
-        return data;
     }
 
     addArbitraryCommissionFields(form) {
-        const arbitraryCommissionsDiv = form.querySelector('.comisiones-arbitrarias');
-        const commissionHTML = `
-            <div class="arbitrary-commission-item mb-2">
-                <div class="row">
-                    <div class="col">
-                        <input type="text" class="form-control form-control-sm" placeholder="Nombre">
-                    </div>
-                    <div class="col">
-                        <input type="number" class="form-control form-control-sm" step="0.01" placeholder="Porcentaje">
-                    </div>
-                    <div class="col-auto">
-                        <button type="button" class="btn btn-sm btn-danger remove-commission">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+        const container = form.querySelector('.arbitrary-commissions-container');
+        const commissionRow = document.createElement('div');
+        commissionRow.className = 'arbitrary-commission-row d-flex gap-2 align-items-center mb-2';
+        commissionRow.innerHTML = `
+            <input type="text" class="form-control form-control-sm" 
+                   name="arbitraryCommissionName[]" placeholder="Nombre">
+            <input type="number" class="form-control form-control-sm" 
+                   name="arbitraryCommissionPercentage[]" step="0.01" placeholder="%">
+            <button type="button" class="btn btn-sm btn-danger remove-commission">
+                <i class="fas fa-times"></i>
+            </button>
         `;
 
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = commissionHTML;
-        const commissionElement = wrapper.firstElementChild;
+        container.appendChild(commissionRow);
 
-        commissionElement.querySelector('.remove-commission').addEventListener('click', () => {
-            commissionElement.remove();
+        // Event listener para remover la comisión
+        commissionRow.querySelector('.remove-commission').addEventListener('click', () => {
+            commissionRow.remove();
         });
-
-        arbitraryCommissionsDiv.appendChild(commissionElement);
     }
 
     /**
      * Métodos Auxiliares de Renderizado y Cálculo
      */
-
-    /**
-     * Renderiza las comisiones arbitrarias con números formateados
-     */
-    renderArbitraryCommissions(commissions) {
-        return commissions.map(comm => `
-            <tr>
-                <td>${comm.name} (${comm.percentage}%)</td>
-                <td class="text-end">${this.formatCurrency(comm.amount)}</td>
-            </tr>
-        `).join('');
-    }
-
-    /**
-     * Renderiza la distribución con números formateados
-     */
-    renderDistribution(distribution) {
-        let html = '';
-        
-        if (distribution.PZO > 0) {
-            html += `
-                <tr>
-                    <td>Oficina PZO (${DISTRIBUTION_FACTORS.OFFICE * 100 / 2}%)</td>
-                    <td class="text-end">${this.formatCurrency(distribution.PZO)}</td>
-                </tr>
-            `;
-        }
-        
-        if (distribution.CCS > 0) {
-            html += `
-                <tr>
-                    <td>Oficina CCS (${DISTRIBUTION_FACTORS.OFFICE * 100 / 2}%)</td>
-                    <td class="text-end">${this.formatCurrency(distribution.CCS)}</td>
-                </tr>
-            `;
-        }
-        
-        html += `
-            <tr>
-                <td>Ejecutivo (${DISTRIBUTION_FACTORS.EXECUTIVE * 100}%)</td>
-                <td class="text-end">${this.formatCurrency(distribution.executive)}</td>
-            </tr>
-            <tr>
-                <td>Ganancia en Cliente (${DISTRIBUTION_FACTORS.CLIENT * 100}%)</td>
-                <td class="text-end">${this.formatCurrency(distribution.clientProfit)}</td>
-            </tr>
-        `;
-        
-        return html;
-    }
 
     /**
      * Calcula los totales globales de todas las transacciones
@@ -773,6 +891,32 @@ class TransactionManager {
 
         return commission;
     }
+
+    collectArbitraryCommissions(form) {
+        try {
+            const arbitraryCommissionsContainer = form.querySelector('.arbitrary-commissions-container');
+            if (!arbitraryCommissionsContainer) {
+                return [];
+            }
+
+            return Array.from(arbitraryCommissionsContainer.querySelectorAll('.arbitrary-commission-row')).map(row => {
+                const name = row.querySelector('[name^="arbitraryCommissionName"]')?.value || '';
+                const percentage = NumberUtils.parseAmount(
+                    row.querySelector('[name^="arbitraryCommissionPercentage"]')?.value
+                ) || 0;
+
+                console.debug('Comisión arbitraria encontrada:', { name, percentage });
+
+                return {
+                    name: name,
+                    percentage: percentage
+                };
+            }).filter(commission => commission.name && commission.percentage > 0);
+        } catch (error) {
+            console.error('Error al recolectar comisiones arbitrarias:', error);
+            return [];
+        }
+    }
 }
 
 // Inicialización cuando el DOM está listo
@@ -832,15 +976,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const form = e.target.closest('.transaction-form');
             if (form) {
                 console.log('Calculando transacción...');
-                transactionManager.processTransaction(form);
-                
-                // Actualizar el stage 3 con los resultados
-                const stage3 = document.getElementById('stage3');
-                if (stage3) {
-                    const resultadoOperacion = stage3.querySelector('#resultadoOperacion');
-                    if (resultadoOperacion) {
-                        resultadoOperacion.innerHTML = transactionManager.renderGlobalSummary();
+                try {
+                    // Procesar la transacción
+                    transactionManager.processTransaction(form);
+                    
+                    // Actualizar el stage 3 con los resultados
+                    const stage3 = document.getElementById('stage3');
+                    if (stage3) {
+                        const resultadoOperacion = stage3.querySelector('#resultadoOperacion');
+                        if (resultadoOperacion) {
+                            // Agregar log para debugging
+                            console.log('Actualizando Stage 3...');
+                            resultadoOperacion.innerHTML = transactionManager.updateGlobalSummary();
+                            
+                            // Hacer visible el Stage 3
+                            stage3.style.display = 'block';
+                        } else {
+                            console.error('No se encontró el contenedor de resultados');
+                        }
+                    } else {
+                        console.error('No se encontró el Stage 3');
                     }
+                } catch (error) {
+                    console.error('Error al procesar la transacción:', error);
+                    alert('Error al procesar la transacción: ' + error.message);
                 }
             }
         }
