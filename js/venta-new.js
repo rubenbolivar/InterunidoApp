@@ -32,9 +32,6 @@ const NumberUtils = {
 
 /**
  * Mapea el valor del <select> de la divisa a "USD", "EUR" o "USDT"
- * Ej: "Euros en efectivo" -> "EUR"
- *     "Binance USDT"     -> "USDT"
- *     "Dólares Zelle"    -> "USD"
  */
 function mapCurrencyType(userSelection) {
     const val = userSelection.toLowerCase();
@@ -234,7 +231,9 @@ class TransactionManager {
         }
     }
 
+    // -------------------------------------------------------------------------
     // Agregar campos de comisión arbitraria
+    // -------------------------------------------------------------------------
     addArbitraryCommissionFields(form) {
         const container = form.querySelector('.arbitrary-commissions-container');
         if (!container) return;
@@ -251,15 +250,14 @@ class TransactionManager {
         `;
         container.appendChild(row);
 
-        // Eliminar la comisión arbitraria si se hace click en el botón
         row.querySelector('.remove-commission').addEventListener('click', () => {
             row.remove();
         });
     }
 
-    /**
-     * Recopila los datos del formulario y verifica los campos obligatorios.
-     */
+    // -------------------------------------------------------------------------
+    // Recopilar datos del formulario
+    // -------------------------------------------------------------------------
     collectFormData(form) {
         const data = {
             operatorName: form.querySelector('[name="operador"]').value.trim(),
@@ -296,11 +294,9 @@ class TransactionManager {
         return data;
     }
 
-    /**
-     * Procesa la transacción.
-     * Calcula la diferencia como:
-     *   diferencia = totalSaleBs - (monto * comisión)
-     */
+    // -------------------------------------------------------------------------
+    // Procesar la transacción
+    // -------------------------------------------------------------------------
     processTransaction(form) {
         try {
             const transactionData = this.collectFormData(form);
@@ -347,28 +343,27 @@ class TransactionManager {
         }
     }
 
-    /**
-     * Cálculo principal de la transacción
-     * Diferencia = totalSaleBs - (amount * comision)
-     * Donde "comision" se definió en calculateCommission y
-     *   = (officeRate > 0 ? officeRate : clientRate) * bankFactor
-     */
+    // -------------------------------------------------------------------------
+    // Cálculo principal de la transacción
+    // Diferencia = totalSaleBs - (amount * comisión)
+    // Donde "comisión" se calcula como: (officeRate > 0 ? officeRate : clientRate) * bankFactor
+    // -------------------------------------------------------------------------
     calculateTransaction(data) {
         // 1) totalSaleBs
         const totalSaleBs = NumberUtils.round(data.amount * data.sellingRate, 2);
 
-        // 2) comision => usar la misma fórmula que en calculateCommission
+        // 2) Obtener factor bancario y tasa efectiva
         const bankFactor = COMMISSION_FACTORS[data.bankCommission] || 1.0;
         const effectiveRate = (data.officeRate && data.officeRate > 0) ? data.officeRate : this.clientRate;
         const commission = NumberUtils.round(effectiveRate * bankFactor, 4);
 
-        // 3) baseCostBs = monto * comision
+        // 3) baseCostBs = monto * comisión
         const baseCostBs = NumberUtils.round(data.amount * commission, 2);
 
         // 4) differenceBs = totalSaleBs - baseCostBs
         const differenceBs = NumberUtils.round(totalSaleBs - baseCostBs, 2);
 
-        // 5) Calcular comisiones arbitrarias (en Bs y divisa)
+        // 5) Calcular comisiones arbitrarias (en Bs y en la divisa)
         let totalArbitraryBs = 0;
         const arbitraryCommissions = data.arbitraryCommissions.map(comm => {
             const commBs = NumberUtils.round(differenceBs * (comm.percentage / 100), 2);
@@ -403,17 +398,17 @@ class TransactionManager {
         };
     }
 
-    /**
-     * Calcula la distribución en la divisa
-     * 30% => oficinas (si las hay), 40% => ejecutivo, 30% => cliente
-     */
+    // -------------------------------------------------------------------------
+    // Cálculo de la distribución en la divisa
+    // 30% => oficinas (si hay), 40% => ejecutivo, 30% => cliente
+    // -------------------------------------------------------------------------
     calculateDistribution(data, amountToDistributeForeign) {
         const distribution = { PZO: 0, CCS: 0, executive: 0, clientProfit: 0 };
 
         const officeCount = data.selectedOffices.length;
         const officeFactor = (officeCount === 2) ? 0.5 : 1;
 
-        // Solo si hay oficinas => 30% total a oficinas
+        // Solo si hay oficinas seleccionadas, se aplica el 30% a oficinas
         if (officeCount > 0 && amountToDistributeForeign > 0) {
             const officesTotal = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.OFFICE, 2);
             if (data.selectedOffices.includes('PZO')) {
@@ -424,15 +419,17 @@ class TransactionManager {
             }
         }
 
-        // 40% ejecutivo
+        // 40% para ejecutivo
         distribution.executive = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.EXECUTIVE, 2);
-        // 30% cliente
+        // 30% para cliente
         distribution.clientProfit = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.CLIENT, 2);
 
         return distribution;
     }
 
+    // -------------------------------------------------------------------------
     // Editar transacción
+    // -------------------------------------------------------------------------
     editTransaction(form) {
         const transactionId = form.dataset.transactionId;
         if (!transactionId) return;
@@ -440,19 +437,14 @@ class TransactionManager {
         const index = this.transactions.findIndex(t => t.id == transactionId);
         if (index === -1) return;
 
-        // Regresar el monto a la "remainingAmount"
         const transaction = this.transactions[index];
         this.remainingAmount += transaction.amount;
-
-        // Remover la transacción
         this.transactions.splice(index, 1);
 
-        // Rehabilitar campos
         form.querySelectorAll('input, select, button').forEach(el => {
             el.disabled = false;
         });
 
-        // Mostrar el botón de Calcular, ocultar Editar/Eliminar
         form.querySelector('.calculate-transaction').style.display = 'block';
         form.querySelector('.edit-transaction').style.display = 'none';
         form.querySelector('.delete-transaction').style.display = 'none';
@@ -460,7 +452,9 @@ class TransactionManager {
         this.updateUI();
     }
 
+    // -------------------------------------------------------------------------
     // Eliminar transacción
+    // -------------------------------------------------------------------------
     deleteTransaction(form) {
         const transactionId = form.dataset.transactionId;
         if (!transactionId) return;
@@ -468,12 +462,8 @@ class TransactionManager {
         const index = this.transactions.findIndex(t => t.id == transactionId);
         if (index === -1) return;
 
-        // Regresar el monto a la "remainingAmount"
         this.remainingAmount += this.transactions[index].amount;
-        // Remover la transacción
         this.transactions.splice(index, 1);
-
-        // Remover el formulario de la vista
         form.remove();
 
         this.updateUI();
@@ -497,7 +487,7 @@ class TransactionManager {
     }
 
     // -------------------------------------------------------------------------
-    // Render de las transacciones
+    // Render de las transacciones (Stage 3)
     // -------------------------------------------------------------------------
     renderTransactionsList() {
         if (this.transactions.length === 0) return '';
@@ -689,7 +679,6 @@ class TransactionManager {
         const effectiveRate = officeRate > 0 ? officeRate : this.clientRate;
 
         // 4) La comisión = (tasa efectiva) * (factor bancario)
-        //    sin restarle 1, pues el usuario requiere comision = "tasaOficina * factor"
         const commissionValue = NumberUtils.round(effectiveRate * bankFactor, 4);
 
         // 5) Mostrar en el campo "commission"
@@ -699,7 +688,9 @@ class TransactionManager {
         }
     }
 
+    // -------------------------------------------------------------------------
     // Formatear en la divisa
+    // -------------------------------------------------------------------------
     formatForeign(value) {
         let symbol = '$';
         if (this.selectedCurrency === 'EUR') {
@@ -714,7 +705,9 @@ class TransactionManager {
         }).format(value);
     }
 
+    // -------------------------------------------------------------------------
     // Formatear en Bolívares
+    // -------------------------------------------------------------------------
     formatBs(value) {
         return new Intl.NumberFormat('es-VE', {
             style: 'decimal',
@@ -726,7 +719,7 @@ class TransactionManager {
 }
 
 // -------------------------------------------------------------------------
-// Inicialización cuando el DOM está listo
+// Inicialización cuando el DOM esté listo
 // -------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Inicializando sistema de ventas...');
@@ -791,7 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Stage 2
+    // Stage 2: Agregar transacciones
     const addTransactionBtn = document.getElementById('addTransactionBtn');
     if (addTransactionBtn) {
         addTransactionBtn.addEventListener('click', () => {
