@@ -21,28 +21,35 @@ class Auth {
     async handleLogin(e) {
         e.preventDefault();
         
-        const username = document.getElementById('username')?.value;
+        const username = document.getElementById('username')?.value.trim();
         const password = document.getElementById('password')?.value;
-
         console.log('Intentando login con:', { username });
 
         try {
-            if (username === 'admin' && password === 'admin123') {
-                console.log('Credenciales correctas');
-                const token = 'dummy_token_' + Date.now();
-                this.setAuthToken(token);
-                this.setUserData({
-                    username: username,
-                    role: 'admin'
-                });
-                window.location.replace('dashboard.html');
-            } else {
-                console.log('Credenciales incorrectas');
-                this.showError('Usuario o contraseña incorrectos');
+            // Realiza la petición al backend para autenticar al usuario
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error en la autenticación');
             }
+
+            const data = await response.json();
+            console.log('Login exitoso:', data);
+            // Guardar token y datos de usuario
+            this.setAuthToken(data.token);
+            this.setUserData(data.user);
+            // Redirigir al dashboard
+            window.location.replace('dashboard.html');
         } catch (error) {
             console.error('Error en login:', error);
-            this.showError('Error al iniciar sesión. Por favor, intente nuevamente.');
+            this.showError(error.message);
         }
     }
 
@@ -99,7 +106,7 @@ if (!Auth.checkAuth()) {
     window.location.replace('index.html');
 }
 
-// Verificación cuando el DOM está listo
+// Inicializar Auth cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Inicializando Auth');
     const auth = new Auth();
