@@ -17,7 +17,7 @@ class Auth {
             this.handleLogin(e);
         });
     }
-// comentario de prueba
+// comentario de prueba nuevo
     async handleLogin(e) {
         e.preventDefault();
         
@@ -111,3 +111,4 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Inicializando Auth');
     const auth = new Auth();
 });
+// Test automatización: Wed Feb 19 15:10:33 -04 2025
