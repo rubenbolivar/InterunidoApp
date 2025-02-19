@@ -20,20 +20,21 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/interunido', {
   .then(() => console.log('MongoDB conectado'))
   .catch(err => console.error('Error de conexión a MongoDB:', err));
 
-// Esquema y modelo de Usuario
+// Modelo de Usuario
 const UserSchema = new mongoose.Schema({
   username: String,
-  password: String,  // Se almacenará el hash
-  role: String
+  password: String,  // Se almacenará el hash de la contraseña
+  role: String       // "admin" o "operador"
 });
 const User = mongoose.model('User', UserSchema);
 
-// Esquema y modelo de Transacción
+// Modelo de Transacción (se añadió el campo operatorId)
 const TransactionSchema = new mongoose.Schema({
   type: String,       // "venta" o "canje"
   client: String,
   amount: Number,     // Monto en la divisa
   details: Object,    // Información adicional (tasas, comisiones, distribución, etc.)
+  operatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
 });
 const Transaction = mongoose.model('Transaction', TransactionSchema);
@@ -44,12 +45,12 @@ function verifyToken(req, res, next) {
   if (!token) return res.status(403).json({ message: 'No se proporcionó token' });
   jwt.verify(token, SECRET_KEY, (err, decoded) => {
     if (err) return res.status(401).json({ message: 'Token inválido' });
-    req.user = decoded;
+    req.user = decoded; // decoded debe contener al menos { id, role }
     next();
   });
 }
 
-// Endpoint para autenticación (login)
+// Endpoint de login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -66,9 +67,11 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Endpoint para registrar transacciones (Venta o Canje)
+// Endpoint para registrar una transacción (Venta o Canje)
+// Se asigna automáticamente el operatorId con el id del usuario autenticado
 app.post('/api/transactions', verifyToken, async (req, res) => {
   try {
+    req.body.operatorId = req.user.id; // Asigna el id del usuario autenticado
     const transaction = new Transaction(req.body);
     await transaction.save();
     res.json(transaction);
@@ -77,7 +80,8 @@ app.post('/api/transactions', verifyToken, async (req, res) => {
   }
 });
 
-// Endpoint para obtener transacciones con filtros (por fecha, cliente, tipo)
+// Endpoint para obtener transacciones con filtros
+// Si el usuario no es admin, se filtran solo las transacciones creadas por él
 app.get('/api/transactions', verifyToken, async (req, res) => {
   try {
     const { type, client, date } = req.query;
@@ -90,6 +94,10 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
       end.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: start, $lte: end };
     }
+    // Si el usuario no es administrador, filtra por su operatorId
+    if (req.user.role !== 'admin') {
+      filter.operatorId = req.user.id;
+    }
     const transactions = await Transaction.find(filter).sort({ createdAt: -1 }).limit(50);
     res.json(transactions);
   } catch (error) {
@@ -100,7 +108,6 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
 // Endpoint para obtener métricas para el dashboard
 app.get('/api/metrics', verifyToken, async (req, res) => {
   try {
-    // Ejemplo simple: ventas del día
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const salesAggregate = await Transaction.aggregate([
@@ -116,3 +123,4 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor API corriendo en puerto ${PORT}`));
+// Actualización servidor: Wed Feb 19 15:47:23 -04 2025
