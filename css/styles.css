@@ -137,18 +137,21 @@ main {
     background: var(--secondary-color);
 }
 
-/* Estilos específicos para la vista de Venta de Divisas */
+/* Estilos para la vista de Venta y Canje */
 .content-wrapper {
     padding: 1rem 0;
 }
 
+/* 
+   Tres columnas con scroll interno en cada una (Stage 1, Stage 2, Stage 3).
+   Ajustamos la altura a la ventana para tener scroll interno y no en todo el body.
+*/
 .stages-wrapper {
     display: flex;
     gap: 1rem;
     padding: 1rem;
     overflow-x: auto;
-    /* Limitar la altura para que el scroll sea interno en cada stage */
-    height: calc(100vh - 80px);
+    height: calc(100vh - 80px); /* Ajuste para scroll interno en cada stage */
 }
 
 .stage {
@@ -157,6 +160,9 @@ main {
     min-width: 350px;
     margin-right: 1rem;
     opacity: 1 !important;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--card-background);
 }
 
 .stage.card {
@@ -165,13 +171,13 @@ main {
     flex-direction: column;
 }
 
-/* Aseguramos que el contenido interno de cada stage tenga scroll */
+/* Scroll interno en cada stage */
 .stage .card-body {
     flex: 1;
     overflow-y: auto;
 }
 
-/* Agregamos la clase .scrollable para forzar scroll visible en Stage 2 y 3 */
+/* Clase .scrollable para forzar scroll interno en secciones específicas */
 .scrollable {
     max-height: 100%;
     overflow-y: auto;
@@ -207,37 +213,41 @@ main {
     .d-md-none {
         display: block;
     }
-} 
+}
 @media (min-width: 768px) {
     .d-md-none {
         display: none;
     }
 }
 
-/* Estilos para transacciones y resultados */
+/* Estilos para formularios y transacciones */
 .transaction-form {
     animation: slideIn 0.3s ease-out;
     background-color: #ffffff;
     border-radius: 0.5rem;
     padding: 1rem;
+    margin-bottom: 1rem;
 }
 
-.transaction-item.card {
-    animation: slideIn 0.3s ease-out;
-}
-
+/* Animación para la entrada suave */
 @keyframes slideIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }
 
-/* Ajustes para inputs numéricos */
+/* Inputs numéricos */
 input[type="number"] {
     text-align: right;
     font-family: monospace;
 }
 
-/* Ajustes para comisiones arbitrarias */
+/* Estilos para comisiones arbitrarias (venta) */
 .commission-item {
     display: flex;
     gap: 0.5rem;
@@ -247,24 +257,10 @@ input[type="number"] {
     flex: 1;
 }
 
-/* Estilos para el header y botones */
+/* Experiencia de usuario en botones */
 #themeToggle {
     transition: background-color 0.3s;
 }
 #themeToggle:hover {
     background-color: rgba(0,0,0,0.05);
 }
-
-/* Ajustes para la experiencia de usuario en los stages */
-.stages-wrapper {
-    /* Permitir scroll horizontal en contenedor de stages */
-    overflow-x: auto;
-}
-
-.stage {
-    /* Agregar sombra y margen para diferenciar cada stage */
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--card-background);
-}
-

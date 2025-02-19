@@ -1,198 +1,213 @@
+/**
+ * canje.js
+ * Manejo de Canje de Divisas con 3 Stages:
+ *  - Stage 1: Cliente, Tipo de Canje, Monto (total)
+ *  - Stage 2: Varias transacciones, cada una con:
+ *      Nombre Operador, Monto (parcial), Comisión Costo (%), Comisión Venta (%), Diferencia
+ *  - Stage 3: Resumen final. Si es Externo, se hace la distribución 5% nómina + (30%,30%,40%).
+ */
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Referencias a elementos del DOM
+    // Referencias Stage 1
     const operationForm = document.getElementById('operationForm');
-    const stage1 = document.getElementById('stage1');
+    const clientNameInput = document.getElementById('clientName');
+    const swapTypeSelect = document.getElementById('swapType');
+    const totalAmountInput = document.getElementById('totalAmount');
+  
+    // Stage 2
     const stage2 = document.getElementById('stage2');
+    const addTransactionBtn = document.getElementById('addTransactionBtn');
+    const transactionsContainer = document.getElementById('transactionsContainer');
+  
+    // Stage 3
     const stage3 = document.getElementById('stage3');
-
-    // Variables globales
+    const resultadoOperacionDiv = document.getElementById('resultadoOperacion');
+  
+    // Datos globales de la operación
     let operationData = {
-        cliente: '',
-        tipo: '',
-        monto: 0,
-        comisionCosto: 0,
-        comisionVenta: 0,
-        diferencia: 0,
-        distribucion: {
-            nomina: 0,
-            ganancia: 0,
-            oficinaPZO: 0,
-            oficinaCCS: 0,
-            ejecutivo: 0
-        }
+      cliente: '',
+      tipo: '',
+      montoTotal: 0,      // tomado del Stage 1
+      transacciones: []   // array de transacciones parciales
     };
-
-    // Event Listeners
-    operationForm.addEventListener('submit', handleStage1Submit);
-    document.getElementById('swapType').addEventListener('change', handleSwapTypeChange);
-    
-    // Calcular automáticamente cuando cambien los valores
-    ['swapAmount', 'costCommission', 'saleCommission'].forEach(id => {
-        document.getElementById(id)?.addEventListener('input', calculateResults);
+  
+    // Escuchar submit del Stage 1
+    operationForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      // Capturar datos
+      const cliente = clientNameInput.value.trim();
+      const tipo = swapTypeSelect.value;
+      const montoTotal = parseFloat(totalAmountInput.value) || 0;
+  
+      if (!cliente || !tipo || montoTotal <= 0) {
+        alert('Por favor, complete todos los campos y asegúrese de que el monto sea > 0');
+        return;
+      }
+  
+      // Guardar en operationData
+      operationData.cliente = cliente;
+      operationData.tipo = tipo;
+      operationData.montoTotal = montoTotal;
+  
+      // Mostrar Stage 2 y Stage 3
+      stage2.style.display = 'block';
+      stage3.style.display = 'block';
+  
+      // Limpiar transacciones anteriores, por si acaso
+      operationData.transacciones = [];
+      transactionsContainer.innerHTML = '';
+      resultadoOperacionDiv.innerHTML = '<p>Aún no hay transacciones de canje.</p>';
     });
-
-    // Funciones principales
-    function handleStage1Submit(e) {
-        e.preventDefault();
-        
-        // Capturar datos del formulario
-        operationData.cliente = document.getElementById('clientName').value;
-        operationData.tipo = document.getElementById('swapType').value;
-        operationData.monto = parseFloat(document.getElementById('swapAmount').value);
-        operationData.comisionCosto = parseFloat(document.getElementById('costCommission').value);
-        operationData.comisionVenta = parseFloat(document.getElementById('saleCommission').value);
-
-        if (validateStage1()) {
-            // Calcular resultados
-            calculateResults();
-            
-            // Activar Stage 2
-            stage2.classList.add('active');
-            
-            // Deshabilitar campos del Stage 1
-            Array.from(operationForm.elements).forEach(element => {
-                element.disabled = true;
-            });
-
-            // Actualizar resumen (Stage 3)
-            updateSummary();
-        }
+  
+    // Botón "Agregar Transacción" en Stage 2
+    addTransactionBtn.addEventListener('click', () => {
+      addTransactionForm();
+    });
+  
+    // Función para crear un formulario de transacción (Stage 2)
+    function addTransactionForm() {
+      const transId = Date.now(); // ID único
+  
+      // Estructura del formulario de transacción
+      const formDiv = document.createElement('div');
+      formDiv.className = 'transaction-form mb-3';
+      formDiv.dataset.transId = transId;
+  
+      formDiv.innerHTML = `
+        <h6 class="mb-3">Transacción</h6>
+        <div class="mb-3">
+          <label class="form-label">Nombre del Operador</label>
+          <input type="text" class="form-control operatorName" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Monto (parcial)</label>
+          <input type="number" class="form-control monto" step="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Comisión de Costo (%)</label>
+          <input type="number" class="form-control costCommission" step="0.01" placeholder="Ej: 1.20">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Comisión de Venta (%)</label>
+          <input type="number" class="form-control saleCommission" step="0.01" placeholder="Ej: 2.00">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Diferencia</label>
+          <input type="number" class="form-control difference" readonly>
+        </div>
+        <button type="button" class="btn btn-primary w-100 calculateTransactionBtn">
+          Calcular Transacción
+        </button>
+      `;
+  
+      transactionsContainer.appendChild(formDiv);
+  
+      // Event listener para "Calcular Transacción"
+      formDiv.querySelector('.calculateTransactionBtn').addEventListener('click', () => {
+        calculateTransaction(formDiv);
+      });
     }
-
-    function calculateResults() {
-        const monto = parseFloat(document.getElementById('swapAmount').value) || 0;
-        const comisionCosto = parseFloat(document.getElementById('costCommission').value) / 100;
-        const comisionVenta = parseFloat(document.getElementById('saleCommission').value) / 100;
-        const tipo = document.getElementById('swapType').value;
-
-        // Calcular diferencia
-        const diferencia = monto * (comisionVenta - comisionCosto);
-        document.getElementById('difference').value = diferencia.toFixed(2);
-        operationData.diferencia = diferencia;
-
-        // Si es externo, calcular distribución
-        if (tipo === 'externo') {
-            const distribucion = calculateDistribution(diferencia);
-            updateDistributionFields(distribucion);
-            operationData.distribucion = distribucion;
-        }
+  
+    // Cálculo de una transacción
+    function calculateTransaction(formDiv) {
+      const operatorName = formDiv.querySelector('.operatorName').value.trim();
+      const monto = parseFloat(formDiv.querySelector('.monto').value) || 0;
+      const costCommission = parseFloat(formDiv.querySelector('.costCommission').value) || 0;
+      const saleCommission = parseFloat(formDiv.querySelector('.saleCommission').value) || 0;
+  
+      if (!operatorName) {
+        alert('Por favor, ingrese el nombre del operador.');
+        return;
+      }
+      if (monto <= 0) {
+        alert('El monto parcial debe ser mayor a 0.');
+        return;
+      }
+  
+      // Fórmula: diferencia = monto * (comisionVenta - comisionCosto)
+      const costDec = costCommission / 100;
+      const saleDec = saleCommission / 100;
+      const difference = monto * (saleDec - costDec);
+  
+      // Mostrar en el input
+      formDiv.querySelector('.difference').value = difference.toFixed(2);
+  
+      // Guardar en operationData.transacciones
+      const transId = formDiv.dataset.transId;
+      const existingIndex = operationData.transacciones.findIndex(t => t.id == transId);
+  
+      const transactionObj = {
+        id: transId,
+        operatorName,
+        monto,
+        comisionCosto: costCommission,
+        comisionVenta: saleCommission,
+        diferencia: difference
+      };
+  
+      if (existingIndex >= 0) {
+        // Actualizar
+        operationData.transacciones[existingIndex] = transactionObj;
+      } else {
+        // Agregar
+        operationData.transacciones.push(transactionObj);
+      }
+  
+      // Actualizar el resumen global en Stage 3
+      renderGlobalSummary();
     }
-
-    function calculateDistribution(diferencia) {
-        return {
-            nomina: diferencia * 0.40,      // 40%
-            ganancia: diferencia * 0.20,    // 20%
-            oficinaPZO: diferencia * 0.15,  // 15%
-            oficinaCCS: diferencia * 0.15,  // 15%
-            ejecutivo: diferencia * 0.10    // 10%
-        };
-    }
-
-    function updateDistributionFields(distribucion) {
-        document.getElementById('payroll').value = distribucion.nomina.toFixed(2);
-        document.getElementById('profit').value = distribucion.ganancia.toFixed(2);
-        document.getElementById('office1').value = distribucion.oficinaPZO.toFixed(2);
-        document.getElementById('office2').value = distribucion.oficinaCCS.toFixed(2);
-        document.getElementById('executive').value = distribucion.ejecutivo.toFixed(2);
-    }
-
-    function updateSummary() {
-        const summaryHTML = `
-            <div class="summary-content">
-                <div class="summary-item">
-                    <span>Cliente:</span>
-                    <span>${operationData.cliente}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Tipo de Canje:</span>
-                    <span>${operationData.tipo.charAt(0).toUpperCase() + operationData.tipo.slice(1)}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Monto:</span>
-                    <span>${formatCurrency(operationData.monto)}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Diferencia:</span>
-                    <span>${formatCurrency(operationData.diferencia)}</span>
-                </div>
-                ${operationData.tipo === 'externo' ? generateDistributionSummary() : ''}
-            </div>
+  
+    // Render del resumen global (Stage 3)
+    function renderGlobalSummary() {
+      if (operationData.transacciones.length === 0) {
+        resultadoOperacionDiv.innerHTML = '<p>Aún no hay transacciones de canje.</p>';
+        return;
+      }
+  
+      // Calcular totales
+      let totalDiferencia = 0;
+      let totalParcial = 0;
+      operationData.transacciones.forEach(t => {
+        totalParcial += t.monto;
+        totalDiferencia += t.diferencia;
+      });
+  
+      // Distribución si es Externo
+      let distribucionHTML = '';
+      if (operationData.tipo === 'externo') {
+        // 5% nómina
+        const nomina = totalDiferencia * 0.05;
+        const gananciaTotal = totalDiferencia - nomina;
+        const oficinaPZO = gananciaTotal * 0.30;
+        const oficinaCCS = gananciaTotal * 0.30;
+        const ejecutivo = gananciaTotal * 0.40;
+  
+        distribucionHTML = `
+          <h6>Distribución (Externo)</h6>
+          <ul>
+            <li>Nómina (5%): ${nomina.toFixed(2)}</li>
+            <li>Ganancia Total: ${gananciaTotal.toFixed(2)}</li>
+            <li>Oficina PZO (30%): ${oficinaPZO.toFixed(2)}</li>
+            <li>Oficina CCS (30%): ${oficinaCCS.toFixed(2)}</li>
+            <li>Ejecutivo (40%): ${ejecutivo.toFixed(2)}</li>
+          </ul>
         `;
-
-        document.getElementById('operationSummary').innerHTML = summaryHTML;
-        stage3.classList.add('active');
+      }
+  
+      // Construir HTML final
+      const summaryHTML = `
+        <h5>Resumen de la Operación</h5>
+        <p>Cliente: <strong>${operationData.cliente}</strong></p>
+        <p>Tipo de Canje: <strong>${operationData.tipo}</strong></p>
+        <p>Monto Total (Stage 1): <strong>${operationData.montoTotal.toFixed(2)}</strong></p>
+        <p>Suma Monto (Transacciones): <strong>${totalParcial.toFixed(2)}</strong></p>
+        <p>Total Diferencia (Suma de transacciones): <strong>${totalDiferencia.toFixed(2)}</strong></p>
+        ${distribucionHTML}
+      `;
+  
+      resultadoOperacionDiv.innerHTML = summaryHTML;
     }
-
-    function generateDistributionSummary() {
-        return `
-            <div class="distribution-summary mt-3">
-                <h6>Distribución</h6>
-                <div class="summary-item">
-                    <span>Nómina (40%):</span>
-                    <span>${formatCurrency(operationData.distribucion.nomina)}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Ganancia (20%):</span>
-                    <span>${formatCurrency(operationData.distribucion.ganancia)}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Oficina PZO (15%):</span>
-                    <span>${formatCurrency(operationData.distribucion.oficinaPZO)}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Oficina CCS (15%):</span>
-                    <span>${formatCurrency(operationData.distribucion.oficinaCCS)}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Ejecutivo (10%):</span>
-                    <span>${formatCurrency(operationData.distribucion.ejecutivo)}</span>
-                </div>
-            </div>
-        `;
-    }
-
-    // Funciones auxiliares
-    function handleSwapTypeChange() {
-        const tipo = document.getElementById('swapType').value;
-        document.getElementById('externalFields').style.display = 
-            tipo === 'externo' ? 'block' : 'none';
-        calculateResults();
-    }
-
-    function validateStage1() {
-        const requiredFields = ['clientName', 'swapType', 'swapAmount', 'costCommission', 'saleCommission'];
-        
-        for (const fieldId of requiredFields) {
-            const field = document.getElementById(fieldId);
-            if (!field.value.trim()) {
-                alert(`Por favor complete el campo ${field.labels[0].textContent}`);
-                field.focus();
-                return false;
-            }
-        }
-
-        if (operationData.monto <= 0) {
-            alert('El monto debe ser mayor a 0');
-            return false;
-        }
-
-        return true;
-    }
-
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('es-VE', {
-            style: 'currency',
-            currency: 'VES'
-        }).format(amount);
-    }
-
-    // Botón para volver al dashboard
-    document.getElementById('backToDashboard')?.addEventListener('click', function() {
-        window.location.href = 'dashboard.html';
-    });
-
-    // Agregar manejo del botón logout
-    document.getElementById('logoutBtn')?.addEventListener('click', function() {
-        Auth.logout();  // Usar el método estático de la clase Auth
-    });
-}); 
+  
+  });
+  

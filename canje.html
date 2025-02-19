@@ -1,139 +1,128 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InterUnido - Canje</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterUnido - Canje</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Estilos comunes -->
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row g-0">
-            <!-- Sidebar container - visible en todos los dispositivos -->
-            <div id="sidebar-container" class="col-12 col-md-3 col-lg-2 sidebar">
-                <!-- El sidebar se cargará aquí -->
-            </div>
+  <div class="container-fluid">
+    <div class="row g-0">
+      <!-- Sidebar -->
+      <div id="sidebar-container" class="col-12 col-md-3 col-lg-2 sidebar">
+        <!-- El sidebar se cargará aquí -->
+      </div>
+      
+      <!-- Main content -->
+      <main class="col-12 col-md-9 col-lg-10 px-md-4">
+        <div class="dashboard-content">
+          <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Canje de Divisas</h1>
+            <button id="themeToggle" class="btn btn-outline-secondary">
+              <i class="fas fa-moon"></i>
+            </button>
+          </div>
+
+          <!-- Tres columnas (Stage 1, Stage 2, Stage 3) -->
+          <div class="stages-wrapper">
             
-            <!-- Main content -->
-            <main class="col-12 col-md-9 col-lg-10 px-md-4">
-                <div class="dashboard-content">
-                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                        <h1 class="h2">Canje de Divisas</h1>
-                        <button id="themeToggle" class="btn btn-outline-secondary">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </div>
+            <!-- Stage 1: Datos de la Operación (columna izquierda) -->
+            <div class="stage card" id="stage1">
+              <div class="card-header">
+                <h5 class="mb-0">Datos de la Operación</h5>
+              </div>
+              <div class="card-body">
+                <!-- Formulario con Cliente, Tipo de Canje, Monto (total) y Botón -->
+                <form id="operationForm">
+                  <div class="mb-3">
+                    <label for="clientName" class="form-label">Cliente</label>
+                    <input type="text" id="clientName" class="form-control" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="swapType" class="form-label">Tipo de Canje</label>
+                    <select id="swapType" class="form-select" required>
+                      <option value="">Seleccione tipo</option>
+                      <option value="interno">Interno</option>
+                      <option value="externo">Externo</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="totalAmount" class="form-label">Monto (total)</label>
+                    <input type="number" id="totalAmount" class="form-control" step="0.01" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary w-100">
+                    Procesar Operación
+                  </button>
+                </form>
+              </div>
+            </div><!-- /.stage (Stage 1) -->
 
-                    <!-- Horizontal Stages Layout -->
-                    <div class="stages-wrapper">
-                        <!-- Stage 1: Datos de la Operación -->
-                        <div class="stage active" id="stage1">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Datos de la Operación</h5>
-                                </div>
-                                <div class="card-body">
-                                    <form id="canjeForm">
-                                        <div class="form-grid">
-                                            <div class="form-field">
-                                                <label for="clientName">Cliente</label>
-                                                <input type="text" id="clientName" class="form-control" required>
-                                            </div>
+            <!-- Stage 2: Transacciones de Canje (columna central) -->
+            <div class="stage card" id="stage2" style="display: none;">
+              <div class="card-header">
+                <h5 class="mb-0">Transacciones de Canje</h5>
+              </div>
+              <!-- Scroll interno si hay muchas transacciones -->
+              <div class="card-body scrollable">
+                <!-- Contenedor donde se agregan transacciones -->
+                <div id="transactionsContainer"></div>
+                
+                <!-- Botón para agregar transacciones -->
+                <button id="addTransactionBtn" class="btn btn-primary w-100 mt-3">
+                  Agregar Transacción
+                </button>
+              </div>
+            </div><!-- /.stage (Stage 2) -->
 
-                                            <div class="form-field">
-                                                <label for="swapType">Tipo de Canje</label>
-                                                <select id="swapType" class="form-select" required>
-                                                    <option value="">Seleccione tipo</option>
-                                                    <option value="interno">Interno</option>
-                                                    <option value="externo">Externo</option>
-                                                </select>
-                                            </div>
-
-                                            <div class="form-field">
-                                                <label for="swapAmount">Monto</label>
-                                                <input type="number" id="swapAmount" class="form-control" step="0.01" required>
-                                            </div>
-
-                                            <div class="form-field">
-                                                <label for="costCommission">Comisión de Costo (%)</label>
-                                                <input type="number" id="costCommission" class="form-control" step="0.01">
-                                            </div>
-
-                                            <div class="form-field">
-                                                <label for="saleCommission">Comisión de Venta (%)</label>
-                                                <input type="number" id="saleCommission" class="form-control" step="0.01">
-                                            </div>
-
-                                            <div class="form-field">
-                                                <label for="difference">Diferencia</label>
-                                                <input type="number" id="difference" class="form-control" readonly>
-                                            </div>
-                                        </div>
-
-                                        <div id="externalFields" style="display: none;">
-                                            <h6 class="mt-4">Distribución</h6>
-                                            <div class="form-grid">
-                                                <div class="form-field">
-                                                    <label for="payroll">Nómina</label>
-                                                    <input type="number" id="payroll" class="form-control" readonly>
-                                                </div>
-                                                <div class="form-field">
-                                                    <label for="profit">Ganancia</label>
-                                                    <input type="number" id="profit" class="form-control" readonly>
-                                                </div>
-                                                <div class="form-field">
-                                                    <label for="office1">Oficina PZO</label>
-                                                    <input type="number" id="office1" class="form-control" readonly>
-                                                </div>
-                                                <div class="form-field">
-                                                    <label for="office2">Oficina CCS</label>
-                                                    <input type="number" id="office2" class="form-control" readonly>
-                                                </div>
-                                                <div class="form-field">
-                                                    <label for="executive">Ejecutivo</label>
-                                                    <input type="number" id="executive" class="form-control" readonly>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="text-center mt-4">
-                                            <button type="submit" class="btn btn-primary">Procesar Canje</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Stage 3: Resultado de la Operación (columna derecha) -->
+            <div class="stage card" id="stage3" style="display: none;">
+              <div class="card-header">
+                <h5 class="mb-0">Resultado de la Operación</h5>
+              </div>
+              <!-- Scroll interno para ver resultados -->
+              <div class="card-body scrollable">
+                <div id="resultadoOperacion" class="results-container">
+                  <!-- Aquí se mostrará el resumen final de la operación -->
                 </div>
-            </main>
-        </div>
-    </div>
+              </div>
+            </div><!-- /.stage (Stage 3) -->
 
-    <!-- Botón de menú móvil -->
-    <div class="d-md-none position-fixed top-0 start-0 p-3" style="z-index: 1040;">
-        <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
-            <i class="fas fa-bars"></i>
-        </button>
+          </div><!-- /.stages-wrapper -->
+        </div><!-- /.dashboard-content -->
+      </main>
     </div>
+  </div>
 
-    <!-- Offcanvas Sidebar -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMenu">
-        <div class="offcanvas-header">
-            <img src="assets/logo.jpg" alt="InterUnido" class="offcanvas-logo">
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body">
-            <!-- El contenido del sidebar se cargará aquí -->
-        </div>
+  <!-- Botón de menú móvil -->
+  <div class="d-md-none position-fixed top-0 start-0 p-3" style="z-index: 1040;">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+
+  <!-- Offcanvas Sidebar -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMenu">
+    <div class="offcanvas-header">
+      <img src="assets/logo.jpg" alt="InterUnido" class="offcanvas-logo">
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
+    <div class="offcanvas-body">
+      <!-- El contenido del sidebar se cargará aquí -->
+    </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/theme.js"></script>
-    <script src="js/loadSidebar.js"></script>
-    <script src="js/canje.js"></script>
+  <!-- Bootstrap Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/loadSidebar.js"></script>
+  <!-- Tu JS para Canje -->
+  <script src="js/canje.js"></script>
 </body>
-</html> 
+</html>
