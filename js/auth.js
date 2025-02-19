@@ -17,7 +17,7 @@ class Auth {
             this.handleLogin(e);
         });
     }
-
+// comentario de prueba
     async handleLogin(e) {
         e.preventDefault();
         
