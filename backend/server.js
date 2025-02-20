@@ -41,13 +41,20 @@ const Transaction = mongoose.model('Transaction', TransactionSchema);
 
 // Middleware para verificar el token
 function verifyToken(req, res, next) {
+  // Omite la verificación en solicitudes OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+  
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) {
     console.error('No se proporcionó token');
     return res.status(403).json({ message: 'No se proporcionó token' });
   }
-  // Imprimir la clave secreta usada (para depuración)
+  
+  // Imprime la clave secreta usada (para depuración)
   console.log('Clave secreta usada:', SECRET_KEY);
+  
   jwt.verify(token, SECRET_KEY, (err, decoded) => {
     if (err) {
       console.error('Error al verificar token:', err);
