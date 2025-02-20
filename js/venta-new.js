@@ -56,12 +56,14 @@ class TransactionManager {
         this.remainingAmount = 0;    // Monto restante (en la divisa)
         this.clientRate = 0;         // Tasa en Bs/Divisa (Stage 1)
         this.selectedCurrency = '';  // "USD", "EUR", "USDT", etc.
+        this.clientName = '';        // Nombre del cliente (Stage 1)
 
         // Bind de métodos
         this.processTransaction = this.processTransaction.bind(this);
         this.calculateTransaction = this.calculateTransaction.bind(this);
         this.updateGlobalSummary = this.updateGlobalSummary.bind(this);
         this.calculateCommission = this.calculateCommission.bind(this);
+        this.submitOperation = this.submitOperation.bind(this);
 
         console.log('TransactionManager inicializado');
     }
@@ -162,7 +164,6 @@ class TransactionManager {
                 Eliminar Transacción
             </button>
         `;
-
         this.setupFormEventListeners(form);
         return form;
     }
@@ -185,7 +186,6 @@ class TransactionManager {
                 this.processTransaction(form);
             });
         }
-
         // Botón Agregar Comisión Arbitraria
         const addCommissionBtn = form.querySelector('.add-arbitrary-commission');
         if (addCommissionBtn) {
@@ -193,14 +193,12 @@ class TransactionManager {
                 this.addArbitraryCommissionFields(form);
             });
         }
-
         // Checkboxes para oficinas
         form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
                 console.log(`Oficina ${e.target.value} ${e.target.checked ? 'seleccionada' : 'deseleccionada'}`);
             });
         });
-
         // Botones Editar y Eliminar
         const editBtn = form.querySelector('.edit-transaction');
         const deleteBtn = form.querySelector('.delete-transaction');
@@ -214,12 +212,10 @@ class TransactionManager {
                 this.deleteTransaction(form);
             });
         }
-
         // Recalcular comisión en tiempo real
         const tasaVentaField = form.querySelector('[name="tasaVenta"]');
         const tasaOficinaField = form.querySelector('[name="tasaOficina"]');
         const bankCommissionField = form.querySelector('[name="bankCommission"]');
-
         if (tasaVentaField) {
             tasaVentaField.addEventListener('input', () => this.calculateCommission(form));
         }
@@ -237,7 +233,6 @@ class TransactionManager {
     addArbitraryCommissionFields(form) {
         const container = form.querySelector('.arbitrary-commissions-container');
         if (!container) return;
-
         const idx = container.children.length;
         const row = document.createElement('div');
         row.className = 'commission-item mb-2 d-flex gap-2';
@@ -249,7 +244,6 @@ class TransactionManager {
             </button>
         `;
         container.appendChild(row);
-
         row.querySelector('.remove-commission').addEventListener('click', () => {
             row.remove();
         });
@@ -263,18 +257,13 @@ class TransactionManager {
             operatorName: form.querySelector('[name="operador"]').value.trim(),
             amount: NumberUtils.parseAmount(form.querySelector('[name="montoTransaccion"]').value),
             sellingRate: NumberUtils.parseAmount(form.querySelector('[name="tasaVenta"]').value),
-            // La officeRate puede ser 0 o vacío si el usuario no la quiere usar
             officeRate: NumberUtils.parseAmount(form.querySelector('[name="tasaOficina"]').value),
             bankCommission: form.querySelector('[name="bankCommission"]').value,
             selectedOffices: [],
             arbitraryCommissions: []
         };
-
-        // Oficinas seleccionadas (puede ser ninguna, una o dos)
         if (form.querySelector('[name="oficinaPZO"]')?.checked) data.selectedOffices.push('PZO');
         if (form.querySelector('[name="oficinaCCS"]')?.checked) data.selectedOffices.push('CCS');
-
-        // Comisiones Arbitrarias
         const commissionItems = form.querySelectorAll('.commission-item');
         commissionItems.forEach(item => {
             const name = item.querySelector('[name^="commissionName"]').value;
@@ -283,34 +272,25 @@ class TransactionManager {
                 data.arbitraryCommissions.push({ name, percentage });
             }
         });
-
-        // Validar campos obligatorios: operadorName, amount, sellingRate, bankCommission
         if (!data.operatorName || !data.amount || !data.sellingRate || !data.bankCommission) {
             throw new Error('Datos de transacción incompletos');
         }
-
         console.log('Comisión bancaria seleccionada:', data.bankCommission);
         console.log('Datos recolectados:', data);
         return data;
     }
 
     // -------------------------------------------------------------------------
-    // Procesar la transacción
+    // Procesar la transacción (Stage 2)
     // -------------------------------------------------------------------------
     processTransaction(form) {
         try {
             const transactionData = this.collectFormData(form);
-
-            // Verificar que no exceda el monto restante
             if (transactionData.amount > this.remainingAmount) {
                 alert(`El monto excede el disponible (${this.formatForeign(this.remainingAmount)})`);
                 return;
             }
-
-            // Calcular la transacción
             const calculation = this.calculateTransaction(transactionData);
-
-            // Crear la transacción final con los valores calculados
             const transaction = {
                 id: Date.now(),
                 ...transactionData,
@@ -319,24 +299,17 @@ class TransactionManager {
                 totalOfficeBs: NumberUtils.round(transactionData.amount * (transactionData.officeRate || 0), 2),
                 amountForeign: transactionData.amount
             };
-
-            // Guardar la transacción y actualizar montos
             this.transactions.push(transaction);
             form.dataset.transactionId = transaction.id;
             this.remainingAmount -= transactionData.amount;
-
-            // Deshabilitar campos, excepto el botón de agregar comisiones arbitrarias
             form.querySelectorAll('input, select, button:not(.add-arbitrary-commission)').forEach(el => {
                 el.disabled = true;
             });
             form.querySelector('.calculate-transaction').style.display = 'none';
             form.querySelector('.edit-transaction').style.display = 'block';
             form.querySelector('.delete-transaction').style.display = 'block';
-
-            // Actualizar la vista
             this.updateUI();
             document.getElementById('stage3').style.display = 'block';
-
         } catch (error) {
             console.error('Error al procesar la transacción:', error);
             alert(error.message);
@@ -345,25 +318,14 @@ class TransactionManager {
 
     // -------------------------------------------------------------------------
     // Cálculo principal de la transacción
-    // Diferencia = totalSaleBs - (amount * comisión)
-    // Donde "comisión" se calcula como: (officeRate > 0 ? officeRate : clientRate) * bankFactor
     // -------------------------------------------------------------------------
     calculateTransaction(data) {
-        // 1) totalSaleBs
         const totalSaleBs = NumberUtils.round(data.amount * data.sellingRate, 2);
-
-        // 2) Obtener factor bancario y tasa efectiva
         const bankFactor = COMMISSION_FACTORS[data.bankCommission] || 1.0;
         const effectiveRate = (data.officeRate && data.officeRate > 0) ? data.officeRate : this.clientRate;
         const commission = NumberUtils.round(effectiveRate * bankFactor, 4);
-
-        // 3) baseCostBs = monto * comisión
         const baseCostBs = NumberUtils.round(data.amount * commission, 2);
-
-        // 4) differenceBs = totalSaleBs - baseCostBs
         const differenceBs = NumberUtils.round(totalSaleBs - baseCostBs, 2);
-
-        // 5) Calcular comisiones arbitrarias (en Bs y en la divisa)
         let totalArbitraryBs = 0;
         const arbitraryCommissions = data.arbitraryCommissions.map(comm => {
             const commBs = NumberUtils.round(differenceBs * (comm.percentage / 100), 2);
@@ -375,18 +337,11 @@ class TransactionManager {
                 amountForeign: commForeign
             };
         });
-
-        // 6) differenceAfterCommsBs
         const differenceAfterCommsBs = NumberUtils.round(differenceBs - totalArbitraryBs, 2);
-
-        // 7) Monto a repartir en la divisa
         const amountToDistributeForeign = (data.sellingRate > 0)
             ? NumberUtils.round(differenceAfterCommsBs / data.sellingRate, 2)
             : 0;
-
-        // 8) Distribución
         const distribution = this.calculateDistribution(data, amountToDistributeForeign);
-
         return {
             totalSaleBs,
             baseCostBs,
@@ -400,15 +355,11 @@ class TransactionManager {
 
     // -------------------------------------------------------------------------
     // Cálculo de la distribución en la divisa
-    // 30% => oficinas (si hay), 40% => ejecutivo, 30% => cliente
     // -------------------------------------------------------------------------
     calculateDistribution(data, amountToDistributeForeign) {
         const distribution = { PZO: 0, CCS: 0, executive: 0, clientProfit: 0 };
-
         const officeCount = data.selectedOffices.length;
         const officeFactor = (officeCount === 2) ? 0.5 : 1;
-
-        // Solo si hay oficinas seleccionadas, se aplica el 30% a oficinas
         if (officeCount > 0 && amountToDistributeForeign > 0) {
             const officesTotal = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.OFFICE, 2);
             if (data.selectedOffices.includes('PZO')) {
@@ -418,54 +369,39 @@ class TransactionManager {
                 distribution.CCS = NumberUtils.round(officesTotal * officeFactor, 2);
             }
         }
-
-        // 40% para ejecutivo
         distribution.executive = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.EXECUTIVE, 2);
-        // 30% para cliente
         distribution.clientProfit = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.CLIENT, 2);
-
         return distribution;
     }
 
     // -------------------------------------------------------------------------
-    // Editar transacción
+    // Métodos para editar y eliminar transacciones (Stage 2)
     // -------------------------------------------------------------------------
     editTransaction(form) {
         const transactionId = form.dataset.transactionId;
         if (!transactionId) return;
-
         const index = this.transactions.findIndex(t => t.id == transactionId);
         if (index === -1) return;
-
         const transaction = this.transactions[index];
         this.remainingAmount += transaction.amount;
         this.transactions.splice(index, 1);
-
         form.querySelectorAll('input, select, button').forEach(el => {
             el.disabled = false;
         });
-
         form.querySelector('.calculate-transaction').style.display = 'block';
         form.querySelector('.edit-transaction').style.display = 'none';
         form.querySelector('.delete-transaction').style.display = 'none';
-
         this.updateUI();
     }
 
-    // -------------------------------------------------------------------------
-    // Eliminar transacción
-    // -------------------------------------------------------------------------
     deleteTransaction(form) {
         const transactionId = form.dataset.transactionId;
         if (!transactionId) return;
-
         const index = this.transactions.findIndex(t => t.id == transactionId);
         if (index === -1) return;
-
         this.remainingAmount += this.transactions[index].amount;
         this.transactions.splice(index, 1);
         form.remove();
-
         this.updateUI();
     }
 
@@ -480,20 +416,17 @@ class TransactionManager {
         const stage3 = document.getElementById('stage3');
         const resultContainer = document.getElementById('resultadoOperacion');
         if (!stage3 || !resultContainer) return;
-
         let html = this.renderTransactionsList();
         html += this.renderGlobalSummary();
         resultContainer.innerHTML = html;
     }
 
     // -------------------------------------------------------------------------
-    // Render de las transacciones (Stage 3)
+    // Render de transacciones y resumen global (Stage 3)
     // -------------------------------------------------------------------------
     renderTransactionsList() {
         if (this.transactions.length === 0) return '';
-
         let html = '<div class="transactions-list mb-4"><h5>Transacciones</h5>';
-        
         this.transactions.forEach((t, index) => {
             html += `
                 <div class="transaction-item card mb-2">
@@ -527,13 +460,11 @@ class TransactionManager {
                 </div>
             `;
         });
-
         return html + '</div>';
     }
 
     renderArbitraryCommissionsRows(arbitraryCommissions) {
         if (!arbitraryCommissions || arbitraryCommissions.length === 0) return '';
-        
         let html = '';
         arbitraryCommissions.forEach(commission => {
             html += `
@@ -577,9 +508,6 @@ class TransactionManager {
         return html;
     }
 
-    // -------------------------------------------------------------------------
-    // Render del Resumen Global (Stage 3)
-    // -------------------------------------------------------------------------
     renderGlobalSummary() {
         const totals = this.calculateGlobalTotals();
         return `
@@ -595,7 +523,6 @@ class TransactionManager {
     calculateGlobalTotals() {
         return this.transactions.reduce((acc, t) => {
             const sumArbForeign = t.arbitraryCommissions.reduce((s, c) => s + c.amountForeign, 0);
-
             return {
                 totalAmount: acc.totalAmount + t.amount,
                 totalArbitrary: acc.totalArbitrary + sumArbForeign,
@@ -667,21 +594,12 @@ class TransactionManager {
     // Método para calcular comisión bancaria en tiempo real
     // -------------------------------------------------------------------------
     calculateCommission(form) {
-        // 1) Extraer Tasa de Venta (para fallback) y Tasa Oficina
         const sellingRate = parseFloat(form.querySelector('[name="tasaVenta"]').value) || 0;
         const officeRate = parseFloat(form.querySelector('[name="tasaOficina"]').value) || 0;
         const bankCommissionStr = form.querySelector('[name="bankCommission"]').value;
-
-        // 2) Buscar factor en COMMISSION_FACTORS (ej. '100.3000' => 1.0030)
         const bankFactor = COMMISSION_FACTORS[bankCommissionStr] || 1.0;
-
-        // 3) Determinar tasa efectiva => officeRate si > 0, si no, clientRate (global)
         const effectiveRate = officeRate > 0 ? officeRate : this.clientRate;
-
-        // 4) La comisión = (tasa efectiva) * (factor bancario)
         const commissionValue = NumberUtils.round(effectiveRate * bankFactor, 4);
-
-        // 5) Mostrar en el campo "commission"
         const commissionField = form.querySelector('[name="commission"]');
         if (commissionField) {
             commissionField.value = commissionValue.toFixed(4);
@@ -689,7 +607,7 @@ class TransactionManager {
     }
 
     // -------------------------------------------------------------------------
-    // Formatear en la divisa
+    // Métodos de formateo
     // -------------------------------------------------------------------------
     formatForeign(value) {
         let symbol = '$';
@@ -705,9 +623,6 @@ class TransactionManager {
         }).format(value);
     }
 
-    // -------------------------------------------------------------------------
-    // Formatear en Bolívares
-    // -------------------------------------------------------------------------
     formatBs(value) {
         return new Intl.NumberFormat('es-VE', {
             style: 'decimal',
@@ -715,6 +630,45 @@ class TransactionManager {
             maximumFractionDigits: 2,
             useGrouping: true
         }).format(value);
+    }
+
+    // -------------------------------------------------------------------------
+    // Nuevo método: Enviar la operación completa a la API (Stage Final)
+    // -------------------------------------------------------------------------
+    submitOperation() {
+        const payload = {
+            type: "venta",
+            client: this.clientName,
+            amount: this.totalAmount,
+            details: {
+                clientRate: this.clientRate,
+                currency: this.selectedCurrency,
+                transactions: this.transactions,
+                summary: this.calculateGlobalTotals()
+            }
+        };
+
+        fetch('/api/transactions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Error al registrar la operación');
+            return res.json();
+        })
+        .then(data => {
+            alert('Operación registrada con éxito');
+            console.log('Operación guardada:', data);
+            // Aquí se puede reiniciar la UI o redirigir según sea necesario
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error al registrar la operación');
+        });
     }
 }
 
@@ -725,8 +679,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Inicializando sistema de ventas...');
     const transactionManager = new TransactionManager();
 
-    // Stage 1
+    // Referencias del Stage 1
     const operationForm = document.getElementById('operationForm');
+    const clientNameInput = document.getElementById('clientName');
     const amountToSellInput = document.getElementById('amountToSell');
     const clientRateInput = document.getElementById('clientRate');
     const amountClientReceivesInput = document.getElementById('amountClientReceives');
@@ -757,23 +712,18 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('No se encontraron los elementos de entrada necesarios');
     }
 
-    // Al enviar Stage 1
+    // Al enviar Stage 1: Asigna datos y muestra Stage 2
     if (operationForm) {
         operationForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const totalAmount = parseFloat(amountToSellInput.value);
             const rate = parseFloat(clientRateInput.value);
             const userSelection = currencyTypeSelect.value;
-
             if (totalAmount > 0 && rate > 0 && userSelection) {
-                // Asignar clientRate y la divisa seleccionada
                 transactionManager.clientRate = rate;
                 transactionManager.selectedCurrency = mapCurrencyType(userSelection);
-
-                // Establecer el monto total
+                transactionManager.clientName = clientNameInput.value.trim();
                 transactionManager.setTotalAmount(totalAmount);
-
-                // Mostrar stage 2
                 const stage2 = document.getElementById('stage2');
                 if (stage2) {
                     stage2.style.display = 'block';
@@ -789,6 +739,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addTransactionBtn) {
         addTransactionBtn.addEventListener('click', () => {
             transactionManager.addTransactionForm();
+        });
+    }
+
+    // Stage Final: Registrar Operación
+    // Se asume que en venta.html se agrega un botón con id "submitOperationBtn" en Stage 3
+    const submitOperationBtn = document.getElementById('submitOperationBtn');
+    if (submitOperationBtn) {
+        submitOperationBtn.addEventListener('click', () => {
+            transactionManager.submitOperation();
         });
     }
 });
