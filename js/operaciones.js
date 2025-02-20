@@ -41,6 +41,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const opsToShow = operations.slice(0, 10);
 
     opsToShow.forEach(op => {
+      // Extraer información adicional desde details.summary (si existe)
+      const sold = op.details && op.details.summary ? op.details.summary.totalAmount || 0 : 0;
+      const pending = op.amount - sold;
+      const gananciaCliente = op.details && op.details.summary ? op.details.summary.totalClientProfit || 0 : 0;
+      // Determinar estado: si op.estado existe se usa, sino se calcula
+      const status = op.estado || (pending === 0 ? 'completa' : 'pendiente');
+
       const item = document.createElement('a');
       item.href = "#";
       item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
@@ -55,27 +62,22 @@ document.addEventListener('DOMContentLoaded', function() {
         iconHTML = `<i class="fas fa-exchange-alt me-2 text-primary"></i>`;
       }
 
-      // Construir el contenido del item. Se usa op.client, op.amount, op.createdAt y op.estado (si existe)
+      // Construir el contenido del item, mostrando cliente, fecha, monto y estado
       item.innerHTML = iconHTML + `<div>
         <strong>${op.client}</strong><br>
         <small>${new Date(op.createdAt).toLocaleDateString()}</small>
       </div>
       <div>
         <span class="badge bg-secondary me-2">${formatCurrency(op.amount)}</span>
-        <span class="badge ${op.estado === 'completa' ? 'bg-success' : 'bg-warning'}">
-          ${op.estado ? op.estado : 'desconocido'}
+        <span class="badge ${status === 'completa' ? 'bg-success' : 'bg-warning'}">
+          ${status}
         </span>
       </div>`;
 
-      // Al hacer clic, se muestra un modal con el detalle de la operación
+      // Al hacer clic, se muestra un modal con el detalle de la operación y la opción de completar si está pendiente
       item.addEventListener('click', function(e) {
         e.preventDefault();
-        // Se asume que si la operación está marcada como "incompleta", se usará el modo 'add'
-        if (op.estado === 'incompleta') {
-          showOperationModal(op, 'add');
-        } else {
-          showOperationModal(op, 'view');
-        }
+        showOperationModal(op, status, pending, gananciaCliente);
       });
 
       listContainer.appendChild(item);
@@ -83,35 +85,44 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Función para mostrar el modal (usando Bootstrap) con detalles de la operación
-  function showOperationModal(operation, mode) {
+  function showOperationModal(operation, status, pending, gananciaCliente) {
     const modalTitle = document.getElementById('operationModalLabel');
     const modalBody = document.getElementById('operationModalBody');
     const modalActionButton = document.getElementById('modalActionButton');
 
-    if (mode === 'add') {
-      modalTitle.textContent = 'Agregar Transacción';
+    // Extraer datos básicos
+    const totalOperacion = formatCurrency(operation.amount);
+
+    // Verificar si en details.summary existen datos de transacciones
+    const sold = operation.details && operation.details.summary ? operation.details.summary.totalAmount || 0 : 0;
+    const montoVendido = formatCurrency(sold);
+    const montoPendiente = formatCurrency(operation.amount - sold);
+    const gananciaCli = formatCurrency(gananciaCliente);
+
+    if (status === 'pendiente' || status === 'incompleta') {
+      modalTitle.textContent = 'Completar Operación';
       modalBody.innerHTML = `
-        <p>La operación con ID ${operation._id} para <strong>${operation.client}</strong> está incompleta.</p>
-        <p>Monto: ${formatCurrency(operation.amount)}</p>
-        <p>Estado: ${operation.estado}</p>
-        <p>Aquí puedes agregar una nueva transacción para completar la operación.</p>
+        <p>Operación ID <strong>${operation._id}</strong> para <strong>${operation.client}</strong></p>
+        <p><strong>Total Operación:</strong> ${totalOperacion}</p>
+        <p><strong>Monto Vendido:</strong> ${montoVendido}</p>
+        <p><strong>Monto Pendiente:</strong> ${montoPendiente}</p>
+        <p><strong>Ganancia en Cliente:</strong> ${gananciaCli}</p>
       `;
-      modalActionButton.textContent = 'Agregar Transacción';
+      modalActionButton.textContent = 'Completar Operación';
       modalActionButton.onclick = function() {
-        // Redirige a la página para agregar transacción (ej. venta.html)
-        window.location.href = 'venta.html';
+        // Redirige a venta.html con el id de la operación para completar la venta
+        window.location.href = 'venta.html?id=' + operation._id;
       };
     } else {
       modalTitle.textContent = 'Resumen de Operación';
       modalBody.innerHTML = `
-        <p>La operación con ID ${operation._id} para <strong>${operation.client}</strong> está completa.</p>
-        <p>Monto: ${formatCurrency(operation.amount)}</p>
-        <p>Estado: ${operation.estado}</p>
+        <p>Operación ID <strong>${operation._id}</strong> para <strong>${operation.client}</strong> está completa.</p>
+        <p><strong>Total Operación:</strong> ${totalOperacion}</p>
+        <p><strong>Monto Vendido:</strong> ${montoVendido}</p>
+        <p><strong>Ganancia en Cliente:</strong> ${gananciaCli}</p>
       `;
-      // Comentamos o reemplazamos el botón "Ver Detalle" para evitar el 404
       modalActionButton.textContent = 'Cerrar';
       modalActionButton.onclick = function() {
-        // Simplemente cierra el modal
         const operationModal = bootstrap.Modal.getInstance(document.getElementById('operationModal'));
         operationModal.hide();
       };

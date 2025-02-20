@@ -28,13 +28,14 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-// Modelo de Transacción (se añadió el campo operatorId)
+// Modelo de Transacción (se añadió el campo operatorId y el campo "estado")
 const TransactionSchema = new mongoose.Schema({
   type: String,       // "venta" o "canje"
   client: String,
   amount: Number,     // Monto en la divisa
   details: Object,    // Información adicional (tasas, comisiones, distribución, etc.)
   operatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  estado: { type: String, default: 'incompleta' }, // "incompleta" o "completa"
   createdAt: { type: Date, default: Date.now }
 });
 const Transaction = mongoose.model('Transaction', TransactionSchema);
@@ -92,6 +93,30 @@ app.post('/api/transactions', verifyToken, async (req, res) => {
     res.json(transaction);
   } catch (error) {
     res.status(500).json({ message: 'Error al guardar la transacción' });
+  }
+});
+
+// **Nuevo Endpoint: PUT /api/transactions/:id para actualizar una operación existente**
+app.put('/api/transactions/:id', verifyToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Operación no encontrada' });
+    }
+    // Si el usuario no es admin, solo puede actualizar su propia operación
+    if (req.user.role !== 'admin' && transaction.operatorId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para actualizar esta operación' });
+    }
+    // Actualizar los campos relevantes
+    transaction.client = req.body.client || transaction.client;
+    transaction.amount = req.body.amount || transaction.amount;
+    transaction.details = req.body.details || transaction.details;
+    transaction.estado = req.body.estado || transaction.estado;
+    await transaction.save();
+    res.json(transaction);
+  } catch (error) {
+    console.error('Error al actualizar la transacción:', error);
+    res.status(500).json({ message: 'Error al actualizar la operación' });
   }
 });
 
