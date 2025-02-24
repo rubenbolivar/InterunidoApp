@@ -39,8 +39,8 @@ const COMMISSION_FACTORS = {
   class TransactionManager {
     constructor() {
       this.transactions = [];
-      this.totalAmount = 0;   // Monto total en la divisa
-      this.remainingAmount = 0; // Monto pendiente en la divisa
+      this.totalAmount = 0;       // Monto total en la divisa
+      this.remainingAmount = 0;   // Monto pendiente en la divisa
       this.clientRate = 0;
       this.selectedCurrency = '';
       this.clientName = '';
@@ -95,11 +95,14 @@ const COMMISSION_FACTORS = {
       this.selectedCurrency = op.details?.currency || 'USD';
       // supondremos que la clientRate está en details
       this.clientRate = op.details?.clientRate || 0;
-      this.setTotalAmount(pending); // Quiero que la UI muestre el pendiente, no el total original
+  
+      // Quiero que la UI muestre el pendiente, no el total original
+      this.setTotalAmount(pending);
   
       // Llenar los inputs
       document.getElementById('clientName').value = this.clientName;
       document.getElementById('amountToSell').value = pending;
+  
       // Con base en la divisa
       let currencyOption = '';
       switch (this.selectedCurrency) {
@@ -259,6 +262,7 @@ const COMMISSION_FACTORS = {
       };
       if (form.querySelector('[name="oficinaPZO"]')?.checked) data.selectedOffices.push('PZO');
       if (form.querySelector('[name="oficinaCCS"]')?.checked) data.selectedOffices.push('CCS');
+  
       // Comisiones arbitrarias
       form.querySelectorAll('.commission-item').forEach(item => {
         const nameInput = item.querySelector('input[type="text"]');
@@ -291,6 +295,7 @@ const COMMISSION_FACTORS = {
           amountForeign: transactionData.amount
         };
         this.transactions.push(transaction);
+  
         form.querySelectorAll('input, select, button:not(.add-arbitrary-commission)').forEach(el => {
           el.disabled = true;
         });
@@ -580,6 +585,10 @@ const COMMISSION_FACTORS = {
     // Enviar la operación a la API
     submitOperation() {
       // Construir el payload final
+      const globalTotals = this.calculateGlobalTotals();
+      // ADICIONA el pending para que aparezca en .details.summary
+      globalTotals.montoPendiente = NumberUtils.round(this.remainingAmount, 2);
+  
       const payload = {
         type: "venta",
         client: this.clientName,
@@ -588,18 +597,16 @@ const COMMISSION_FACTORS = {
           clientRate: this.clientRate,
           currency: this.selectedCurrency,
           transactions: this.transactions,
-          summary: this.calculateGlobalTotals()
+          summary: globalTotals
         },
         estado: "incompleta" // O "completa" si ya se completó
       };
-  
-      // Si quisiéramos “cerrar” la operación, pondríamos estado: "completa"
   
       const token = localStorage.getItem('auth_token');
       let url = '/api/transactions';
       let method = 'POST';
   
-      // Si es una operación existente, podríamos usar PUT en lugar de POST:
+      // Si es una operación existente, usar PUT
       if (this.existingOperationId) {
         url = `/api/transactions/${this.existingOperationId}`;
         method = 'PUT';
