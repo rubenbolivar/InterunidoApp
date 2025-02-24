@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // 1) Formatear montos en formato local (ej: VES)
+  // 1) Formatear montos en formato local (ej: VES).
   function formatVES(amount) {
     return new Intl.NumberFormat('es-VE', {
       style: 'decimal',
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }).format(amount);
   }
 
-  // 2) Obtener símbolo según la divisa (ajusta si usas otras)
+  // 2) Obtener símbolo según la divisa (ajusta si usas otras).
   function getCurrencySymbol(currency) {
     switch ((currency || '').toUpperCase()) {
       case 'USD':
@@ -23,12 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // 3) Obtener token de autenticación
+  // 3) Obtener token de autenticación.
   function getAuthToken() {
     return localStorage.getItem('auth_token');
   }
 
-  // 4) Petición a la API para obtener operaciones
+  // 4) Petición a la API para obtener operaciones.
   function fetchOperations(queryParams = '') {
     const token = getAuthToken();
     fetch('/api/transactions' + queryParams, {
@@ -36,112 +36,130 @@ document.addEventListener('DOMContentLoaded', function() {
         'Authorization': 'Bearer ' + token
       }
     })
-    .then(response => response.json())
-    .then(data => {
-      renderOperationsList(data);
-    })
-    .catch(error => {
-      console.error('Error al obtener operaciones:', error);
-    });
+      .then(response => response.json())
+      .then(data => {
+        renderOperationsList(data);
+      })
+      .catch(error => {
+        console.error('Error al obtener operaciones:', error);
+      });
   }
 
-  // 5) Renderizar la lista de operaciones
+  // 5) Renderizar la lista de operaciones.
   function renderOperationsList(operations) {
     const listContainer = document.getElementById('operationsList');
     listContainer.innerHTML = '';
 
-    // Ordenar por fecha descendente
+    // a) Insertar fila de cabecera (títulos de columnas).
+    const headerItem = document.createElement('div');
+    headerItem.className = 'list-group-item bg-light';
+    headerItem.innerHTML = `
+      <div class="row fw-bold">
+        <div class="col-3">Cliente / Fecha</div>
+        <div class="col-2 text-end">Total</div>
+        <div class="col-2 text-end">Pendiente</div>
+        <div class="col-2 text-end">Ganancia</div>
+        <div class="col-1 text-end">Tipo</div>
+        <div class="col-1 text-end">Estado</div>
+        <div class="col-1 text-end">Acción</div>
+      </div>
+    `;
+    listContainer.appendChild(headerItem);
+
+    // Ordenar por fecha descendente.
     operations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // Mostrar solo las últimas 10
+    // Mostrar solo las últimas 10.
     const opsToShow = operations.slice(0, 10);
 
     opsToShow.forEach(op => {
-      // a) Intentar leer divisa de op.details.currency
+      // b) Intentar leer divisa de op.details.currency.
       let currencySymbol = '';
       if (op.details && op.details.currency) {
         currencySymbol = getCurrencySymbol(op.details.currency);
       }
 
-      // b) Calcular “monto pendiente” si existiera en op.details o en op.details.summary
-      let pendingStr = '-'; // Valor por defecto
-      if (op.details && typeof op.details.remaining === 'number') {
-        pendingStr = currencySymbol + formatVES(op.details.remaining);
-      } 
-      else if (op.details && op.details.summary && typeof op.details.summary.remaining === 'number') {
-        pendingStr = currencySymbol + formatVES(op.details.summary.remaining);
+      // c) Calcular “monto pendiente” (solo mostrar si estado = incompleta).
+      let pendingStr = '';
+      if (op.estado === 'incompleta') {
+        // Buscar en op.details.remaining o en op.details.summary.remaining.
+        if (op.details && typeof op.details.remaining === 'number') {
+          pendingStr = currencySymbol + formatVES(op.details.remaining);
+        } 
+        else if (op.details && op.details.summary && typeof op.details.summary.remaining === 'number') {
+          pendingStr = currencySymbol + formatVES(op.details.summary.remaining);
+        } else {
+          // Si no hay info de “remaining”, dejarlo en '-'.
+          pendingStr = '-';
+        }
       }
 
-      // c) Calcular “ganancia” si existiera en op.details.summary
-      let gainStr = '-';
+      // d) Calcular “ganancia” si existiera en op.details.summary.
+      let gainStr = '';
       if (op.details && op.details.summary && typeof op.details.summary.totalClientProfit === 'number') {
         gainStr = currencySymbol + formatVES(op.details.summary.totalClientProfit);
       }
 
-      // d) Tipo de operación
-      let tipo = (op.type || '').toUpperCase(); 
-      // Podrías dejarlo en minúsculas o capitalizarlo.
+      // e) Tipo de operación.
+      let tipo = (op.type || '').toUpperCase();
 
-      // e) Estado y su badge
+      // f) Estado y su badge.
       let estadoLabel = (op.estado === 'completa') ? 'Completada' : 'Incompleta';
       let estadoBadgeClass = (op.estado === 'completa') ? 'bg-success' : 'bg-warning';
 
-      // f) Crear el contenedor de la operación
+      // g) Crear el contenedor de la operación (fila de datos).
       const item = document.createElement('div');
-      item.className = 'list-group-item mb-2';
+      item.className = 'list-group-item';
 
-      // g) Construir HTML con las columnas solicitadas
-      // Usamos un layout de filas/columnas con Bootstrap (row + col)
+      // h) Construir HTML con las columnas solicitadas.
       item.innerHTML = `
         <div class="row align-items-center">
-          <!-- Col: Cliente y Fecha -->
-          <div class="col-12 col-md-3">
+          <!-- Col: Cliente + Fecha -->
+          <div class="col-3">
             <h6 class="mb-0">${op.client}</h6>
             <small>${new Date(op.createdAt).toLocaleDateString()}</small>
           </div>
 
           <!-- Col: Monto Total -->
-          <div class="col-6 col-md-2 text-end">
+          <div class="col-2 text-end">
             <strong>${currencySymbol}${formatVES(op.amount)}</strong>
           </div>
 
           <!-- Col: Monto Pendiente -->
-          <div class="col-6 col-md-2 text-end">
+          <div class="col-2 text-end">
             <span class="text-muted">${pendingStr}</span>
           </div>
 
           <!-- Col: Ganancia -->
-          <div class="col-6 col-md-2 text-end">
+          <div class="col-2 text-end">
             <span class="text-muted">${gainStr}</span>
           </div>
 
           <!-- Col: Tipo Operación -->
-          <div class="col-6 col-md-1 text-end">
+          <div class="col-1 text-end">
             <span class="badge bg-info">${tipo}</span>
           </div>
 
           <!-- Col: Estado -->
-          <div class="col-6 col-md-1 text-end">
+          <div class="col-1 text-end">
             <span class="badge ${estadoBadgeClass}">${estadoLabel}</span>
           </div>
 
-          <!-- Col: Botón -->
-          <div class="col-12 col-md-1 text-end mt-2 mt-md-0" id="operationAction">
-          </div>
+          <!-- Col: Botón Acción -->
+          <div class="col-1 text-end" id="operationAction"></div>
         </div>
       `;
 
-      // h) Botón de acción según el estado
+      // i) Botón de acción según el estado.
       const actionCol = item.querySelector('#operationAction');
       if (op.estado === 'incompleta') {
-        // Botón "Completar Operación"
+        // Botón "Completar"
         const completeBtn = document.createElement('button');
         completeBtn.className = 'btn btn-primary btn-sm';
         completeBtn.textContent = 'Completar';
         completeBtn.addEventListener('click', (e) => {
           e.preventDefault();
           // Redirige a la página de venta o canje con el ID
-          // Ajusta la lógica según si op.type === 'venta' o 'canje'
           if (op.type === 'venta') {
             window.location.href = 'venta.html?id=' + op._id;
           } else {
@@ -157,13 +175,12 @@ document.addEventListener('DOMContentLoaded', function() {
         detailBtn.textContent = 'Ver Detalle';
         detailBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          // Abre modal con detalle
           showOperationDetailModal(op);
         });
         actionCol.appendChild(detailBtn);
       }
 
-      // i) Agregar el item al contenedor
+      // j) Agregar el item al contenedor
       listContainer.appendChild(item);
     });
   }
@@ -190,11 +207,18 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     // Monto pendiente
-    if (op.details && typeof op.details.remaining === 'number') {
-      html += `<p><strong>Monto Pendiente:</strong> ${currencySymbol}${formatVES(op.details.remaining)}</p>`;
-    }
-    else if (op.details && op.details.summary && typeof op.details.summary.remaining === 'number') {
-      html += `<p><strong>Monto Pendiente:</strong> ${currencySymbol}${formatVES(op.details.summary.remaining)}</p>`;
+    if (op.estado === 'incompleta') {
+      // Solo tiene sentido si la operación no está completada
+      let pending = '';
+      if (op.details && typeof op.details.remaining === 'number') {
+        pending = currencySymbol + formatVES(op.details.remaining);
+      } 
+      else if (op.details && op.details.summary && typeof op.details.summary.remaining === 'number') {
+        pending = currencySymbol + formatVES(op.details.summary.remaining);
+      }
+      if (pending) {
+        html += `<p><strong>Monto Pendiente:</strong> ${pending}</p>`;
+      }
     }
 
     // Ganancia
@@ -202,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
       html += `<p><strong>Ganancia Cliente:</strong> ${currencySymbol}${formatVES(op.details.summary.totalClientProfit)}</p>`;
     }
 
-    // Transacciones (si existiera un array)
+    // Transacciones (si existiera un array en op.details.transactions)
     if (op.details && Array.isArray(op.details.transactions)) {
       html += `<h6 class="mt-3">Transacciones Registradas:</h6>`;
       html += `<ul class="list-group">`;
@@ -212,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <strong>Transacción ${idx + 1}:</strong><br>
             Monto: ${t.amountForeign || t.monto || 0} ${op.details.currency || ''}<br>
             Tasa: ${t.sellingRate || 'N/A'} Bs<br>
-            Oficina: PZO=${t.distribution?.PZO || 0}, CCS=${t.distribution?.CCS || 0}
+            <!-- Ajusta la lógica si tienes datos distintos -->
           </li>
         `;
       });
@@ -221,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     modalBody.innerHTML = html;
 
-    // El botón final
+    // Botón final: solo cierra el modal
     modalActionButton.textContent = 'Cerrar';
     modalActionButton.onclick = function() {
       const operationModal = bootstrap.Modal.getInstance(document.getElementById('operationModal'));
