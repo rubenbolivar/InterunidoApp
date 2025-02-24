@@ -85,7 +85,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Endpoint para registrar una transacción (Venta o Canje)
-// Se asigna automáticamente el operatorId con el id del usuario autenticado
 app.post('/api/transactions', verifyToken, async (req, res) => {
   try {
     req.body.operatorId = req.user.id; // Asigna el id del usuario autenticado
@@ -121,8 +120,25 @@ app.put('/api/transactions/:id', verifyToken, async (req, res) => {
   }
 });
 
+// **NUEVO** Endpoint para obtener UNA transacción por su ID
+app.get('/api/transactions/:id', verifyToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Operación no encontrada' });
+    }
+    // Si no es admin, solo puede ver sus propias operaciones
+    if (req.user.role !== 'admin' && transaction.operatorId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para ver esta operación' });
+    }
+    res.json(transaction);
+  } catch (error) {
+    console.error('Error al obtener la transacción:', error);
+    res.status(500).json({ message: 'Error al obtener la operación' });
+  }
+});
+
 // Endpoint para obtener transacciones con filtros
-// Si el usuario no es admin, se filtran solo las transacciones creadas por él
 app.get('/api/transactions', verifyToken, async (req, res) => {
   try {
     const { type, client, date } = req.query;
