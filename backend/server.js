@@ -32,8 +32,8 @@ const User = mongoose.model('User', UserSchema);
 const TransactionSchema = new mongoose.Schema({
   type: String,       // "venta" o "canje"
   client: String,
-  amount: Number,     // Monto en la divisa
-  details: Object,    // Información adicional (tasas, comisiones, distribución, etc.)
+  amount: Number,     // Monto en la divisa (ej. 3000 US$, 2000 EUR, etc.)
+  details: Object,    // Información adicional (currency, rate, transacciones parciales, etc.)
   operatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   estado: { type: String, default: 'incompleta' }, // "incompleta" o "completa"
   createdAt: { type: Date, default: Date.now }
@@ -76,7 +76,7 @@ app.post('/api/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: 'Contraseña incorrecta' });
     
-    // Genera el token de acceso con una vigencia de 30 días
+    // Generar un token que expire en 30 días
     const token = jwt.sign({ id: user._id, role: user.role }, SECRET_KEY, { expiresIn: '30d' });
     res.json({ token, user: { username: user.username, role: user.role } });
   } catch (error) {
@@ -97,7 +97,7 @@ app.post('/api/transactions', verifyToken, async (req, res) => {
   }
 });
 
-// **Nuevo Endpoint: PUT /api/transactions/:id para actualizar una operación existente**
+// Endpoint para actualizar una transacción existente
 app.put('/api/transactions/:id', verifyToken, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);

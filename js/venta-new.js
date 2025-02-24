@@ -1,5 +1,6 @@
 /**
- * Constantes y configuración global
+ * venta-new.js
+ * Maneja la lógica de una operación de Venta de Divisas.
  */
 const COMMISSION_FACTORS = {
     '100.0000': 1.0000,
@@ -9,18 +10,14 @@ const COMMISSION_FACTORS = {
   };
   
   const DISTRIBUTION_FACTORS = {
-    OFFICE: 0.30,    // 30% para oficinas
-    EXECUTIVE: 0.40, // 40% para ejecutivo
-    CLIENT: 0.30     // 30% para cliente
+    OFFICE: 0.30,
+    EXECUTIVE: 0.40,
+    CLIENT: 0.30
   };
   
-  // Utilidades para manejo de números
   const NumberUtils = {
     round: (val, decimals = 2) => {
       return Number(Math.round(val + 'e' + decimals) + 'e-' + decimals);
-    },
-    isValidNumber: (num) => {
-      return typeof num === 'number' && !isNaN(num) && isFinite(num);
     },
     parseAmount: (val) => {
       const p = parseFloat(val);
@@ -28,9 +25,6 @@ const COMMISSION_FACTORS = {
     }
   };
   
-  /**
-   * Mapea el valor del <select> de la divisa a "USD", "EUR" o "USDT"
-   */
   function mapCurrencyType(userSelection) {
     const val = userSelection.toLowerCase();
     if (val.includes('euro')) {
@@ -38,173 +32,174 @@ const COMMISSION_FACTORS = {
     } else if (val.includes('usdt')) {
       return 'USDT';
     } else {
-      // Para "Dólares en efectivo", "Dólares Zelle", etc.
       return 'USD';
     }
   }
   
-  /**
-   * Función para obtener el valor de un parámetro de la URL
-   */
-  function getUrlParameter(name) {
-    const params = new URLSearchParams(window.location.search);
-    return params.get(name);
-  }
-  
-  /**
-   * Clase TransactionManager
-   * Maneja la lógica de transacciones de venta de divisas
-   */
   class TransactionManager {
     constructor() {
       this.transactions = [];
-      this.totalAmount = 0;        // Monto total (en la divisa)
-      this.remainingAmount = 0;    // Monto pendiente (en la divisa)
-      this.clientRate = 0;         // Tasa en Bs/Divisa (Stage 1)
-      this.selectedCurrency = '';  // "USD", "EUR", "USDT", etc.
-      this.clientName = '';        // Nombre del cliente (Stage 1)
-      this.operationId = null;     // Si se está actualizando una operación
+      this.totalAmount = 0;   // Monto total en la divisa
+      this.remainingAmount = 0; // Monto pendiente en la divisa
+      this.clientRate = 0;
+      this.selectedCurrency = '';
+      this.clientName = '';
+      this.existingOperationId = null; // Si estamos completando una operación existente
   
-      // Bind de métodos
+      // Enlazar métodos
       this.processTransaction = this.processTransaction.bind(this);
       this.calculateTransaction = this.calculateTransaction.bind(this);
       this.updateGlobalSummary = this.updateGlobalSummary.bind(this);
       this.calculateCommission = this.calculateCommission.bind(this);
       this.submitOperation = this.submitOperation.bind(this);
-      this.loadOperation = this.loadOperation.bind(this);
-  
-      console.log('TransactionManager inicializado');
     }
   
-    // Método para cargar una operación existente (modo completar)
-    loadOperation(operation) {
-      // Prellenar los datos de Stage 1
-      this.clientName = operation.client;
-      this.totalAmount = operation.amount;
-      // Se asume que en details se guardó la tasa y la divisa pactada
-      if (operation.details) {
-        this.clientRate = operation.details.clientRate || 0;
-        this.selectedCurrency = operation.details.currency || '';
-        // Si existen transacciones previas, calcular el monto vendido y pendiente
-        if (operation.details.transactions && Array.isArray(operation.details.transactions)) {
-          const vendido = operation.details.transactions.reduce((sum, t) => sum + t.amount, 0);
-          this.remainingAmount = this.totalAmount - vendido;
-          // También cargamos las transacciones ya registradas
-          this.transactions = operation.details.transactions;
-        } else {
-          this.remainingAmount = this.totalAmount;
+    /**
+     * Si NO hay id en la URL, es una operación nueva.
+     * Si SÍ hay id, hacemos fetch y precargamos.
+     */
+    async loadOperationIfNeeded() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const operationId = urlParams.get('id');
+      if (!operationId) {
+        // Operación nueva
+        return;
+      }
+      this.existingOperationId = operationId;
+  
+      // Hacer fetch de la operación
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch(`/api/transactions/${operationId}`, {
+        headers: {
+          'Authorization': 'Bearer ' + token
         }
-      }
-      // Actualizamos la UI del Stage 1
-      document.getElementById('clientName').value = this.clientName;
-      document.getElementById('amountToSell').value = this.totalAmount;
-      document.getElementById('clientRate').value = this.clientRate;
-      // Actualizamos el monto que debe recibir el cliente
-      const amountClientReceivesInput = document.getElementById('amountClientReceives');
-      if (this.clientRate && this.totalAmount) {
-        amountClientReceivesInput.value = new Intl.NumberFormat('es-VE', {
-          style: 'decimal',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-          useGrouping: true
-        }).format(this.totalAmount * this.clientRate);
-      }
-      // Se podría también indicar el monto pendiente en algún campo visual (si se desea)
-      console.log('Operación cargada para completar:', {
-        client: this.clientName,
-        total: this.totalAmount,
-        remaining: this.remainingAmount,
-        clientRate: this.clientRate,
-        currency: this.selectedCurrency
       });
+      if (!resp.ok) {
+        console.error('Error al obtener la operación existente');
+        return;
+      }
+      const op = await resp.json();
+  
+      // Supongamos que op.details.transactions es un array de transacciones parciales
+      const partials = op.details?.transactions || [];
+      const sumOfPartials = partials.reduce((acc, t) => acc + (t.amount || 0), 0);
+  
+      // Monto pendiente
+      const pending = op.amount - sumOfPartials;
+      if (pending < 0) {
+        console.warn('El monto pendiente es negativo. Revisa tus datos.');
+      }
+  
+      // Precargar en Stage 1
+      this.clientName = op.client;
+      this.selectedCurrency = op.details?.currency || 'USD';
+      // supondremos que la clientRate está en details
+      this.clientRate = op.details?.clientRate || 0;
+      this.setTotalAmount(pending); // Quiero que la UI muestre el pendiente, no el total original
+  
+      // Llenar los inputs
+      document.getElementById('clientName').value = this.clientName;
+      document.getElementById('amountToSell').value = pending;
+      // Con base en la divisa
+      let currencyOption = '';
+      switch (this.selectedCurrency) {
+        case 'EUR':
+          currencyOption = 'Euros en efectivo';
+          break;
+        case 'USDT':
+          currencyOption = 'Binance USDT';
+          break;
+        default:
+          currencyOption = 'Dólares en efectivo';
+          break;
+      }
+      document.getElementById('currencyType').value = currencyOption;
+      document.getElementById('clientRate').value = this.clientRate;
+  
+      // Forzar el cálculo para “Monto que debe recibir el cliente”
+      const amountClientReceivesInput = document.getElementById('amountClientReceives');
+      const totalBs = pending * this.clientRate;
+      amountClientReceivesInput.value = new Intl.NumberFormat('es-VE', {
+        style: 'decimal',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true
+      }).format(totalBs);
     }
   
-    // -------------------------------------------------------------------------
-    // Stage 1: Configuración inicial (nueva operación)
-    // -------------------------------------------------------------------------
     setTotalAmount(amount) {
       this.totalAmount = amount;
       this.remainingAmount = amount;
-  
       const transactionsContainer = document.getElementById('transactionsContainer');
       if (transactionsContainer) {
         transactionsContainer.innerHTML = '';
         const firstForm = this.createTransactionForm();
         transactionsContainer.appendChild(firstForm);
       }
-  
       this.updateUI();
-      console.log('Montos iniciales establecidos:', {
-        remainingAmount: this.remainingAmount,
-        totalAmount: this.totalAmount
-      });
     }
   
-    // -------------------------------------------------------------------------
-    // Crear y configurar formulario de transacción (Stage 2)
-    // -------------------------------------------------------------------------
     createTransactionForm() {
       const form = document.createElement('div');
       form.className = 'transaction-form mb-4';
       form.innerHTML = `
         <div class="mb-3">
-            <label class="form-label">Nombre del Operador:</label>
-            <input type="text" class="form-control" name="operador" required>
+          <label class="form-label">Nombre del Operador:</label>
+          <input type="text" class="form-control" name="operador" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">Monto (${this.selectedCurrency}):</label>
-            <input type="number" class="form-control text-end" name="montoTransaccion" step="0.01" required>
+          <label class="form-label">Monto (${this.selectedCurrency}):</label>
+          <input type="number" class="form-control text-end" name="montoTransaccion" step="0.01" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">Tasa de Venta (Bs / ${this.selectedCurrency}):</label>
-            <input type="number" class="form-control text-end" name="tasaVenta" step="0.0001" required>
+          <label class="form-label">Tasa de Venta (Bs / ${this.selectedCurrency}):</label>
+          <input type="number" class="form-control text-end" name="tasaVenta" step="0.0001" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">Tasa Oficina (Bs / ${this.selectedCurrency}):</label>
-            <input type="number" class="form-control text-end" name="tasaOficina" step="0.0001">
+          <label class="form-label">Tasa Oficina (Bs / ${this.selectedCurrency}):</label>
+          <input type="number" class="form-control text-end" name="tasaOficina" step="0.0001">
         </div>
         <div class="mb-3">
-            <label class="form-label">Selección de Oficinas:</label>
-            <div>
-                <div class="form-check form-check-inline">
-                    <input type="checkbox" class="form-check-input" name="oficinaPZO" value="PZO">
-                    <label class="form-check-label">Oficina PZO</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input type="checkbox" class="form-check-input" name="oficinaCCS" value="CCS">
-                    <label class="form-check-label">Oficina CCS</label>
-                </div>
+          <label class="form-label">Selección de Oficinas:</label>
+          <div>
+            <div class="form-check form-check-inline">
+              <input type="checkbox" class="form-check-input" name="oficinaPZO" value="PZO">
+              <label class="form-check-label">Oficina PZO</label>
             </div>
+            <div class="form-check form-check-inline">
+              <input type="checkbox" class="form-check-input" name="oficinaCCS" value="CCS">
+              <label class="form-check-label">Oficina CCS</label>
+            </div>
+          </div>
         </div>
         <div class="mb-3">
-            <label class="form-label">Comisión Bancaria:</label>
-            <select class="form-select" name="bankCommission">
-                <option value="100.0000">100.0000%</option>
-                <option value="100.1000">100.1000%</option>
-                <option value="100.2500">100.2500%</option>
-                <option value="100.3000">100.3000%</option>
-            </select>
+          <label class="form-label">Comisión Bancaria:</label>
+          <select class="form-select" name="bankCommission">
+            <option value="100.0000">100.0000%</option>
+            <option value="100.1000">100.1000%</option>
+            <option value="100.2500">100.2500%</option>
+            <option value="100.3000">100.3000%</option>
+          </select>
         </div>
         <div class="mb-3">
-            <label class="form-label">Comisión:</label>
-            <!-- Este campo se actualiza dinámicamente en calculateCommission() -->
-            <input type="text" class="form-control text-end" name="commission" readonly>
+          <label class="form-label">Comisión:</label>
+          <input type="text" class="form-control text-end" name="commission" readonly>
         </div>
         <div class="mb-3">
-            <label class="form-label">Comisiones Arbitrarias:</label>
-            <div class="arbitrary-commissions-container"></div>
-            <button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-arbitrary-commission">
-                <i class="fas fa-plus"></i> Agregar Comisión
-            </button>
+          <label class="form-label">Comisiones Arbitrarias:</label>
+          <div class="arbitrary-commissions-container"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-arbitrary-commission">
+            <i class="fas fa-plus"></i> Agregar Comisión
+          </button>
         </div>
         <button type="button" class="btn btn-primary w-100 calculate-transaction">
-            Calcular Transacción
+          Calcular Transacción
         </button>
         <button type="button" class="btn btn-secondary w-100 edit-transaction" style="display:none; margin-top: 5px;">
-            Editar Transacción
+          Editar Transacción
         </button>
         <button type="button" class="btn btn-danger w-100 delete-transaction" style="display:none; margin-top: 5px;">
-            Eliminar Transacción
+          Eliminar Transacción
         </button>
       `;
       this.setupFormEventListeners(form);
@@ -218,9 +213,6 @@ const COMMISSION_FACTORS = {
       }
     }
   
-    // -------------------------------------------------------------------------
-    // Configurar event listeners para el formulario
-    // -------------------------------------------------------------------------
     setupFormEventListeners(form) {
       const calculateBtn = form.querySelector('.calculate-transaction');
       if (calculateBtn) {
@@ -234,40 +226,8 @@ const COMMISSION_FACTORS = {
           this.addArbitraryCommissionFields(form);
         });
       }
-      form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        checkbox.addEventListener('change', (e) => {
-          console.log(`Oficina ${e.target.value} ${e.target.checked ? 'seleccionada' : 'deseleccionada'}`);
-        });
-      });
-      const editBtn = form.querySelector('.edit-transaction');
-      const deleteBtn = form.querySelector('.delete-transaction');
-      if (editBtn) {
-        editBtn.addEventListener('click', () => {
-          this.editTransaction(form);
-        });
-      }
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-          this.deleteTransaction(form);
-        });
-      }
-      const tasaVentaField = form.querySelector('[name="tasaVenta"]');
-      const tasaOficinaField = form.querySelector('[name="tasaOficina"]');
-      const bankCommissionField = form.querySelector('[name="bankCommission"]');
-      if (tasaVentaField) {
-        tasaVentaField.addEventListener('input', () => this.calculateCommission(form));
-      }
-      if (tasaOficinaField) {
-        tasaOficinaField.addEventListener('input', () => this.calculateCommission(form));
-      }
-      if (bankCommissionField) {
-        bankCommissionField.addEventListener('change', () => this.calculateCommission(form));
-      }
     }
   
-    // -------------------------------------------------------------------------
-    // Agregar campos de comisión arbitraria
-    // -------------------------------------------------------------------------
     addArbitraryCommissionFields(form) {
       const container = form.querySelector('.arbitrary-commissions-container');
       if (!container) return;
@@ -278,7 +238,7 @@ const COMMISSION_FACTORS = {
         <input type="text" class="form-control" name="commissionName${idx}" placeholder="Nombre">
         <input type="number" class="form-control" name="commissionPercentage${idx}" placeholder="%" step="0.01">
         <button type="button" class="btn btn-outline-danger remove-commission">
-            <i class="fas fa-times"></i>
+          <i class="fas fa-times"></i>
         </button>
       `;
       container.appendChild(row);
@@ -287,9 +247,6 @@ const COMMISSION_FACTORS = {
       });
     }
   
-    // -------------------------------------------------------------------------
-    // Recopilar datos del formulario
-    // -------------------------------------------------------------------------
     collectFormData(form) {
       const data = {
         operatorName: form.querySelector('[name="operador"]').value.trim(),
@@ -302,30 +259,26 @@ const COMMISSION_FACTORS = {
       };
       if (form.querySelector('[name="oficinaPZO"]')?.checked) data.selectedOffices.push('PZO');
       if (form.querySelector('[name="oficinaCCS"]')?.checked) data.selectedOffices.push('CCS');
-      const commissionItems = form.querySelectorAll('.commission-item');
-      commissionItems.forEach(item => {
-        const name = item.querySelector('[name^="commissionName"]').value;
-        const percentage = parseFloat(item.querySelector('[name^="commissionPercentage"]').value);
-        if (name && !isNaN(percentage)) {
-          data.arbitraryCommissions.push({ name, percentage });
+      // Comisiones arbitrarias
+      form.querySelectorAll('.commission-item').forEach(item => {
+        const nameInput = item.querySelector('input[type="text"]');
+        const percInput = item.querySelector('input[type="number"]');
+        if (nameInput && percInput) {
+          const nameVal = nameInput.value.trim();
+          const percVal = parseFloat(percInput.value) || 0;
+          if (nameVal && percVal > 0) {
+            data.arbitraryCommissions.push({ name: nameVal, percentage: percVal });
+          }
         }
       });
-      if (!data.operatorName || !data.amount || !data.sellingRate || !data.bankCommission) {
-        throw new Error('Datos de transacción incompletos');
-      }
-      console.log('Comisión bancaria seleccionada:', data.bankCommission);
-      console.log('Datos recolectados:', data);
       return data;
     }
   
-    // -------------------------------------------------------------------------
-    // Procesar la transacción (Stage 2)
-    // -------------------------------------------------------------------------
     processTransaction(form) {
       try {
         const transactionData = this.collectFormData(form);
         if (transactionData.amount > this.remainingAmount) {
-          alert(`El monto excede el disponible (${this.formatForeign(this.remainingAmount)})`);
+          alert(`El monto excede el disponible (${this.remainingAmount} ${this.selectedCurrency})`);
           return;
         }
         const calculation = this.calculateTransaction(transactionData);
@@ -338,14 +291,16 @@ const COMMISSION_FACTORS = {
           amountForeign: transactionData.amount
         };
         this.transactions.push(transaction);
-        form.dataset.transactionId = transaction.id;
-        this.remainingAmount -= transactionData.amount;
         form.querySelectorAll('input, select, button:not(.add-arbitrary-commission)').forEach(el => {
           el.disabled = true;
         });
         form.querySelector('.calculate-transaction').style.display = 'none';
-        form.querySelector('.edit-transaction').style.display = 'block';
-        form.querySelector('.delete-transaction').style.display = 'block';
+        const editBtn = form.querySelector('.edit-transaction');
+        const deleteBtn = form.querySelector('.delete-transaction');
+        if (editBtn) editBtn.style.display = 'block';
+        if (deleteBtn) deleteBtn.style.display = 'block';
+  
+        this.remainingAmount -= transactionData.amount;
         this.updateUI();
         document.getElementById('stage3').style.display = 'block';
       } catch (error) {
@@ -354,9 +309,6 @@ const COMMISSION_FACTORS = {
       }
     }
   
-    // -------------------------------------------------------------------------
-    // Cálculo principal de la transacción
-    // -------------------------------------------------------------------------
     calculateTransaction(data) {
       const totalSaleBs = NumberUtils.round(data.amount * data.sellingRate, 2);
       const bankFactor = COMMISSION_FACTORS[data.bankCommission] || 1.0;
@@ -364,21 +316,19 @@ const COMMISSION_FACTORS = {
       const commission = NumberUtils.round(effectiveRate * bankFactor, 4);
       const baseCostBs = NumberUtils.round(data.amount * commission, 2);
       const differenceBs = NumberUtils.round(totalSaleBs - baseCostBs, 2);
+  
       let totalArbitraryBs = 0;
       const arbitraryCommissions = data.arbitraryCommissions.map(comm => {
         const commBs = NumberUtils.round(differenceBs * (comm.percentage / 100), 2);
         const commForeign = NumberUtils.round(commBs / data.sellingRate, 2);
         totalArbitraryBs += commBs;
-        return {
-          ...comm,
-          amountBs: commBs,
-          amountForeign: commForeign
-        };
+        return { ...comm, amountBs: commBs, amountForeign: commForeign };
       });
       const differenceAfterCommsBs = NumberUtils.round(differenceBs - totalArbitraryBs, 2);
       const amountToDistributeForeign = (data.sellingRate > 0)
         ? NumberUtils.round(differenceAfterCommsBs / data.sellingRate, 2)
         : 0;
+  
       const distribution = this.calculateDistribution(data, amountToDistributeForeign);
       return {
         totalSaleBs,
@@ -391,9 +341,6 @@ const COMMISSION_FACTORS = {
       };
     }
   
-    // -------------------------------------------------------------------------
-    // Cálculo de la distribución en la divisa
-    // -------------------------------------------------------------------------
     calculateDistribution(data, amountToDistributeForeign) {
       const distribution = { PZO: 0, CCS: 0, executive: 0, clientProfit: 0 };
       const officeCount = data.selectedOffices.length;
@@ -412,89 +359,51 @@ const COMMISSION_FACTORS = {
       return distribution;
     }
   
-    // -------------------------------------------------------------------------
-    // Métodos para editar y eliminar transacciones (Stage 2)
-    // -------------------------------------------------------------------------
-    editTransaction(form) {
-      const transactionId = form.dataset.transactionId;
-      if (!transactionId) return;
-      const index = this.transactions.findIndex(t => t.id == transactionId);
-      if (index === -1) return;
-      const transaction = this.transactions[index];
-      this.remainingAmount += transaction.amount;
-      this.transactions.splice(index, 1);
-      form.querySelectorAll('input, select, button').forEach(el => {
-        el.disabled = false;
-      });
-      form.querySelector('.calculate-transaction').style.display = 'block';
-      form.querySelector('.edit-transaction').style.display = 'none';
-      form.querySelector('.delete-transaction').style.display = 'none';
-      this.updateUI();
-    }
-  
-    deleteTransaction(form) {
-      const transactionId = form.dataset.transactionId;
-      if (!transactionId) return;
-      const index = this.transactions.findIndex(t => t.id == transactionId);
-      if (index === -1) return;
-      this.remainingAmount += this.transactions[index].amount;
-      this.transactions.splice(index, 1);
-      form.remove();
-      this.updateUI();
-    }
-  
-    // -------------------------------------------------------------------------
-    // Actualizar UI (Stage 3)
-    // -------------------------------------------------------------------------
     updateUI() {
       this.updateGlobalSummary();
     }
   
     updateGlobalSummary() {
-      const stage3 = document.getElementById('stage3');
       const resultContainer = document.getElementById('resultadoOperacion');
-      if (!stage3 || !resultContainer) return;
+      if (!resultContainer) return;
       let html = this.renderTransactionsList();
       html += this.renderGlobalSummary();
       resultContainer.innerHTML = html;
     }
   
-    // -------------------------------------------------------------------------
-    // Render de transacciones y resumen global (Stage 3)
-    // -------------------------------------------------------------------------
     renderTransactionsList() {
       if (this.transactions.length === 0) return '';
       let html = '<div class="transactions-list mb-4"><h5>Transacciones</h5>';
       this.transactions.forEach((t, index) => {
         html += `
           <div class="transaction-item card mb-2">
-              <div class="card-body">
-                  <h6 class="card-title">Transacción ${index + 1} - ${t.operatorName}</h6>
-                  <table class="table table-sm">
-                      <tr>
-                          <td>Monto en ${this.selectedCurrency}</td>
-                          <td class="text-end">${this.formatForeign(t.amount)}</td>
-                      </tr>
-                      <tr>
-                          <td>Tasa de Venta (Bs)</td>
-                          <td class="text-end">${t.sellingRate}</td>
-                      </tr>
-                      <tr>
-                          <td>Total de la Venta (Bs)</td>
-                          <td class="text-end">${this.formatBs(t.totalSaleBs)}</td>
-                      </tr>
-                      <tr>
-                          <td>Diferencia (Bs)</td>
-                          <td class="text-end">${this.formatBs(t.differenceBs)}</td>
-                      </tr>
-                      ${this.renderArbitraryCommissionsRows(t.arbitraryCommissions)}
-                      <tr>
-                          <td>Monto a Repartir (después de comisiones)</td>
-                          <td class="text-end">${this.formatForeign(t.amountToDistributeForeign)}</td>
-                      </tr>
-                      ${this.renderDistributionRows(t.distribution)}
-                  </table>
-              </div>
+            <div class="card-body">
+              <h6 class="card-title">Transacción ${index + 1} - ${t.operatorName}</h6>
+              <table class="table table-sm">
+                <tr>
+                  <td>Monto en ${this.selectedCurrency}</td>
+                  <td class="text-end">${this.formatForeign(t.amount)}</td>
+                </tr>
+                <tr>
+                  <td>Tasa de Venta (Bs)</td>
+                  <td class="text-end">${t.sellingRate}</td>
+                </tr>
+                <tr>
+                  <td>Total de la Venta (Bs)</td>
+                  <td class="text-end">${this.formatBs(t.totalSaleBs)}</td>
+                </tr>
+                <tr>
+                  <td>Diferencia (Bs)</td>
+                  <td class="text-end">${this.formatBs(t.differenceBs)}</td>
+                </tr>
+                ${this.renderArbitraryCommissionsRows(t.arbitraryCommissions)}
+                <tr>
+                  <td>Monto a Repartir (después de comisiones)</td>
+                  <td class="text-end">${this.formatForeign(t.amountToDistributeForeign)}</td>
+                </tr>
+                ${this.renderDistributionRows(t.distribution)}
+              </table>
+            </div>
           </div>
         `;
       });
@@ -503,12 +412,14 @@ const COMMISSION_FACTORS = {
   
     renderArbitraryCommissionsRows(arbitraryCommissions) {
       if (!arbitraryCommissions || arbitraryCommissions.length === 0) return '';
-      let html = '';
-      arbitraryCommissions.forEach(commission => {
+      let html = `
+        <tr><td colspan="2" class="commission-header">Comisiones Arbitrarias</td></tr>
+      `;
+      arbitraryCommissions.forEach(comm => {
         html += `
           <tr>
-              <td>${commission.name} (${commission.percentage}%)</td>
-              <td class="text-end">${this.formatForeign(commission.amountForeign)}</td>
+            <td>${comm.name} (${comm.percentage}%)</td>
+            <td class="text-end">${this.formatForeign(comm.amountForeign)}</td>
           </tr>
         `;
       });
@@ -520,27 +431,27 @@ const COMMISSION_FACTORS = {
       if (distribution.PZO) {
         html += `
           <tr>
-              <td>Oficina PZO</td>
-              <td class="text-end">${this.formatForeign(distribution.PZO)}</td>
+            <td>Oficina PZO</td>
+            <td class="text-end">${this.formatForeign(distribution.PZO)}</td>
           </tr>
         `;
       }
       if (distribution.CCS) {
         html += `
           <tr>
-              <td>Oficina CCS</td>
-              <td class="text-end">${this.formatForeign(distribution.CCS)}</td>
+            <td>Oficina CCS</td>
+            <td class="text-end">${this.formatForeign(distribution.CCS)}</td>
           </tr>
         `;
       }
       html += `
         <tr>
-            <td>Ejecutivo</td>
-            <td class="text-end">${this.formatForeign(distribution.executive)}</td>
+          <td>Ejecutivo</td>
+          <td class="text-end">${this.formatForeign(distribution.executive)}</td>
         </tr>
         <tr>
-            <td>Ganancia en Cliente</td>
-            <td class="text-end">${this.formatForeign(distribution.clientProfit)}</td>
+          <td>Ganancia en Cliente</td>
+          <td class="text-end">${this.formatForeign(distribution.clientProfit)}</td>
         </tr>
       `;
       return html;
@@ -550,10 +461,10 @@ const COMMISSION_FACTORS = {
       const totals = this.calculateGlobalTotals();
       return `
         <div class="global-summary mt-4">
-            <h5 class="mb-3">Totales de la Operación</h5>
-            <table class="table table-sm">
-                ${this.renderGlobalTotalsRows(totals)}
-            </table>
+          <h5 class="mb-3">Totales de la Operación</h5>
+          <table class="table table-sm">
+            ${this.renderGlobalTotalsRows(totals)}
+          </table>
         </div>
       `;
     }
@@ -586,67 +497,49 @@ const COMMISSION_FACTORS = {
     renderGlobalTotalsRows(totals) {
       return `
         <tr>
-            <td>Total Venta (Bs)</td>
-            <td class="text-end">${this.formatBs(totals.totalSaleBs)}</td>
+          <td>Total Venta (Bs)</td>
+          <td class="text-end">${this.formatBs(totals.totalSaleBs)}</td>
         </tr>
         <tr>
-            <td>Total Comisiones Arbitrarias</td>
-            <td class="text-end">${this.formatForeign(totals.totalArbitrary)}</td>
+          <td>Total Comisiones Arbitrarias</td>
+          <td class="text-end">${this.formatForeign(totals.totalArbitrary)}</td>
         </tr>
         <tr>
-            <td>Total Ganancia en Cliente</td>
-            <td class="text-end">${this.formatForeign(totals.totalClientProfit)}</td>
+          <td>Total Ganancia en Cliente</td>
+          <td class="text-end">${this.formatForeign(totals.totalClientProfit)}</td>
         </tr>
         <tr>
-            <td>Total Ejecutivo</td>
-            <td class="text-end">${this.formatForeign(totals.totalExecutive)}</td>
+          <td>Total Ejecutivo</td>
+          <td class="text-end">${this.formatForeign(totals.totalExecutive)}</td>
         </tr>
         ${totals.totalPZO > 0 ? `
-        <tr>
+          <tr>
             <td>Total Oficina PZO</td>
             <td class="text-end">${this.formatForeign(totals.totalPZO)}</td>
-        </tr>
+          </tr>
         ` : ''}
         ${totals.totalCCS > 0 ? `
-        <tr>
+          <tr>
             <td>Total Oficina CCS</td>
             <td class="text-end">${this.formatForeign(totals.totalCCS)}</td>
-        </tr>
+          </tr>
         ` : ''}
         <tr>
-            <td>Monto Total Operación</td>
-            <td class="text-end">${this.formatForeign(this.totalAmount)}</td>
+          <td>Monto Total Operación</td>
+          <td class="text-end">${this.formatForeign(this.totalAmount)}</td>
         </tr>
         <tr>
-            <td>Monto Vendido</td>
-            <td class="text-end">${this.formatForeign(totals.totalAmount)}</td>
+          <td>Monto Vendido</td>
+          <td class="text-end">${this.formatForeign(totals.totalAmount)}</td>
         </tr>
         <tr>
-            <td>Monto Restante</td>
-            <td class="text-end">${this.formatForeign(this.remainingAmount)}</td>
+          <td>Monto Restante</td>
+          <td class="text-end">${this.formatForeign(this.remainingAmount)}</td>
         </tr>
       `;
     }
   
-    // -------------------------------------------------------------------------
-    // Método para calcular comisión bancaria en tiempo real
-    // -------------------------------------------------------------------------
-    calculateCommission(form) {
-      const sellingRate = parseFloat(form.querySelector('[name="tasaVenta"]').value) || 0;
-      const officeRate = parseFloat(form.querySelector('[name="tasaOficina"]').value) || 0;
-      const bankCommissionStr = form.querySelector('[name="bankCommission"]').value;
-      const bankFactor = COMMISSION_FACTORS[bankCommissionStr] || 1.0;
-      const effectiveRate = officeRate > 0 ? officeRate : this.clientRate;
-      const commissionValue = NumberUtils.round(effectiveRate * bankFactor, 4);
-      const commissionField = form.querySelector('[name="commission"]');
-      if (commissionField) {
-        commissionField.value = commissionValue.toFixed(4);
-      }
-    }
-  
-    // -------------------------------------------------------------------------
-    // Métodos de formateo
-    // -------------------------------------------------------------------------
+    // Formatear en la divisa
     formatForeign(value) {
       let symbol = '$';
       if (this.selectedCurrency === 'EUR') {
@@ -661,6 +554,7 @@ const COMMISSION_FACTORS = {
       }).format(value);
     }
   
+    // Formatear en Bs
     formatBs(value) {
       return new Intl.NumberFormat('es-VE', {
         style: 'decimal',
@@ -670,10 +564,22 @@ const COMMISSION_FACTORS = {
       }).format(value);
     }
   
-    // -------------------------------------------------------------------------
-    // Nuevo método: Enviar la operación (Stage Final)
-    // -------------------------------------------------------------------------
+    calculateCommission(form) {
+      const sellingRate = parseFloat(form.querySelector('[name="tasaVenta"]').value) || 0;
+      const officeRate = parseFloat(form.querySelector('[name="tasaOficina"]').value) || 0;
+      const bankCommissionStr = form.querySelector('[name="bankCommission"]').value;
+      const bankFactor = COMMISSION_FACTORS[bankCommissionStr] || 1.0;
+      const effectiveRate = officeRate > 0 ? officeRate : this.clientRate;
+      const commissionValue = NumberUtils.round(effectiveRate * bankFactor, 4);
+      const commissionField = form.querySelector('[name="commission"]');
+      if (commissionField) {
+        commissionField.value = commissionValue.toFixed(4);
+      }
+    }
+  
+    // Enviar la operación a la API
     submitOperation() {
+      // Construir el payload final
       const payload = {
         type: "venta",
         client: this.clientName,
@@ -683,50 +589,55 @@ const COMMISSION_FACTORS = {
           currency: this.selectedCurrency,
           transactions: this.transactions,
           summary: this.calculateGlobalTotals()
-        }
+        },
+        estado: "incompleta" // O "completa" si ya se completó
       };
-      // Determinar el estado: "completa" si el monto pendiente es 0, "incompleta" en caso contrario
-      payload.estado = (this.remainingAmount <= 0) ? "completa" : "incompleta";
+  
+      // Si quisiéramos “cerrar” la operación, pondríamos estado: "completa"
   
       const token = localStorage.getItem('auth_token');
-      // Si se está actualizando (modo completar), usar PUT; de lo contrario, POST (nueva operación)
-      const url = this.operationId
-        ? `/api/transactions/${this.operationId}`
-        : '/api/transactions';
-      const method = this.operationId ? 'PUT' : 'POST';
+      let url = '/api/transactions';
+      let method = 'POST';
+  
+      // Si es una operación existente, podríamos usar PUT en lugar de POST:
+      if (this.existingOperationId) {
+        url = `/api/transactions/${this.existingOperationId}`;
+        method = 'PUT';
+      }
   
       fetch(url, {
-        method: method,
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + token
         },
         body: JSON.stringify(payload)
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Error al registrar la operación');
-          return res.json();
-        })
-        .then(data => {
-          alert('Operación registrada con éxito');
-          console.log('Operación guardada:', data);
-          // Se puede redirigir o reiniciar la UI según se requiera
-        })
-        .catch(err => {
-          console.error(err);
-          alert('Error al registrar la operación');
-        });
+      .then(res => {
+        if (!res.ok) throw new Error('Error al registrar/actualizar la operación');
+        return res.json();
+      })
+      .then(data => {
+        alert('Operación registrada/actualizada con éxito');
+        console.log('Operación guardada:', data);
+        // Podrías redirigir a operaciones.html
+        window.location.href = 'operaciones.html';
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Error al registrar la operación');
+      });
     }
   }
   
-  // -------------------------------------------------------------------------
-  // Inicialización cuando el DOM esté listo
-  // -------------------------------------------------------------------------
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inicializando sistema de ventas...');
     const transactionManager = new TransactionManager();
   
-    // Referencias del Stage 1
+    // Cargar la operación si viene ?id=...
+    await transactionManager.loadOperationIfNeeded();
+  
+    // Stage 1
     const operationForm = document.getElementById('operationForm');
     const clientNameInput = document.getElementById('clientName');
     const amountToSellInput = document.getElementById('amountToSell');
@@ -734,7 +645,7 @@ const COMMISSION_FACTORS = {
     const amountClientReceivesInput = document.getElementById('amountClientReceives');
     const currencyTypeSelect = document.getElementById('currencyType');
   
-    // Función para actualizar el monto en Bs en tiempo real
+    // Actualiza el monto en Bs en tiempo real
     function updateClientAmount() {
       const amount = parseFloat(amountToSellInput.value) || 0;
       const rate = parseFloat(clientRateInput.value) || 0;
@@ -751,52 +662,22 @@ const COMMISSION_FACTORS = {
       }
     }
   
-    if (amountToSellInput && clientRateInput) {
-      amountToSellInput.addEventListener('input', updateClientAmount);
-      clientRateInput.addEventListener('input', updateClientAmount);
-      console.log('Event listeners para actualización de monto configurados');
-    } else {
-      console.error('No se encontraron los elementos de entrada necesarios');
-    }
+    amountToSellInput.addEventListener('input', updateClientAmount);
+    clientRateInput.addEventListener('input', updateClientAmount);
   
-    // Verificar si la URL contiene el parámetro "id" para modo completar operación
-    const operationId = getUrlParameter('id');
-    if (operationId) {
-      transactionManager.operationId = operationId;
-      // Se asume que se puede obtener la operación llamando a GET /api/transactions y filtrando por _id
-      fetch('/api/transactions', {
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          const op = data.find(o => o._id === operationId);
-          if (op) {
-            transactionManager.loadOperation(op);
-          } else {
-            console.error('Operación no encontrada para el ID:', operationId);
-          }
-        })
-        .catch(err => console.error('Error al cargar la operación:', err));
-    }
-  
-    // Al enviar Stage 1: Asigna datos y muestra Stage 2
+    // Al enviar Stage 1
     if (operationForm) {
       operationForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const totalAmount = parseFloat(amountToSellInput.value);
-        const rate = parseFloat(clientRateInput.value);
+        const totalAmount = parseFloat(amountToSellInput.value) || 0;
+        const rate = parseFloat(clientRateInput.value) || 0;
         const userSelection = currencyTypeSelect.value;
         if (totalAmount > 0 && rate > 0 && userSelection) {
           transactionManager.clientRate = rate;
           transactionManager.selectedCurrency = mapCurrencyType(userSelection);
           transactionManager.clientName = clientNameInput.value.trim();
-          // En modo nuevo operación, se inicializa con setTotalAmount;
-          // En modo completar, los datos ya fueron cargados.
-          if (!transactionManager.operationId) {
-            transactionManager.setTotalAmount(totalAmount);
-          }
+          transactionManager.setTotalAmount(totalAmount);
+  
           const stage2 = document.getElementById('stage2');
           if (stage2) {
             stage2.style.display = 'block';
@@ -807,7 +688,7 @@ const COMMISSION_FACTORS = {
       });
     }
   
-    // Stage 2: Agregar transacciones
+    // Botón para agregar transacciones
     const addTransactionBtn = document.getElementById('addTransactionBtn');
     if (addTransactionBtn) {
       addTransactionBtn.addEventListener('click', () => {
@@ -815,7 +696,7 @@ const COMMISSION_FACTORS = {
       });
     }
   
-    // Stage Final: Registrar Operación
+    // Botón para registrar la operación
     const submitOperationBtn = document.getElementById('submitOperationBtn');
     if (submitOperationBtn) {
       submitOperationBtn.addEventListener('click', () => {

@@ -63,7 +63,8 @@
             </div>
             <div class="card-body scrollable">
               <div id="operationsList" class="list-group">
-                <!-- Aquí se inyectarán dinámicamente las operaciones -->
+                <!-- Aquí se inyectarán dinámicamente las operaciones con más columnas 
+                     (pendiente, ganancia, tipo, etc.) desde operaciones.js -->
               </div>
             </div>
           </div>
@@ -72,7 +73,7 @@
     </div>
   </div>
 
-  <!-- Modal para Detalle / Agregar Transacción -->
+  <!-- Modal para ver Detalle de la Operación -->
   <div class="modal fade" id="operationModal" tabindex="-1" aria-labelledby="operationModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -81,7 +82,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body" id="operationModalBody">
-          <!-- Contenido dinámico del modal -->
+          <!-- Contenido dinámico del modal (se renderiza en operaciones.js) -->
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-primary" id="modalActionButton">Acción</button>
