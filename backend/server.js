@@ -5,18 +5,22 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+// Añadir dotenv para variables de entorno
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const SECRET_KEY = process.env.SECRET_KEY || 'tu_clave_secreta';
+// Usar la variable de entorno SECRET_KEY sin valor de respaldo
+const SECRET_KEY = process.env.SECRET_KEY;
+if (!SECRET_KEY) {
+  console.error('ERROR: SECRET_KEY no está definida en el archivo .env');
+  process.exit(1);
+}
 
-// Conexión a MongoDB (ajusta la URI según tu configuración o usa MongoDB Atlas)
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/interunido', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+// Conexión a MongoDB (sin opciones deprecadas)
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/interunido')
   .then(() => console.log('MongoDB conectado'))
   .catch(err => console.error('Error de conexión a MongoDB:', err));
 
@@ -52,9 +56,6 @@ function verifyToken(req, res, next) {
     console.error('No se proporcionó token');
     return res.status(403).json({ message: 'No se proporcionó token' });
   }
-  
-  // Imprime la clave secreta usada (para depuración)
-  console.log('Clave secreta usada:', SECRET_KEY);
   
   jwt.verify(token, SECRET_KEY, (err, decoded) => {
     if (err) {
