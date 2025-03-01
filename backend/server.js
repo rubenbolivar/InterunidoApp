@@ -22,7 +22,10 @@ if (!SECRET_KEY) {
 }
 
 // Conexión a MongoDB (sin opciones deprecadas)
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/interunido')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/interunido', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
   .then(() => logger.info('MongoDB conectado'))
   .catch(err => logger.error('Error de conexión a MongoDB:', { error: err.message }));
 
