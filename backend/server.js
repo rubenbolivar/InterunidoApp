@@ -5,24 +5,26 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-// Añadir dotenv para variables de entorno
+// Cargar variables de entorno
 require('dotenv').config();
+// Importar logger
+const logger = require('./logger');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Usar la variable de entorno SECRET_KEY sin valor de respaldo
+// Usar SECRET_KEY desde variables de entorno de forma segura
 const SECRET_KEY = process.env.SECRET_KEY;
 if (!SECRET_KEY) {
-  console.error('ERROR: SECRET_KEY no está definida en el archivo .env');
+  logger.error('ERROR: SECRET_KEY no está definida en el archivo .env');
   process.exit(1);
 }
 
 // Conexión a MongoDB (sin opciones deprecadas)
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/interunido')
-  .then(() => console.log('MongoDB conectado'))
-  .catch(err => console.error('Error de conexión a MongoDB:', err));
+  .then(() => logger.info('MongoDB conectado'))
+  .catch(err => logger.error('Error de conexión a MongoDB:', { error: err.message }));
 
 // Modelo de Usuario
 const UserSchema = new mongoose.Schema({
@@ -53,13 +55,13 @@ function verifyToken(req, res, next) {
   
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) {
-    console.error('No se proporcionó token');
+    logger.error('No se proporcionó token');
     return res.status(403).json({ message: 'No se proporcionó token' });
   }
   
   jwt.verify(token, SECRET_KEY, (err, decoded) => {
     if (err) {
-      console.error('Error al verificar token:', err);
+      logger.error('Error al verificar token:', { error: err.message });
       return res.status(401).json({ message: 'Token inválido' });
     }
     req.user = decoded; // decoded debe contener al menos { id, role }
@@ -180,5 +182,5 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor API corriendo en puerto ${PORT}`));
+app.listen(PORT, () => logger.info(`Servidor API corriendo en puerto ${PORT}`));
 // Actualización servidor: Wed Feb 19 15:47:23 -04 2025
