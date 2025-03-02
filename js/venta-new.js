@@ -325,13 +325,13 @@ const COMMISSION_FACTORS = {
       let totalArbitraryBs = 0;
       const arbitraryCommissions = data.arbitraryCommissions.map(comm => {
         const commBs = NumberUtils.round(differenceBs * (comm.percentage / 100), 2);
-        const commForeign = NumberUtils.round(commBs / data.sellingRate, 2);
+        const commForeign = NumberUtils.round(commBs / commission, 2);
         totalArbitraryBs += commBs;
         return { ...comm, amountBs: commBs, amountForeign: commForeign };
       });
       const differenceAfterCommsBs = NumberUtils.round(differenceBs - totalArbitraryBs, 2);
-      const amountToDistributeForeign = (data.sellingRate > 0)
-        ? NumberUtils.round(differenceAfterCommsBs / data.sellingRate, 2)
+      const amountToDistributeForeign = (commission > 0)
+        ? NumberUtils.round(differenceAfterCommsBs / commission, 2)
         : 0;
   
       const distribution = this.calculateDistribution(data, amountToDistributeForeign);
