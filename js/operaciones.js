@@ -96,9 +96,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // 3) Pendiente (solo si está incompleta)
       let pendienteHTML = `<td></td>`; // vacío por defecto
       if (op.estado === 'incompleta') {
-        // Asegúrate de usar la propiedad donde guardes el pendiente. Ejemplo:
+        // Corregido: Obtener el valor pendiente desde la ubicación correcta
         let pendingValue = 0;
-        if (op.details && op.details.summary && op.details.summary.montoRestante) {
+        if (op.details && op.details.summary && typeof op.details.summary.montoPendiente !== 'undefined') {
+          pendingValue = op.details.summary.montoPendiente;
+        } else if (op.details && op.details.summary && typeof op.details.summary.montoRestante !== 'undefined') {
           pendingValue = op.details.summary.montoRestante;
         }
         pendienteHTML = `
@@ -210,9 +212,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Pendiente y ganancia (si existen)
     let pendingValue = 0;
-    if (op.estado === 'incompleta' &&
-        op.details?.summary?.montoRestante) {
-      pendingValue = op.details.summary.montoRestante;
+    if (op.estado === 'incompleta') {
+      // Corregido: Verificar ambos campos posibles
+      if (op.details?.summary?.montoPendiente !== undefined) {
+        pendingValue = op.details.summary.montoPendiente;
+      } else if (op.details?.summary?.montoRestante !== undefined) {
+        pendingValue = op.details.summary.montoRestante;
+      }
     }
     const pendingStr = currencySymbol + formatVES(pendingValue);
 

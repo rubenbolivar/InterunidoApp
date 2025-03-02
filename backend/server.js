@@ -107,21 +107,36 @@ app.put('/api/transactions/:id', verifyToken, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) {
+      logger.error(`Operación no encontrada: ${req.params.id}`);
       return res.status(404).json({ message: 'Operación no encontrada' });
     }
     // Si el usuario no es admin, solo puede actualizar su propia operación
     if (req.user.role !== 'admin' && transaction.operatorId.toString() !== req.user.id) {
+      logger.warn(`Usuario ${req.user.id} intentó actualizar operación ${req.params.id} sin autorización`);
       return res.status(403).json({ message: 'No autorizado para actualizar esta operación' });
     }
+    
+    // Validar datos recibidos
+    if (req.body.amount && (isNaN(req.body.amount) || req.body.amount <= 0)) {
+      return res.status(400).json({ message: 'El monto debe ser un número positivo' });
+    }
+    
     // Actualizar los campos relevantes
     transaction.client = req.body.client || transaction.client;
     transaction.amount = req.body.amount || transaction.amount;
     transaction.details = req.body.details || transaction.details;
     transaction.estado = req.body.estado || transaction.estado;
+    
+    // Registrar el cambio de estado si es aplicable
+    if (req.body.estado && req.body.estado !== transaction.estado) {
+      logger.info(`Operación ${req.params.id} cambió de estado: ${transaction.estado} → ${req.body.estado}`);
+    }
+    
     await transaction.save();
+    logger.info(`Operación ${req.params.id} actualizada correctamente`);
     res.json(transaction);
   } catch (error) {
-    console.error('Error al actualizar la transacción:', error);
+    logger.error('Error al actualizar la transacción:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Error al actualizar la operación' });
   }
 });

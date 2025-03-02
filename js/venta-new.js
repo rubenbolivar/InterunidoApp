@@ -69,65 +69,102 @@ const COMMISSION_FACTORS = {
   
       // Hacer fetch de la operación
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`/api/transactions/${operationId}`, {
-        headers: {
-          'Authorization': 'Bearer ' + token
+      try {
+        const resp = await fetch(`/api/transactions/${operationId}`, {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        
+        if (!resp.ok) {
+          throw new Error(`Error HTTP: ${resp.status}`);
         }
-      });
-      if (!resp.ok) {
-        console.error('Error al obtener la operación existente');
-        return;
+        
+        const op = await resp.json();
+    
+        // Supongamos que op.details.transactions es un array de transacciones parciales
+        const partials = op.details?.transactions || [];
+        const sumOfPartials = partials.reduce((acc, t) => acc + (t.amount || 0), 0);
+    
+        // Monto pendiente
+        const pending = op.amount - sumOfPartials;
+        if (pending < 0) {
+          console.warn('El monto pendiente es negativo. Revisa tus datos.');
+        }
+    
+        // Precargar en Stage 1
+        this.clientName = op.client;
+        this.selectedCurrency = op.details?.currency || 'USD';
+        // supondremos que la clientRate está en details
+        this.clientRate = op.details?.clientRate || 0;
+    
+        // Quiero que la UI muestre el pendiente, no el total original
+        this.setTotalAmount(pending);
+    
+        // Llenar los inputs
+        document.getElementById('clientName').value = this.clientName;
+        document.getElementById('amountToSell').value = pending;
+    
+        // Con base en la divisa
+        let currencyOption = '';
+        switch (this.selectedCurrency) {
+          case 'EUR':
+            currencyOption = 'Euros en efectivo';
+            break;
+          case 'USDT':
+            currencyOption = 'Binance USDT';
+            break;
+          default:
+            currencyOption = 'Dólares en efectivo';
+            break;
+        }
+        document.getElementById('currencyType').value = currencyOption;
+        document.getElementById('clientRate').value = this.clientRate;
+    
+        // Forzar el cálculo para "Monto que debe recibir el cliente"
+        const amountClientReceivesInput = document.getElementById('amountClientReceives');
+        const totalBs = pending * this.clientRate;
+        amountClientReceivesInput.value = new Intl.NumberFormat('es-VE', {
+          style: 'decimal',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+          useGrouping: true
+        }).format(totalBs);
+        
+        // Mostrar un mensaje con el monto restante
+        if (pending > 0) {
+          const message = `Se ha cargado la operación con ID: ${operationId}. Monto pendiente: ${this.formatForeign(pending)}`;
+          this.showNotification(message, 'info');
+        } else if (pending === 0) {
+          const message = `Esta operación ya está completada. Por favor, cree una nueva operación.`;
+          this.showNotification(message, 'warning');
+        }
+      } catch (error) {
+        console.error('Error al cargar la operación:', error);
+        this.showNotification('No se pudo cargar la operación. Por favor, intente nuevamente.', 'error');
       }
-      const op = await resp.json();
-  
-      // Supongamos que op.details.transactions es un array de transacciones parciales
-      const partials = op.details?.transactions || [];
-      const sumOfPartials = partials.reduce((acc, t) => acc + (t.amount || 0), 0);
-  
-      // Monto pendiente
-      const pending = op.amount - sumOfPartials;
-      if (pending < 0) {
-        console.warn('El monto pendiente es negativo. Revisa tus datos.');
+    }
+    
+    showNotification(message, type = 'info') {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+      alertDiv.role = 'alert';
+      alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+      
+      // Insertar la alerta al principio del contenido principal
+      const mainContent = document.querySelector('main');
+      if (mainContent && mainContent.firstChild) {
+        mainContent.insertBefore(alertDiv, mainContent.firstChild);
       }
-  
-      // Precargar en Stage 1
-      this.clientName = op.client;
-      this.selectedCurrency = op.details?.currency || 'USD';
-      // supondremos que la clientRate está en details
-      this.clientRate = op.details?.clientRate || 0;
-  
-      // Quiero que la UI muestre el pendiente, no el total original
-      this.setTotalAmount(pending);
-  
-      // Llenar los inputs
-      document.getElementById('clientName').value = this.clientName;
-      document.getElementById('amountToSell').value = pending;
-  
-      // Con base en la divisa
-      let currencyOption = '';
-      switch (this.selectedCurrency) {
-        case 'EUR':
-          currencyOption = 'Euros en efectivo';
-          break;
-        case 'USDT':
-          currencyOption = 'Binance USDT';
-          break;
-        default:
-          currencyOption = 'Dólares en efectivo';
-          break;
-      }
-      document.getElementById('currencyType').value = currencyOption;
-      document.getElementById('clientRate').value = this.clientRate;
-  
-      // Forzar el cálculo para “Monto que debe recibir el cliente”
-      const amountClientReceivesInput = document.getElementById('amountClientReceives');
-      const totalBs = pending * this.clientRate;
-      amountClientReceivesInput.value = new Intl.NumberFormat('es-VE', {
-        style: 'decimal',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-        useGrouping: true
-      }).format(totalBs);
+      
+      // Auto-cerrar después de 5 segundos
+      setTimeout(() => {
+        const bsAlert = new bootstrap.Alert(alertDiv);
+        bsAlert.close();
+      }, 5000);
     }
   
     setTotalAmount(amount) {
