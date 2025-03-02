@@ -45,7 +45,8 @@ const TransactionSchema = new mongoose.Schema({
   details: Object,    // Información adicional (currency, rate, transacciones parciales, etc.)
   operatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   estado: { type: String, default: 'incompleta' }, // "incompleta" o "completa"
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  history: [{ type: Object }]
 });
 const Transaction = mongoose.model('Transaction', TransactionSchema);
 
@@ -121,15 +122,84 @@ app.put('/api/transactions/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'El monto debe ser un número positivo' });
     }
     
+    // Registrar cambios en el historial
+    const historyEntry = {
+      date: new Date(),
+      userId: req.user.id,
+      action: req.body.estado === 'completa' && transaction.estado === 'incompleta' ? 'complete' : 'update',
+      changes: {}
+    };
+    
+    // Verificar cambios específicos
+    if (req.body.client && req.body.client !== transaction.client) {
+      historyEntry.changes.client = [transaction.client, req.body.client];
+    }
+    
+    if (req.body.amount && req.body.amount !== transaction.amount) {
+      historyEntry.changes.amount = [transaction.amount, req.body.amount];
+    }
+    
+    if (req.body.estado && req.body.estado !== transaction.estado) {
+      historyEntry.changes.estado = [transaction.estado, req.body.estado];
+    }
+    
+    // Verificar si hubo cambios en los detalles
+    if (req.body.details) {
+      // Solo para simplificar, registramos que hubo cambios en detalles
+      historyEntry.changes.details = ['updated', 'updated'];
+    }
+    
     // Actualizar los campos relevantes
     transaction.client = req.body.client || transaction.client;
     transaction.amount = req.body.amount || transaction.amount;
     transaction.details = req.body.details || transaction.details;
-    transaction.estado = req.body.estado || transaction.estado;
     
-    // Registrar el cambio de estado si es aplicable
-    if (req.body.estado && req.body.estado !== transaction.estado) {
-      logger.info(`Operación ${req.params.id} cambió de estado: ${transaction.estado} → ${req.body.estado}`);
+    // Verificación automática del estado basado en monto pendiente
+    let shouldBeComplete = false;
+    let pendingAmount = 0;
+    
+    // Verificar si hay monto pendiente en los detalles actualizados o en los existentes
+    if (req.body.details && req.body.details.summary) {
+      if (typeof req.body.details.summary.montoPendiente !== 'undefined') {
+        pendingAmount = req.body.details.summary.montoPendiente;
+      } else if (typeof req.body.details.summary.montoRestante !== 'undefined') {
+        pendingAmount = req.body.details.summary.montoRestante;
+      }
+    } else if (transaction.details && transaction.details.summary) {
+      if (typeof transaction.details.summary.montoPendiente !== 'undefined') {
+        pendingAmount = transaction.details.summary.montoPendiente;
+      } else if (typeof transaction.details.summary.montoRestante !== 'undefined') {
+        pendingAmount = transaction.details.summary.montoRestante;
+      }
+    }
+    
+    // Si el monto pendiente es 0 o negativo, la operación debe estar completa
+    shouldBeComplete = pendingAmount <= 0;
+    
+    // Si debe estar completa, asegurar que el estado sea 'completa'
+    if (shouldBeComplete && transaction.estado !== 'completa') {
+      transaction.estado = 'completa';
+      
+      // Si el estado no venía en la solicitud, añadir el cambio al historial
+      if (!req.body.estado) {
+        historyEntry.changes.estado = [transaction.estado, 'completa'];
+        historyEntry.action = 'complete';
+      }
+      
+      logger.info(`Operación ${req.params.id} marcada automáticamente como completa debido a monto pendiente cero`);
+    } else {
+      // Si no debe estar completa automáticamente, respetar lo que viene en la solicitud
+      transaction.estado = req.body.estado || transaction.estado;
+    }
+    
+    // Solo añadir la entrada de historial si hay cambios
+    if (Object.keys(historyEntry.changes).length > 0) {
+      // Inicializar el array history si no existe
+      if (!transaction.history) {
+        transaction.history = [];
+      }
+      
+      transaction.history.push(historyEntry);
     }
     
     await transaction.save();
@@ -141,7 +211,7 @@ app.put('/api/transactions/:id', verifyToken, async (req, res) => {
   }
 });
 
-// **NUEVO** Endpoint para obtener UNA transacción por su ID
+// Endpoint para obtener UNA transacción por su ID
 app.get('/api/transactions/:id', verifyToken, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);

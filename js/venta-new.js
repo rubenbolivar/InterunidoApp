@@ -650,7 +650,8 @@ const COMMISSION_FACTORS = {
           transactions: this.transactions,
           summary: globalTotals
         },
-        estado: "incompleta" // O "completa" si ya se completó
+        // Determinar el estado basado en el monto pendiente
+        estado: this.remainingAmount <= 0 ? "completa" : "incompleta"
       };
   
       const token = localStorage.getItem('auth_token');

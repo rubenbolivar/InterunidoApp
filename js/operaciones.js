@@ -94,22 +94,36 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
 
       // 3) Pendiente (solo si está incompleta)
-      let pendienteHTML = `<td></td>`; // vacío por defecto
-      if (op.estado === 'incompleta') {
-        // Corregido: Obtener el valor pendiente desde la ubicación correcta
-        let pendingValue = 0;
-        if (op.details && op.details.summary && typeof op.details.summary.montoPendiente !== 'undefined') {
+      let pendienteHTML = '';
+      let pendingValue = 0;
+      
+      // Verificar si hay detalles y montoPendiente
+      if (op.details && op.details.summary) {
+        // Corregido: Verificar ambos campos posibles
+        if (typeof op.details.summary.montoPendiente !== 'undefined') {
           pendingValue = op.details.summary.montoPendiente;
-        } else if (op.details && op.details.summary && typeof op.details.summary.montoRestante !== 'undefined') {
+        } else if (typeof op.details.summary.montoRestante !== 'undefined') {
           pendingValue = op.details.summary.montoRestante;
         }
-        pendienteHTML = `
-          <td>
-            ${currencySymbol}${formatVES(pendingValue)}
-          </td>
-        `;
+        
+        // Asegurarse de que el estado sea coherente con el monto pendiente
+        // Esta es una medida de seguridad por si el estado en la base de datos no está actualizado
+        if (pendingValue <= 0 && op.estado !== 'completa') {
+          console.warn('Operación con monto pendiente <= 0 pero estado incompleto:', op._id);
+          op.estado = 'completa'; // Corregir el estado localmente
+        }
+        
+        if (op.estado === 'incompleta') {
+          pendienteHTML = `
+            <td>
+              ${currencySymbol}${formatVES(pendingValue)}
+            </td>
+          `;
+        } else {
+          // Para completadas, podría ser vacío o 0
+          pendienteHTML = `<td>-</td>`;
+        }
       } else {
-        // Para completadas, podría ser vacío o 0
         pendienteHTML = `<td>-</td>`;
       }
 
