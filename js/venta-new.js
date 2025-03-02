@@ -325,11 +325,15 @@ const COMMISSION_FACTORS = {
       let totalArbitraryBs = 0;
       const arbitraryCommissions = data.arbitraryCommissions.map(comm => {
         const commBs = NumberUtils.round(differenceBs * (comm.percentage / 100), 2);
-        const commForeign = NumberUtils.round(commBs / commission, 2);
+        // IMPORTANTE: Para las comisiones arbitrarias, usamos la tasa de venta (sellingRate)
+        // para convertir de bolívares a divisas, NO la tasa de comisión
+        const commForeign = NumberUtils.round(commBs / data.sellingRate, 2);
         totalArbitraryBs += commBs;
         return { ...comm, amountBs: commBs, amountForeign: commForeign };
       });
       const differenceAfterCommsBs = NumberUtils.round(differenceBs - totalArbitraryBs, 2);
+      
+      // Para el monto a distribuir, usamos la tasa de comisión
       const amountToDistributeForeign = (commission > 0)
         ? NumberUtils.round(differenceAfterCommsBs / commission, 2)
         : 0;
@@ -349,6 +353,14 @@ const COMMISSION_FACTORS = {
     calculateDistribution(data, amountToDistributeForeign) {
       const distribution = { PZO: 0, CCS: 0, executive: 0, clientProfit: 0 };
       const officeCount = data.selectedOffices.length;
+      
+      // Si no hay tasa de oficina y no hay oficinas seleccionadas,
+      // toda la ganancia va al cliente (como en la transacción sin tasa de oficina)
+      if (!data.officeRate && officeCount === 0) {
+        distribution.clientProfit = amountToDistributeForeign;
+        return distribution;
+      }
+      
       const officeFactor = (officeCount === 2) ? 0.5 : 1;
       if (officeCount > 0 && amountToDistributeForeign > 0) {
         const officesTotal = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.OFFICE, 2);
@@ -359,8 +371,10 @@ const COMMISSION_FACTORS = {
           distribution.CCS = NumberUtils.round(officesTotal * officeFactor, 2);
         }
       }
+      
       distribution.executive = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.EXECUTIVE, 2);
       distribution.clientProfit = NumberUtils.round(amountToDistributeForeign * DISTRIBUTION_FACTORS.CLIENT, 2);
+      
       return distribution;
     }
   
