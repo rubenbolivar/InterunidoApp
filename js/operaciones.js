@@ -278,6 +278,24 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('operationModal')
     );
     operationModal.show();
+    
+    // Configurar el botón de generar PDF
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    if (generateReportBtn) {
+      generateReportBtn.onclick = function() {
+        // Iniciar la generación del PDF
+        const reportGenerator = new ReportGenerator();
+        reportGenerator.generatePDF(op._id)
+          .then(success => {
+            if (success) {
+              console.log('PDF generado correctamente');
+            }
+          })
+          .catch(error => {
+            console.error('Error al generar PDF:', error);
+          });
+      };
+    }
   }
 
   // Listener para el formulario de filtros
