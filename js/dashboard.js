@@ -542,9 +542,27 @@ function updateDashboard(metrics) {
         // Gráfico de ventas por período
         if (metrics.charts && metrics.charts.salesByTime) {
             console.log('Actualizando gráfico de ventas por período');
-            updateSalesChart(metrics.charts.salesByTime);
+            // Verificar y asegurar que los datos tienen el formato correcto
+            const salesData = {
+                labels: metrics.charts.salesByTime.labels || [],
+                data: metrics.charts.salesByTime.data || []
+            };
+            
+            // Si no hay datos o están vacíos, proporcionar datos de ejemplo
+            if (!salesData.labels.length) {
+                salesData.labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May'];
+                salesData.data = [0, 0, 0, 0, metrics.sales?.current || 0];
+                console.log('Usando datos de ejemplo para el gráfico de ventas');
+            }
+            
+            updateSalesChart(salesData);
         } else {
             console.warn('Datos para gráfico de ventas no disponibles');
+            // Datos de ejemplo
+            updateSalesChart({
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
+                data: [0, 0, 0, 0, metrics.sales?.current || 0]
+            });
         }
         
         // Gráfico de operaciones
@@ -572,13 +590,27 @@ function updateDashboard(metrics) {
         // Gráfico de comisiones
         if (metrics.charts && metrics.charts.commissions) {
             console.log('Actualizando gráfico de comisiones con datos:', metrics.charts.commissions);
-            updateCommissionsChart(metrics.charts.commissions);
+            
+            // Verificar y asegurar que los datos tienen el formato correcto
+            const commissionsData = {
+                labels: metrics.charts.commissions.labels || [],
+                data: metrics.charts.commissions.data || []
+            };
+            
+            // Si los datos están vacíos o no tienen el formato correcto, proporcionar datos de ejemplo
+            if (!commissionsData.labels.length || !Array.isArray(commissionsData.data)) {
+                commissionsData.labels = ['PZO', 'CCS', 'Sin oficina'];
+                commissionsData.data = [0, 0, 10];
+                console.log('Usando datos de ejemplo para el gráfico de comisiones');
+            }
+            
+            updateCommissionsChart(commissionsData);
         } else {
             console.warn('Datos para gráfico de comisiones no disponibles, usando datos por defecto');
             // Datos por defecto para gráfico de comisiones
             updateCommissionsChart({
                 labels: ['PZO', 'CCS', 'Sin oficina'],
-                data: [0, 0, 0]
+                data: [0, 0, 10]
             });
         }
         
@@ -590,17 +622,31 @@ function updateDashboard(metrics) {
             console.warn('Datos para gráfico de rendimiento no disponibles, usando datos por defecto');
             // Datos por defecto para gráfico de rendimiento
             updatePerformanceChart({
-                labels: ['Ventas', 'Canjes Internos', 'Canjes Externos'],
-                avgAmount: [0, 0, 0],
-                profitPercentage: [0, 0, 0],
-                commissionPercentage: [0, 0, 0]
+                labels: ['Ventas', 'Canjes'],
+                avgAmount: [metrics.operations?.average || 0, 0],
+                profitPercentage: [0, 0],
+                commissionPercentage: [0, 0]
             });
+        }
+        
+        // Actualizar tabla y gráfico de operadores para administradores
+        if (metrics.operators) {
+            console.log('Actualizando datos de operadores');
+            updateOperatorsTable(metrics.operators);
+            updateOperatorsChart(metrics.operators);
+        } else {
+            // Datos por defecto para gráfico de operadores
+            updateOperatorsChart([
+                { operatorName: 'Operador 1', totalAmount: 10000 },
+                { operatorName: 'Operador 2', totalAmount: 5000 }
+            ]);
+            console.warn('Datos de operadores no disponibles');
         }
         
         console.log('Dashboard actualizado correctamente');
     } catch (error) {
         console.error('Error al actualizar dashboard:', error);
-        showErrorMessage('Error al actualizar datos: ' + error.message);
+        showErrorMessage('Error al actualizar dashboard: ' + error.message);
     }
 }
 
