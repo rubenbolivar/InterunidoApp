@@ -187,59 +187,32 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Función para cargar los datos del dashboard
     async function loadDashboardData(dateRange = currentDateRange, startDate = null, endDate = null) {
-        // Obtener métricas
-        const metrics = await fetchDashboardData(dateRange, startDate, endDate);
+        console.log(`Cargando datos para rango: ${dateRange}`, startDate, endDate);
         
-        if (!metrics) return;
+        // Mostrar indicadores de carga
+        const loaders = document.querySelectorAll('.dashboard-loading');
+        loaders.forEach(loader => loader.classList.remove('d-none'));
         
-        // Actualizar estadísticas
-        updateStatCards(metrics);
-        
-        // Actualizar gráfico de ventas
         try {
-            updateSalesChart(metrics.charts.salesByTime);
-        } catch (e) {
-            console.error('Error al actualizar gráfico de ventas:', e);
-        }
-        
-        // Actualizar gráfico de distribución de operaciones
-        try {
-            updateOperationsChart(metrics.operations.distribution);
-        } catch (e) {
-            console.error('Error al actualizar gráfico de operaciones:', e);
-        }
-        
-        // Actualizar gráfico de ganancias
-        try {
-            if (metrics.charts?.profits) {
-                updateProfitsChart(metrics.charts.profits);
+            // Obtener datos del servidor
+            const metrics = await fetchDashboardData(dateRange, startDate, endDate);
+            if (metrics) {
+                // Actualizar el dashboard con los nuevos datos
+                updateDashboard(metrics);
+                console.log('Datos cargados y dashboard actualizado con éxito');
+                
+                // Actualizar variable global con el filtro actual
+                currentDateRange = dateRange;
             } else {
-                console.warn('No se encontraron datos de ganancias');
+                console.error('No se pudieron obtener métricas');
+                showErrorMessage('Error al obtener datos del servidor');
             }
-        } catch (e) {
-            console.error('Error al actualizar gráfico de ganancias:', e);
-        }
-        
-        // Actualizar gráfico de comisiones
-        try {
-            if (metrics.charts?.commissions) {
-                updateCommissionsChart(metrics.charts.commissions);
-            } else {
-                console.warn('No se encontraron datos de comisiones');
-            }
-        } catch (e) {
-            console.error('Error al actualizar gráfico de comisiones:', e);
-        }
-        
-        // Actualizar gráfico de rendimiento
-        try {
-            if (metrics.charts?.performance) {
-                updatePerformanceChart(metrics.charts.performance);
-            } else {
-                console.warn('No se encontraron datos de rendimiento');
-            }
-        } catch (e) {
-            console.error('Error al actualizar gráfico de rendimiento:', e);
+        } catch (error) {
+            console.error('Error al cargar datos:', error);
+            showErrorMessage('Error al cargar datos: ' + error.message);
+        } finally {
+            // Ocultar indicadores de carga
+            loaders.forEach(loader => loader.classList.add('d-none'));
         }
     }
     
@@ -1218,21 +1191,30 @@ function initDateFilters() {
 async function loadDashboardData(dateRange, startDate = null, endDate = null) {
     console.log(`Cargando datos para rango: ${dateRange}`, startDate, endDate);
     
-    showLoading(true);
+    // Mostrar indicadores de carga
+    const loaders = document.querySelectorAll('.dashboard-loading');
+    loaders.forEach(loader => loader.classList.remove('d-none'));
+    
     try {
-        const metrics = await fetchMetrics(dateRange, startDate, endDate);
+        // Obtener datos del servidor
+        const metrics = await fetchDashboardData(dateRange, startDate, endDate);
         if (metrics) {
+            // Actualizar el dashboard con los nuevos datos
             updateDashboard(metrics);
             console.log('Datos cargados y dashboard actualizado con éxito');
+            
+            // Actualizar variable global con el filtro actual
+            currentDateRange = dateRange;
         } else {
             console.error('No se pudieron obtener métricas');
-            showErrorMessage('Error al obtener datos');
+            showErrorMessage('Error al obtener datos del servidor');
         }
     } catch (error) {
         console.error('Error al cargar datos:', error);
         showErrorMessage('Error al cargar datos: ' + error.message);
     } finally {
-        showLoading(false);
+        // Ocultar indicadores de carga
+        loaders.forEach(loader => loader.classList.add('d-none'));
     }
 }
 
