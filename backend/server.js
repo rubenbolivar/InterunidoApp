@@ -475,6 +475,115 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
       salesByHour.push({ labels, data });
     }
     
+    // 5. NUEVO: Ganancias por tipo de operación (ventas y canjes)
+    const profitByType = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { 
+        $group: { 
+          _id: "$type",
+          total: { $sum: "$amount" },
+          profit: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$type", "venta"] }, 
+                "$profit", 
+                "$details.profit"
+              ] 
+            }
+          }
+        } 
+      }
+    ]);
+    
+    // 6. NUEVO: Comisiones por oficina (PZO y CCS)
+    const commissionByOffice = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { $lookup: {
+          from: 'users',
+          localField: 'operatorId',
+          foreignField: '_id',
+          as: 'operator'
+        }
+      },
+      { $unwind: { path: '$operator', preserveNullAndEmptyArrays: true } },
+      { 
+        $group: { 
+          _id: "$operator.office",
+          commissionTotal: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$type", "venta"] }, 
+                "$commission", 
+                { $ifNull: ["$details.commission", 0] }
+              ] 
+            }
+          },
+          count: { $sum: 1 }
+        } 
+      }
+    ]);
+    
+    // 7. NUEVO: Rendimiento por tipo de operación (eficiencia, monto promedio)
+    const performanceByType = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { 
+        $group: { 
+          _id: {
+            type: "$type",
+            subtype: { $cond: [{ $eq: ["$type", "canje"] }, "$details.tipo", null] }
+          },
+          count: { $sum: 1 },
+          totalAmount: { $sum: "$amount" },
+          totalProfit: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$type", "venta"] }, 
+                "$profit", 
+                { $ifNull: ["$details.profit", 0] }
+              ] 
+            }
+          },
+          totalCommission: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$type", "venta"] }, 
+                "$commission", 
+                { $ifNull: ["$details.commission", 0] }
+              ] 
+            }
+          }
+        } 
+      },
+      {
+        $project: {
+          _id: 1,
+          count: 1,
+          totalAmount: 1,
+          totalProfit: 1,
+          totalCommission: 1,
+          avgAmount: { $divide: ["$totalAmount", { $cond: [{ $eq: ["$count", 0] }, 1, "$count"] }] },
+          profitPercentage: { 
+            $multiply: [
+              { $divide: [
+                "$totalProfit", 
+                { $cond: [{ $eq: ["$totalAmount", 0] }, 1, "$totalAmount"] }
+              ] },
+              100
+            ]
+          },
+          commissionPercentage: { 
+            $multiply: [
+              { $divide: [
+                "$totalCommission", 
+                { $cond: [{ $eq: ["$totalAmount", 0] }, 1, "$totalAmount"] }
+              ] },
+              100
+            ]
+          }
+        }
+      }
+    ]);
+    
     // 5. Calcular métricas adicionales y organizar la respuesta
     const currentPeriodSales = salesAggregate[0] ? salesAggregate[0].total : 0;
     const previousPeriodSales = previousSalesAggregate[0] ? previousSalesAggregate[0].total : 0;
@@ -517,6 +626,62 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
       operationTypes.data.push(op.count);
     });
     
+    // Formatear ganancias por tipo para el gráfico
+    const profits = {
+      labels: [],
+      data: [],
+      totals: []
+    };
+    
+    profitByType.forEach(item => {
+      let label = item._id === 'venta' ? 'Ventas' : 'Canjes';
+      profits.labels.push(label);
+      profits.data.push(item.profit);
+      profits.totals.push(item.total);
+    });
+    
+    // Formatear comisiones por oficina para el gráfico
+    const commissions = {
+      labels: [],
+      data: []
+    };
+    
+    commissionByOffice.forEach(item => {
+      let label = item._id || 'Sin oficina';
+      commissions.labels.push(label);
+      commissions.data.push(item.commissionTotal);
+    });
+    
+    // Formatear rendimiento por tipo para el gráfico
+    const performance = {
+      labels: [],
+      avgAmount: [],
+      profitPercentage: [],
+      commissionPercentage: []
+    };
+    
+    performanceByType.forEach(item => {
+      let label;
+      if (item._id.type === 'venta') {
+        label = 'Ventas';
+      } else if (item._id.type === 'canje') {
+        if (item._id.subtype === 'interno') {
+          label = 'Canjes Internos';
+        } else if (item._id.subtype === 'externo') {
+          label = 'Canjes Externos';
+        } else {
+          label = 'Canjes';
+        }
+      } else {
+        label = item._id.type;
+      }
+      
+      performance.labels.push(label);
+      performance.avgAmount.push(item.avgAmount);
+      performance.profitPercentage.push(item.profitPercentage);
+      performance.commissionPercentage.push(item.commissionPercentage);
+    });
+    
     // Construir respuesta final
     const metrics = {
       dateRange: {
@@ -537,7 +702,10 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
         salesByTime: {
           isDaily: !groupByDay,
           data: salesByHour[0]
-        }
+        },
+        profits: profits,
+        commissions: commissions,
+        performance: performance
       }
     };
     

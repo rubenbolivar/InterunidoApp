@@ -7,20 +7,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const averageRateEl = document.getElementById('averageRate');
     const salesChartEl = document.getElementById('salesChart');
     const operationsChartEl = document.getElementById('operationsChart');
+    const profitsChartEl = document.getElementById('profitsChart');
+    const commissionsChartEl = document.getElementById('commissionsChart');
+    const performanceChartEl = document.getElementById('performanceChart');
     
     // Referencias a los gráficos
     let salesChart = null;
     let operationsChart = null;
+    let profitsChart = null;
+    let commissionsChart = null;
+    let performanceChart = null;
     
     // Variable para almacenar el último rango de fechas seleccionado
     let currentDateRange = 'today';
 
     // Función para formatear montos monetarios
-    function formatCurrency(amount) {
-        return '$' + amount.toLocaleString(undefined, {
+    function formatCurrency(amount, includeSymbol = true) {
+        const formattedAmount = amount.toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+        
+        return includeSymbol ? '$' + formattedAmount : formattedAmount;
     }
     
     // Obtener el token de autenticación
@@ -85,6 +93,15 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Actualizar gráfico de distribución de operaciones
         updateOperationsChart(metrics.operations.distribution);
+        
+        // Actualizar gráfico de ganancias
+        updateProfitsChart(metrics.charts.profits);
+        
+        // Actualizar gráfico de comisiones
+        updateCommissionsChart(metrics.charts.commissions);
+        
+        // Actualizar gráfico de rendimiento
+        updatePerformanceChart(metrics.charts.performance);
     }
     
     // Función para actualizar el gráfico de ventas
@@ -175,6 +192,259 @@ document.addEventListener('DOMContentLoaded', function () {
                     plugins: {
                         legend: {
                             position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Función para actualizar el gráfico de ganancias
+    function updateProfitsChart(profitsData) {
+        if (!profitsChartEl) return;
+        
+        // Preparar conjuntos de datos para monto total y ganancia
+        const chartData = {
+            labels: profitsData.labels,
+            datasets: [
+                {
+                    label: 'Monto Total',
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1,
+                    data: profitsData.totals,
+                    type: 'bar',
+                    order: 1
+                },
+                {
+                    label: 'Ganancia',
+                    backgroundColor: 'rgba(25, 135, 84, 0.2)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 2,
+                    data: profitsData.data,
+                    type: 'bar',
+                    order: 0
+                }
+            ]
+        };
+        
+        if (profitsChart) {
+            profitsChart.data = chartData;
+            profitsChart.update();
+        } else {
+            profitsChart = new Chart(profitsChartEl.getContext('2d'), {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Ganancias por Tipo de Operación'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + formatCurrency(context.raw);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value, false);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Función para actualizar el gráfico de comisiones por oficina
+    function updateCommissionsChart(commissionsData) {
+        if (!commissionsChartEl) return;
+        
+        // Asignar colores por oficina
+        const backgroundColors = [];
+        const borderColors = [];
+        
+        commissionsData.labels.forEach(label => {
+            if (label === 'PZO') {
+                backgroundColors.push('rgba(255, 99, 132, 0.7)');
+                borderColors.push('rgba(255, 99, 132, 1)');
+            } else if (label === 'CCS') {
+                backgroundColors.push('rgba(54, 162, 235, 0.7)');
+                borderColors.push('rgba(54, 162, 235, 1)');
+            } else {
+                backgroundColors.push('rgba(255, 206, 86, 0.7)');
+                borderColors.push('rgba(255, 206, 86, 1)');
+            }
+        });
+        
+        const chartData = {
+            labels: commissionsData.labels,
+            datasets: [{
+                label: 'Comisión Acumulada',
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: 1,
+                data: commissionsData.data
+            }]
+        };
+        
+        if (commissionsChart) {
+            commissionsChart.data = chartData;
+            commissionsChart.update();
+        } else {
+            commissionsChart = new Chart(commissionsChartEl.getContext('2d'), {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comisión Acumulada por Oficina'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Comisión: ' + formatCurrency(context.raw);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value, false);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Función para actualizar el gráfico de rendimiento por tipo de operación
+    function updatePerformanceChart(performanceData) {
+        if (!performanceChartEl) return;
+        
+        const chartData = {
+            labels: performanceData.labels,
+            datasets: [
+                {
+                    label: 'Monto Promedio',
+                    backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1,
+                    data: performanceData.avgAmount,
+                    yAxisID: 'y',
+                    order: 1
+                },
+                {
+                    label: 'Margen de Ganancia (%)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1,
+                    data: performanceData.profitPercentage,
+                    yAxisID: 'y1',
+                    type: 'line',
+                    order: 0
+                },
+                {
+                    label: 'Comisión (%)',
+                    backgroundColor: 'rgba(255, 193, 7, 0.7)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 1,
+                    data: performanceData.commissionPercentage,
+                    yAxisID: 'y1',
+                    type: 'line',
+                    order: 0
+                }
+            ]
+        };
+        
+        if (performanceChart) {
+            performanceChart.data = chartData;
+            performanceChart.update();
+        } else {
+            performanceChart = new Chart(performanceChartEl.getContext('2d'), {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Rendimiento por Tipo de Operación'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label;
+                                    const value = context.raw;
+                                    
+                                    if (label === 'Monto Promedio') {
+                                        return label + ': ' + formatCurrency(value);
+                                    } else {
+                                        return label + ': ' + value.toFixed(2) + '%';
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Monto Promedio'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value, false);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Porcentaje (%)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
                         }
                     }
                 }
