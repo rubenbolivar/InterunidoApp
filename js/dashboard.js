@@ -117,17 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
             // Actualizar cards de estadísticas
-            document.getElementById('dailySales').textContent = formatCurrency(metrics.sales.current.total);
-            
-            const percentageChange = metrics.sales.percentageChange;
-            const percentageChangeEl = document.getElementById('percentageChange');
-            percentageChangeEl.textContent = `${Math.abs(percentageChange).toFixed(1)}% vs período anterior`;
-            percentageChangeEl.classList.remove('text-success', 'text-danger');
-            percentageChangeEl.classList.add(percentageChange >= 0 ? 'text-success' : 'text-danger');
-            
-            document.getElementById('totalOperations').textContent = metrics.operations.total || 0;
-            document.getElementById('averageOperation').textContent = formatCurrency(metrics.operations.average || 0);
-            document.getElementById('averageRate').textContent = metrics.operations.rate?.toFixed(2) || '3.85';
+            updateStatCards(metrics);
             
             // Verificar y actualizar gráficos
             console.log('Verificando y actualizando gráficos...');
@@ -205,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!metrics) return;
         
         // Actualizar estadísticas
-        updateDashboardStats(metrics);
+        updateStatCards(metrics);
         
         // Actualizar gráfico de ventas
         try {
@@ -704,11 +694,17 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Función para mostrar/ocultar indicador de carga
     function showLoading(show = true) {
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        if (loadingIndicator) {
-            loadingIndicator.style.display = show ? 'block' : 'none';
+        const loadingIndicators = document.querySelectorAll('.dashboard-loading');
+        if (loadingIndicators.length > 0) {
+            loadingIndicators.forEach(indicator => {
+                if (show) {
+                    indicator.classList.remove('d-none');
+                } else {
+                    indicator.classList.add('d-none');
+                }
+            });
         } else if (show) {
-            console.warn('Elemento loadingIndicator no encontrado');
+            console.warn('No se encontraron indicadores de carga');
         }
     }
     
@@ -743,7 +739,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!metrics) return;
         
         // Actualizar estadísticas
-        updateDashboardStats(metrics);
+        updateStatCards(metrics);
         
         // Actualizar gráfico de ventas
         try {
@@ -849,10 +845,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     plugins: {
                         legend: {
                             position: 'top'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Comparativa de Operaciones por Operador'
                         }
                     },
                     scales: {
@@ -1073,7 +1065,7 @@ function initDashboard() {
     }
 }
 
-// Función para inicializar los elementos de gráficos
+// Función para inicializar los elementos de los gráficos
 function initChartElements() {
     console.log('Inicializando elementos de gráficos...');
     
@@ -1180,5 +1172,119 @@ async function loadDashboardData(dateRange, startDate = null, endDate = null) {
         showErrorMessage('Error al cargar datos: ' + error.message);
     } finally {
         showLoading(false);
+    }
+}
+
+// Función para actualizar el gráfico de operadores
+function updateOperatorsChart(operators) {
+    const chartCanvas = document.getElementById('operatorsChart');
+    if (!chartCanvas) return;
+    
+    // Preparar datos para el gráfico
+    const labels = [];
+    const salesData = [];
+    const canjesInternosData = [];
+    const canjesExternosData = [];
+    
+    // Tomar los top 5 operadores por monto total
+    const topOperators = operators.slice(0, 5);
+    
+    topOperators.forEach(op => {
+        labels.push(op.operatorName || 'Sin nombre');
+        salesData.push(op.salesCount || 0);
+        canjesInternosData.push(op.canjeInternoCount || 0);
+        canjesExternosData.push(op.canjeExternoCount || 0);
+    });
+    
+    const chartData = {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Ventas',
+                backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                data: salesData
+            },
+            {
+                label: 'Canjes Internos',
+                backgroundColor: 'rgba(25, 135, 84, 0.8)',
+                data: canjesInternosData
+            },
+            {
+                label: 'Canjes Externos',
+                backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                data: canjesExternosData
+            }
+        ]
+    };
+    
+    // Si el gráfico ya existe, actualizar datos
+    if (operatorsChart) {
+        operatorsChart.data = chartData;
+        operatorsChart.update();
+    } else {
+        // Crear nuevo gráfico
+        operatorsChart = new Chart(chartCanvas.getContext('2d'), {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: false
+                    },
+                    y: {
+                        stacked: false,
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Función para actualizar las tarjetas de estadísticas
+function updateStatCards(metrics) {
+    try {
+        // Actualizar ventas diarias
+        const dailySalesElement = document.getElementById('dailySales');
+        if (dailySalesElement) {
+            dailySalesElement.textContent = formatCurrency(metrics.sales?.current || 0);
+        }
+        
+        // Actualizar porcentaje de cambio
+        const percentageChangeEl = document.getElementById('percentageChange');
+        if (percentageChangeEl) {
+            const percentageChange = metrics.sales?.percentageChange || 0;
+            percentageChangeEl.textContent = `${Math.abs(percentageChange).toFixed(1)}% vs período anterior`;
+            percentageChangeEl.classList.remove('text-success', 'text-danger');
+            percentageChangeEl.classList.add(percentageChange >= 0 ? 'text-success' : 'text-danger');
+        }
+        
+        // Actualizar número de operaciones
+        const totalOperationsElement = document.getElementById('totalOperations');
+        if (totalOperationsElement) {
+            totalOperationsElement.textContent = metrics.operations?.total || 0;
+        }
+        
+        // Actualizar operación promedio
+        const averageOperationElement = document.getElementById('averageOperation');
+        if (averageOperationElement) {
+            averageOperationElement.textContent = formatCurrency(metrics.operations?.average || 0);
+        }
+        
+        // Actualizar tasa promedio
+        const averageRateElement = document.getElementById('averageRate');
+        if (averageRateElement) {
+            averageRateElement.textContent = metrics.operations?.rate?.toFixed(2) || '3.85';
+        }
+        
+        console.log('Estadísticas actualizadas correctamente');
+    } catch (error) {
+        console.error('Error al actualizar estadísticas:', error);
     }
 }
