@@ -67,37 +67,78 @@ function showErrorMessage(message, type = 'error', duration = 5000) {
 
 // Función para obtener métricas del dashboard
 async function fetchDashboardData(dateRange = 'today', startDate = null, endDate = null) {
+    // Mostrar indicador de carga
+    document.querySelectorAll('.dashboard-loading').forEach(el => {
+        el.classList.remove('d-none');
+    });
+    
     try {
-        // Construir query params
-        let queryParams = `?dateRange=${dateRange}`;
-        if (dateRange === 'custom' && startDate && endDate) {
-            queryParams += `&start=${startDate}&end=${endDate}`;
+        // Construir URL con parámetros
+        let url = `${apiUrl}/metrics?range=${dateRange}`;
+        if (startDate) url += `&start=${startDate}`;
+        if (endDate) url += `&end=${endDate}`;
+        
+        // URL para obtener operaciones en bruto (ajustar según tu API)
+        const operationsUrl = `${apiUrl}/operations?range=${dateRange}`;
+        if (startDate) operationsUrl += `&start=${startDate}`;
+        if (endDate) operationsUrl += `&end=${endDate}`;
+        
+        // Token de autenticación desde localStorage
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.error('No se encontró token de autenticación');
+            showErrorMessage('Error de autenticación. Intente iniciar sesión nuevamente.');
+            return null;
         }
         
-        // Mostrar loading en los gráficos
-        document.querySelectorAll('.dashboard-loading').forEach(el => {
-            el.classList.remove('d-none');
-        });
-        
-        const response = await fetch(`/api/metrics${queryParams}`, {
+        // Hacer petición al servidor para métricas generales
+        const metricsResponse = await fetch(url, {
+            method: 'GET',
             headers: {
-                'Authorization': 'Bearer ' + getAuthToken()
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) {
-            throw new Error(`Error obteniendo métricas: ${response.status}`);
+        if (!metricsResponse.ok) {
+            throw new Error(`Error obteniendo métricas: ${metricsResponse.status}`);
         }
         
-        const data = await response.json();
+        const metricsData = await metricsResponse.json();
+        
+        // Obtener operaciones en bruto
+        console.log('Obteniendo datos de operaciones desde:', operationsUrl);
+        const operationsResponse = await fetch(operationsUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        // Datos de operaciones para cálculos
+        let operationsData = [];
+        if (operationsResponse.ok) {
+            const operationsResult = await operationsResponse.json();
+            operationsData = operationsResult.operations || [];
+            console.log('Operaciones obtenidas:', operationsData.length);
+        } else {
+            console.warn(`No se pudieron obtener operaciones: ${operationsResponse.status}`);
+        }
+        
+        // Combinar métricas con operaciones
+        const combinedData = {
+            ...metricsData,
+            operationsData
+        };
+        
+        // Procesar los datos brutos para generar datos para gráficos
+        const processedData = processDashboardData(combinedData);
         
         // Log para depuración
-        console.log('Datos recibidos del API:', data);
-        console.log('Ganancias:', data.charts?.profits);
-        console.log('Comisiones:', data.charts?.commissions);
-        console.log('Rendimiento:', data.charts?.performance);
+        console.log('Datos procesados para el dashboard:', processedData);
         
-        return data;
+        return processedData;
     } catch (error) {
         console.error('Error al obtener métricas:', error);
         showErrorMessage('Error al cargar los datos del dashboard: ' + error.message);
@@ -996,7 +1037,7 @@ function updateOperatorsChart(operators) {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return formatCurrency(value);
+                                return '$' + value.toLocaleString();
                             }
                         }
                     }
