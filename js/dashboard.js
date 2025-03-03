@@ -23,13 +23,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentDateRange = 'today';
 
     // Función para formatear montos monetarios
-    function formatCurrency(amount, includeSymbol = true) {
-        const formattedAmount = amount.toLocaleString(undefined, {
+    function formatCurrency(amount) {
+        return '$' + Number(amount).toLocaleString('es-ES', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-        
-        return includeSymbol ? '$' + formattedAmount : formattedAmount;
     }
     
     // Obtener el token de autenticación
@@ -1003,14 +1001,73 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Asegurarse de que los gráficos se inicialicen cuando la ventana esté completamente cargada
-    window.addEventListener('load', function() {
+    window.addEventListener('load', () => {
         console.log('Ventana completamente cargada.');
         
         // Si los gráficos no están inicializados, intentar nuevamente
         if (!salesChart && !operationsChart) {
             console.warn('Gráficos no inicializados después de cargar la ventana. Reinicializando...');
-            initChartElements();
-            loadDashboardData();
+            try {
+                initChartElements();
+                loadDashboardData();
+            } catch (error) {
+                console.error('Error al reinicializar gráficos:', error);
+                showErrorMessage('Error al cargar gráficos. Por favor, recargue la página.');
+            }
+        }
+    });
+
+    // Función para crear un gráfico de prueba (fallback)
+    function createTestChart() {
+        console.log('Intentando crear gráfico de prueba...');
+        try {
+            // Verificar si algún elemento canvas está disponible
+            const canvases = document.querySelectorAll('canvas');
+            if (canvases.length === 0) {
+                console.error('No se encontraron elementos canvas');
+                return;
+            }
+            
+            // Usar el primer canvas disponible
+            const canvas = canvases[0];
+            console.log(`Usando canvas: ${canvas.id || 'sin id'} para gráfico de prueba`);
+            
+            // Crear gráfico de prueba
+            new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Prueba'],
+                    datasets: [{
+                        label: 'Gráfico de prueba',
+                        data: [100],
+                        backgroundColor: '#007bff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            console.log('Gráfico de prueba creado correctamente');
+        } catch (error) {
+            console.error('Error al crear gráfico de prueba:', error);
+        }
+    }
+
+    // Manejar errores de red
+    window.addEventListener('offline', () => {
+        showErrorMessage('Se ha perdido la conexión a Internet');
+    });
+
+    window.addEventListener('online', () => {
+        showErrorMessage('Conexión a Internet restablecida');
+        // Recargar datos automáticamente
+        const activeFilter = document.querySelector('.date-filter-btn.active');
+        if (activeFilter) {
+            loadDashboardData(activeFilter.dataset.range);
+        } else {
+            loadDashboardData('today');
         }
     });
 });
