@@ -162,9 +162,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderGlobalSummary() {
       if (operationData.transacciones.length === 0) {
         resultadoOperacionDiv.innerHTML = '<p>Aún no hay transacciones de canje.</p>';
+        document.getElementById('saveOperationBtn').style.display = 'none';
         return;
       }
-  
+
       // Calcular totales
       let totalDiferencia = 0;
       let totalParcial = 0;
@@ -172,9 +173,10 @@ document.addEventListener('DOMContentLoaded', function() {
         totalParcial += t.monto;
         totalDiferencia += t.diferencia;
       });
-  
+
       // Distribución si es Externo
       let distribucionHTML = '';
+      let distribucion = null;
       if (operationData.tipo === 'externo') {
         // 5% nómina
         const nomina = totalDiferencia * 0.05;
@@ -182,7 +184,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const oficinaPZO = gananciaTotal * 0.30;
         const oficinaCCS = gananciaTotal * 0.30;
         const ejecutivo = gananciaTotal * 0.40;
-  
+
+        // Guardar distribución para enviar al servidor
+        distribucion = {
+          nomina,
+          gananciaTotal,
+          oficinaPZO,
+          oficinaCCS,
+          ejecutivo
+        };
+
         distribucionHTML = `
           <h6>Distribución (Externo)</h6>
           <ul>
@@ -194,7 +205,20 @@ document.addEventListener('DOMContentLoaded', function() {
           </ul>
         `;
       }
-  
+
+      // Determinar si los montos coinciden (para mostrar advertencia)
+      const montosCoinciden = Math.abs(operationData.montoTotal - totalParcial) < 0.01;
+      let advertenciaHTML = '';
+      
+      if (!montosCoinciden) {
+        advertenciaHTML = `
+          <div class="alert alert-warning">
+            <strong>¡Advertencia!</strong> El monto total (${operationData.montoTotal.toFixed(2)}) 
+            no coincide con la suma de las transacciones (${totalParcial.toFixed(2)}).
+          </div>
+        `;
+      }
+
       // Construir HTML final
       const summaryHTML = `
         <h5>Resumen de la Operación</h5>
@@ -204,10 +228,95 @@ document.addEventListener('DOMContentLoaded', function() {
         <p>Suma Monto (Transacciones): <strong>${totalParcial.toFixed(2)}</strong></p>
         <p>Total Diferencia (Suma de transacciones): <strong>${totalDiferencia.toFixed(2)}</strong></p>
         ${distribucionHTML}
+        ${advertenciaHTML}
       `;
-  
+
       resultadoOperacionDiv.innerHTML = summaryHTML;
+      
+      // Mostrar el botón para guardar la operación
+      document.getElementById('saveOperationBtn').style.display = 'block';
+      
+      // Actualizar datos globales con los totales calculados
+      operationData.totalParcial = totalParcial;
+      operationData.totalDiferencia = totalDiferencia;
+      if (distribucion) {
+        operationData.distribucion = distribucion;
+      }
     }
-  
+
+    // Función para guardar la operación en el servidor
+    async function saveOperation() {
+      // Verificar que haya transacciones
+      if (operationData.transacciones.length === 0) {
+        alert('No hay transacciones para guardar');
+        return;
+      }
+
+      // Verificar si los montos coinciden y pedir confirmación si no
+      const diferencia = Math.abs(operationData.montoTotal - operationData.totalParcial);
+      if (diferencia > 0.01) {
+        const confirmar = confirm(`¡Advertencia! El monto total (${operationData.montoTotal.toFixed(2)}) 
+        no coincide con la suma de las transacciones (${operationData.totalParcial.toFixed(2)}). 
+        ¿Desea guardar la operación de todas formas?`);
+        
+        if (!confirmar) return;
+      }
+
+      try {
+        // Preparar los datos a enviar
+        const operationToSave = {
+          type: 'canje',
+          client: operationData.cliente,
+          amount: operationData.montoTotal,
+          details: {
+            tipo: operationData.tipo,
+            transacciones: operationData.transacciones,
+            totalDiferencia: operationData.totalDiferencia,
+            montoPendiente: Math.max(0, operationData.montoTotal - operationData.totalParcial)
+          },
+          // Si la suma de montos parciales es igual al monto total, la operación está completa
+          estado: Math.abs(operationData.montoTotal - operationData.totalParcial) < 0.01 ? 'completa' : 'incompleta'
+        };
+
+        // Añadir distribucion si existe (para tipo externo)
+        if (operationData.distribucion) {
+          operationToSave.details.distribucion = operationData.distribucion;
+        }
+
+        // Obtener el token de autenticación
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          alert('No hay sesión activa. Por favor, inicie sesión.');
+          window.location.href = 'login.html';
+          return;
+        }
+
+        // Enviar al servidor
+        const response = await fetch('/api/transactions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(operationToSave)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al guardar: ${response.status}`);
+        }
+
+        const savedOperation = await response.json();
+        
+        // Mostrar mensaje de éxito y redireccionar a operaciones
+        alert('Operación guardada correctamente');
+        window.location.href = 'operaciones.html';
+        
+      } catch (error) {
+        console.error('Error al guardar la operación:', error);
+        alert(`Error al guardar la operación: ${error.message}`);
+      }
+    }
+
+    // Event listener para el botón de guardar operación
+    document.getElementById('saveOperationBtn').addEventListener('click', saveOperation);
   });
-  

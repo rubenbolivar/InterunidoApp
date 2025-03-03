@@ -307,7 +307,7 @@ class ReportGenerator {
         
         <div class="report-footer" style="margin-top: 50px; text-align: center; font-size: 12px; color: #666;">
           <p style="letter-spacing: normal;">Este es un documento generado automáticamente por el sistema de InterUnido.</p>
-          <p style="letter-spacing: normal;">© ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
+          <p style="letter-spacing: normal;">&copy; ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
         </div>
       </div>
     `;
@@ -443,68 +443,67 @@ class ReportGenerator {
         
         <div class="report-footer" style="margin-top: 50px; text-align: center; font-size: 12px; color: #666;">
           <p>Este es un documento generado automáticamente por el sistema de InterUnido.</p>
-          <p>© ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
+          <p>&copy; ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
         </div>
       </div>
     `;
   }
   
-  // Método principal para generar y descargar el PDF
-  async generatePDF(operationId) {
+  // Generate PDF report for a specific transaction
+  async generatePDF(transactionId) {
     try {
-      // Asegurarse de que html2pdf esté cargado
-      if (typeof html2pdf === 'undefined') {
-        await this.loadLibrary();
+      // Get auth token
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error('No auth token found');
+        alert('Debe iniciar sesión para generar reportes');
+        return false;
       }
       
-      // Obtener los datos de la operación desde el API
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/transactions/${operationId}/report`, {
+      // Fetch detailed transaction data from the server
+      const response = await fetch(`/api/transactions/${transactionId}/report`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
       if (!response.ok) {
-        throw new Error(`Error al obtener datos: ${response.status}`);
+        throw new Error(`Error al obtener datos de la operación: ${response.status}`);
       }
       
       const operationData = await response.json();
       
-      // Crear el contenido HTML según el tipo de operación
+      // Generate HTML based on transaction type
       let reportHTML;
       if (operationData.type === 'venta') {
         reportHTML = this.generateSaleReportHTML(operationData);
       } else if (operationData.type === 'canje') {
         reportHTML = this.generateExchangeReportHTML(operationData);
       } else {
-        reportHTML = '<div>Tipo de operación no soportado para reporte.</div>';
+        throw new Error(`Tipo de operación no soportado: ${operationData.type}`);
       }
       
-      // Crear un elemento temporal para el HTML
+      // Create PDF using html2pdf
       const element = document.createElement('div');
       element.innerHTML = reportHTML;
       document.body.appendChild(element);
       
-      // Configuración de html2pdf
       const opt = {
         margin: 10,
-        filename: `InterUnido_Operacion_${operationId}.pdf`,
+        filename: `Reporte_${operationData.type}_${operationData._id}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
       
-      // Generar el PDF
       await html2pdf().from(element).set(opt).save();
       
-      // Limpiar
+      // Clean up
       document.body.removeChild(element);
-      
       return true;
     } catch (error) {
-      console.error('Error al generar el PDF:', error);
-      alert('Error al generar el PDF: ' + error.message);
+      console.error('Error generating PDF:', error);
+      alert(`Error al generar el PDF: ${error.message}`);
       return false;
     }
   }

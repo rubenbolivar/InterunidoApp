@@ -253,52 +253,32 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
   }
 });
 
-// Endpoint para obtener detalles completos de una operación para reportes
+// Endpoint para obtener el detalle completo de una operación para reportes
 app.get('/api/transactions/:id/report', verifyToken, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) {
-      logger.error(`Operación no encontrada para reporte: ${req.params.id}`);
       return res.status(404).json({ message: 'Operación no encontrada' });
     }
     
     // Si no es admin, solo puede ver sus propias operaciones
     if (req.user.role !== 'admin' && transaction.operatorId.toString() !== req.user.id) {
-      logger.warn(`Usuario ${req.user.id} intentó acceder al reporte de operación ${req.params.id} sin autorización`);
       return res.status(403).json({ message: 'No autorizado para ver esta operación' });
     }
     
-    // Obtener detalles adicionales si es necesario
-    // Por ejemplo, información del operador
-    let operatorInfo = { username: 'Usuario desconocido' };
-    if (transaction.operatorId) {
-      const operator = await User.findById(transaction.operatorId);
-      if (operator) {
-        operatorInfo = { username: operator.username };
-      }
-    }
+    // Obtener información del operador
+    const operator = await User.findById(transaction.operatorId).select('username role');
     
-    // Construir objeto de respuesta con todos los detalles necesarios para el reporte
+    // Construir respuesta con toda la información necesaria para el reporte
     const reportData = {
-      _id: transaction._id,
-      type: transaction.type,
-      client: transaction.client,
-      amount: transaction.amount,
-      details: transaction.details,
-      estado: transaction.estado,
-      createdAt: transaction.createdAt,
-      operator: operatorInfo,
-      // Calcular algunos totales adicionales si no existen en details
-      summary: {
-        ...((transaction.details && transaction.details.summary) || {}),
-        // Agregar campos adicionales según sea necesario
-      }
+      ...transaction.toObject(),
+      operator: operator || { username: 'No registrado' }
     };
     
     res.json(reportData);
   } catch (error) {
-    logger.error('Error al obtener reporte de transacción:', { error: error.message, stack: error.stack });
-    res.status(500).json({ message: 'Error al generar el reporte' });
+    logger.error('Error al obtener detalle de operación para reporte:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener detalle de la operación' });
   }
 });
 

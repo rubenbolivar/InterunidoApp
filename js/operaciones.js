@@ -128,20 +128,32 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // 4) Ganancia
-      //   Suponiendo que guardas la ganancia en op.details.summary.totalGananciaCliente
+      //   Para ventas: Se usa totalClientProfit
+      //   Para canjes: Se usa totalDiferencia
       let ganancia = 0;
-      if (op.details && op.details.summary && op.details.summary.totalClientProfit) {
-        ganancia = op.details.summary.totalClientProfit;
+      if (op.type === 'venta') {
+        // Para ventas usamos la ganancia del cliente guardada en summary
+        if (op.details && op.details.summary && op.details.summary.totalClientProfit) {
+          ganancia = op.details.summary.totalClientProfit;
+        }
+      } else if (op.type === 'canje') {
+        // Para canjes usamos la diferencia total
+        if (op.details && op.details.totalDiferencia) {
+          ganancia = op.details.totalDiferencia;
+        }
       }
+      
       const gananciaHTML = `
         <td>
-          ${currencySymbol}${formatVES(ganancia)}
+          ${op.type === 'canje' ? '' : currencySymbol}${formatVES(ganancia)}
         </td>
       `;
 
       // 5) Tipo (venta o canje)
+      const tipoTexto = op.type === 'venta' ? 'Venta' : 
+                        (op.type === 'canje' ? `Canje ${op.details?.tipo || ''}` : op.type);
       const tipoHTML = `
-        <td>${op.type}</td>
+        <td>${tipoTexto}</td>
       `;
 
       // 6) Estado
@@ -237,15 +249,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const pendingStr = currencySymbol + formatVES(pendingValue);
 
     let ganancia = 0;
-    if (op.details?.summary?.totalClientProfit) {
-      ganancia = op.details.summary.totalClientProfit;
+    if (op.type === 'venta') {
+      // Para ventas usamos la ganancia del cliente guardada en summary
+      if (op.details && op.details.summary && op.details.summary.totalClientProfit) {
+        ganancia = op.details.summary.totalClientProfit;
+      }
+    } else if (op.type === 'canje') {
+      // Para canjes usamos la diferencia total
+      if (op.details && op.details.totalDiferencia) {
+        ganancia = op.details.totalDiferencia;
+      }
     }
-    const gananciaStr = currencySymbol + formatVES(ganancia);
+    const gananciaStr = op.type === 'canje' ? formatVES(ganancia) : currencySymbol + formatVES(ganancia);
 
     modalBody.innerHTML = `
       <p><strong>Cliente:</strong> ${op.client}</p>
       <p><strong>Fecha:</strong> ${new Date(op.createdAt).toLocaleDateString()}</p>
-      <p><strong>Tipo:</strong> ${op.type}</p>
+      <p><strong>Tipo:</strong> ${op.type === 'venta' ? 'Venta' : `Canje ${op.details?.tipo || ''}`}</p>
       <p><strong>Estado:</strong> ${estadoLabel}</p>
       <hr>
       <p><strong>Total:</strong> ${total}</p>
