@@ -662,47 +662,51 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Función para mostrar mensajes de error
-    function showErrorMessage(message) {
-        console.error('ERROR:', message);
+    function showErrorMessage(message, type = 'error', duration = 5000) {
+        console.error(message);
         
-        // Intentar mostrar un mensaje en la UI si existe el elemento
-        const errorContainer = document.getElementById('errorContainer');
-        if (errorContainer) {
-            errorContainer.textContent = message;
-            errorContainer.style.display = 'block';
-            
-            // Ocultar después de 5 segundos
-            setTimeout(() => {
-                errorContainer.style.display = 'none';
-            }, 5000);
-        } else {
-            // Crear un elemento para mostrar el error si no existe
-            const newErrorContainer = document.createElement('div');
-            newErrorContainer.id = 'errorContainer';
-            newErrorContainer.style.cssText = 'position: fixed; top: 10px; right: 10px; background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; z-index: 9999;';
-            newErrorContainer.textContent = message;
-            document.body.appendChild(newErrorContainer);
-            
-            // Ocultar después de 5 segundos
-            setTimeout(() => {
-                document.body.removeChild(newErrorContainer);
-            }, 5000);
+        // Buscar o crear el contenedor de alertas
+        let alertContainer = document.getElementById('alertContainer');
+        if (!alertContainer) {
+            alertContainer = document.createElement('div');
+            alertContainer.id = 'alertContainer';
+            alertContainer.style.position = 'fixed';
+            alertContainer.style.top = '20px';
+            alertContainer.style.right = '20px';
+            alertContainer.style.zIndex = '9999';
+            document.body.appendChild(alertContainer);
         }
+        
+        // Crear alerta
+        const alertEl = document.createElement('div');
+        alertEl.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+        alertEl.role = 'alert';
+        alertEl.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Agregar al contenedor
+        alertContainer.appendChild(alertEl);
+        
+        // Auto eliminar después de la duración especificada
+        setTimeout(() => {
+            alertEl.classList.remove('show');
+            setTimeout(() => alertEl.remove(), 150);
+        }, duration);
     }
     
     // Función para mostrar/ocultar indicador de carga
     function showLoading(show = true) {
-        const loadingIndicators = document.querySelectorAll('.dashboard-loading');
-        if (loadingIndicators.length > 0) {
-            loadingIndicators.forEach(indicator => {
-                if (show) {
-                    indicator.classList.remove('d-none');
-                } else {
-                    indicator.classList.add('d-none');
-                }
-            });
-        } else if (show) {
-            console.warn('No se encontraron indicadores de carga');
+        const loader = document.getElementById('dashboardLoader');
+        if (loader) {
+            loader.style.display = show ? 'flex' : 'none';
+        }
+        
+        // También podemos ocultar/mostrar el contenido principal
+        const content = document.getElementById('dashboardContent');
+        if (content) {
+            content.style.display = show ? 'none' : 'block';
         }
     }
     
