@@ -1,4 +1,4 @@
-// Variables globales para los gráficos
+// Variables globales
 let salesChart = null;
 let operationsChart = null;
 let profitsChart = null;
@@ -6,7 +6,7 @@ let commissionsChart = null;
 let performanceChart = null;
 let operatorsChart = null;
 
-// Referencias a elementos del DOM
+// Elementos del DOM
 let salesChartEl = null;
 let operationsChartEl = null;
 let profitsChartEl = null;
@@ -14,8 +14,13 @@ let commissionsChartEl = null;
 let performanceChartEl = null;
 let operatorsChartEl = null;
 
-// Variable para el rango de fechas actual
+// URL de la API (ajustar según el entorno)
+const apiUrl = '/api';  // Base URL para las llamadas API
+
+// Variables de estado
 let currentDateRange = 'today';
+let customStartDate = null;
+let customEndDate = null;
 
 // Función para formatear montos monetarios
 function formatCurrency(amount) {
