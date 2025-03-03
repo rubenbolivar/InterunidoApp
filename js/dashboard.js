@@ -92,7 +92,7 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
         console.log('Obteniendo operaciones desde:', operationsUrl);
         
         // Token de autenticación desde localStorage
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('auth_token');
         if (!token) {
             console.error('No se encontró token de autenticación');
             showErrorMessage('Error de autenticación. Intente iniciar sesión nuevamente.');
