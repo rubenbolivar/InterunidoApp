@@ -159,6 +159,205 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
     }
 }
 
+// Función para procesar los datos crudos y generar la estructura necesaria para los gráficos
+function processDashboardData(rawData) {
+    console.log('Procesando datos brutos para el dashboard');
+    
+    if (!rawData) {
+        console.error('No hay datos disponibles para procesar');
+        return null;
+    }
+    
+    // Objeto para almacenar todos los datos procesados
+    const processedData = {
+        ...rawData,  // Mantener datos originales
+        charts: rawData.charts || {}  // Inicializar charts si no existe
+    };
+    
+    try {
+        // 1. Procesar datos para gráfico de ventas por período
+        processedData.charts.salesByTime = processSalesByTimeData(rawData);
+        console.log('Datos de ventas por período procesados');
+        
+        // 2. Procesar datos para gráfico de comisiones
+        processedData.charts.commissions = processCommissionsData(rawData);
+        console.log('Datos de comisiones procesados');
+        
+        // 3. Procesar datos para gráfico de operadores
+        processedData.operators = processOperatorsData(rawData);
+        console.log('Datos de operadores procesados');
+        
+        return processedData;
+    } catch (error) {
+        console.error('Error al procesar datos del dashboard:', error);
+        // Devolver los datos originales en caso de error
+        return rawData;
+    }
+}
+
+// Función para procesar datos de ventas por período
+function processSalesByTimeData(rawData) {
+    console.log('Procesando datos para el gráfico de ventas por período');
+    
+    const operations = rawData.operationsData || [];
+    console.log(`Total de operaciones disponibles: ${operations.length}`);
+    
+    // Obtener el rango de fechas para los últimos 5 períodos (meses)
+    const today = new Date();
+    const labels = [];
+    const monthlySales = {};
+    
+    // Crear etiquetas para los últimos 5 meses
+    for (let i = 4; i >= 0; i--) {
+        const date = new Date(today);
+        date.setMonth(today.getMonth() - i);
+        
+        // Formato: nombre del mes abreviado (primera letra mayúscula)
+        const monthName = date.toLocaleString('es', { month: 'short' });
+        const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        
+        // Clave para agrupar: YYYY-MM
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        labels.push(formattedMonth);
+        monthlySales[monthKey] = 0;
+    }
+    
+    // Filtrar operaciones de tipo venta y agrupar por mes
+    const salesOperations = operations.filter(op => op.type === 'venta' || op.type === 'VENTA');
+    console.log(`Operaciones de venta encontradas: ${salesOperations.length}`);
+    
+    salesOperations.forEach(op => {
+        if (!op.date || !op.amount) return;
+        
+        const amount = parseFloat(op.amount);
+        if (isNaN(amount)) return;
+        
+        // Convertir la fecha de la operación al formato YYYY-MM
+        const opDate = new Date(op.date);
+        const monthKey = `${opDate.getFullYear()}-${String(opDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Si el mes está dentro del rango que mostramos
+        if (monthKey in monthlySales) {
+            monthlySales[monthKey] += amount;
+        }
+    });
+    
+    // Convertir el objeto de ventas mensuales a un array para el gráfico
+    const data = Object.values(monthlySales);
+    
+    console.log('Datos procesados para ventas por período:', { labels, data });
+    return { labels, data };
+}
+
+// Función para procesar datos de comisiones por oficina
+function processCommissionsData(rawData) {
+    console.log('Procesando datos para el gráfico de comisiones por oficina');
+    
+    const operations = rawData.operationsData || [];
+    console.log(`Total de operaciones disponibles: ${operations.length}`);
+    
+    // Objeto para acumular comisiones por oficina
+    const officeCommissions = {};
+    
+    // Función para calcular la comisión basada en el tipo de operación y monto
+    function calculateCommission(operation) {
+        const amount = parseFloat(operation.amount);
+        if (isNaN(amount)) return 0;
+        
+        // Diferentes tasas de comisión según el tipo de operación
+        // Estos porcentajes deben ajustarse según las reglas de negocio reales
+        const commissionRate = operation.type === 'venta' || operation.type === 'VENTA' ? 0.02 : 0.01;
+        
+        return amount * commissionRate;
+    }
+    
+    // Procesar cada operación
+    operations.forEach(op => {
+        if (!op.amount) return;
+        
+        // Obtener la oficina, usando un valor por defecto si no está definida
+        const office = op.office || 'Sin oficina';
+        
+        // Calcular la comisión para esta operación
+        const commission = calculateCommission(op);
+        
+        // Acumular la comisión para esta oficina
+        if (!officeCommissions[office]) {
+            officeCommissions[office] = 0;
+        }
+        
+        officeCommissions[office] += commission;
+    });
+    
+    // Convertir el objeto de comisiones a arrays para el gráfico
+    const labels = Object.keys(officeCommissions);
+    const data = labels.map(office => officeCommissions[office]);
+    
+    console.log('Datos procesados para comisiones por oficina:', { labels, data });
+    
+    // Si no hay datos, devolver un array vacío
+    if (labels.length === 0) {
+        return { labels: [], data: [] };
+    }
+    
+    return { labels, data };
+}
+
+// Función para procesar datos de rendimiento por operador
+function processOperatorsData(rawData) {
+    console.log('Procesando datos para el rendimiento por operador');
+    
+    const operations = rawData.operationsData || [];
+    console.log(`Total de operaciones disponibles: ${operations.length}`);
+    
+    // Objeto para acumular datos por operador
+    const operatorsData = {};
+    
+    // Procesar cada operación
+    operations.forEach(op => {
+        if (!op.operator || !op.amount || !op.type) return;
+        
+        const operatorName = op.operator;
+        const amount = parseFloat(op.amount);
+        
+        if (isNaN(amount)) return;
+        
+        // Inicializar datos del operador si no existe
+        if (!operatorsData[operatorName]) {
+            operatorsData[operatorName] = {
+                operatorName: operatorName,
+                totalOperations: 0,
+                totalSales: 0,
+                totalExchanges: 0,
+                totalAmount: 0
+            };
+        }
+        
+        // Actualizar contadores
+        operatorsData[operatorName].totalOperations++;
+        operatorsData[operatorName].totalAmount += amount;
+        
+        // Clasificar por tipo de operación
+        const type = op.type.toLowerCase();
+        if (type === 'venta') {
+            operatorsData[operatorName].totalSales += amount;
+        } else if (type === 'canje') {
+            operatorsData[operatorName].totalExchanges += amount;
+        }
+    });
+    
+    // Convertir el objeto a un array para el gráfico
+    const operatorsArray = Object.values(operatorsData);
+    
+    // Ordenar por monto total (de mayor a menor)
+    operatorsArray.sort((a, b) => b.totalAmount - a.totalAmount);
+    
+    console.log('Datos procesados para rendimiento por operador:', operatorsArray);
+    
+    return operatorsArray;
+}
+
 // Función para actualizar el gráfico de ventas
 function updateSalesChart(salesData) {
     if (!salesChartEl) return;
@@ -577,9 +776,9 @@ function showLoading(show = true) {
     }
 }
 
-// Función para actualizar los datos en el dashboard
+// Función para actualizar el dashboard con los datos de las métricas
 function updateDashboard(metrics) {
-    console.log('Actualizando dashboard con métricas:', metrics);
+    console.log('Actualizando dashboard con métricas procesadas:', metrics);
     
     try {
         // Actualizar cards de estadísticas
@@ -590,28 +789,10 @@ function updateDashboard(metrics) {
         
         // Gráfico de ventas por período
         if (metrics.charts && metrics.charts.salesByTime) {
-            console.log('Actualizando gráfico de ventas por período');
-            // Verificar y asegurar que los datos tienen el formato correcto
-            const salesData = {
-                labels: metrics.charts.salesByTime.labels || [],
-                data: metrics.charts.salesByTime.data || []
-            };
-            
-            // Si no hay datos o están vacíos, proporcionar datos de ejemplo
-            if (!salesData.labels.length) {
-                salesData.labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May'];
-                salesData.data = [0, 0, 0, 0, metrics.sales?.current || 0];
-                console.log('Usando datos de ejemplo para el gráfico de ventas');
-            }
-            
-            updateSalesChart(salesData);
+            console.log('Actualizando gráfico de ventas por período con datos reales');
+            updateSalesChart(metrics.charts.salesByTime);
         } else {
             console.warn('Datos para gráfico de ventas no disponibles');
-            // Datos de ejemplo
-            updateSalesChart({
-                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
-                data: [0, 0, 0, 0, metrics.sales?.current || 0]
-            });
         }
         
         // Gráfico de operaciones
@@ -627,40 +808,15 @@ function updateDashboard(metrics) {
             console.log('Actualizando gráfico de ganancias con datos:', metrics.charts.profits);
             updateProfitsChart(metrics.charts.profits);
         } else {
-            console.warn('Datos para gráfico de ganancias no disponibles, usando datos por defecto');
-            // Datos por defecto para gráfico de ganancias
-            updateProfitsChart({
-                labels: ['Ventas', 'Canjes'],
-                data: [0, 0],
-                totals: [0, 0]
-            });
+            console.warn('Datos para gráfico de ganancias no disponibles');
         }
         
         // Gráfico de comisiones
         if (metrics.charts && metrics.charts.commissions) {
-            console.log('Actualizando gráfico de comisiones con datos:', metrics.charts.commissions);
-            
-            // Verificar y asegurar que los datos tienen el formato correcto
-            const commissionsData = {
-                labels: metrics.charts.commissions.labels || [],
-                data: metrics.charts.commissions.data || []
-            };
-            
-            // Si los datos están vacíos o no tienen el formato correcto, proporcionar datos de ejemplo
-            if (!commissionsData.labels.length || !Array.isArray(commissionsData.data)) {
-                commissionsData.labels = ['PZO', 'CCS', 'Sin oficina'];
-                commissionsData.data = [0, 0, 10];
-                console.log('Usando datos de ejemplo para el gráfico de comisiones');
-            }
-            
-            updateCommissionsChart(commissionsData);
+            console.log('Actualizando gráfico de comisiones con datos reales');
+            updateCommissionsChart(metrics.charts.commissions);
         } else {
-            console.warn('Datos para gráfico de comisiones no disponibles, usando datos por defecto');
-            // Datos por defecto para gráfico de comisiones
-            updateCommissionsChart({
-                labels: ['PZO', 'CCS', 'Sin oficina'],
-                data: [0, 0, 10]
-            });
+            console.warn('Datos para gráfico de comisiones no disponibles');
         }
         
         // Gráfico de rendimiento
@@ -668,31 +824,19 @@ function updateDashboard(metrics) {
             console.log('Actualizando gráfico de rendimiento con datos:', metrics.charts.performance);
             updatePerformanceChart(metrics.charts.performance);
         } else {
-            console.warn('Datos para gráfico de rendimiento no disponibles, usando datos por defecto');
-            // Datos por defecto para gráfico de rendimiento
-            updatePerformanceChart({
-                labels: ['Ventas', 'Canjes'],
-                avgAmount: [metrics.operations?.average || 0, 0],
-                profitPercentage: [0, 0],
-                commissionPercentage: [0, 0]
-            });
+            console.warn('Datos para gráfico de rendimiento no disponibles');
         }
         
         // Actualizar tabla y gráfico de operadores para administradores
-        if (metrics.operators) {
-            console.log('Actualizando datos de operadores');
+        if (metrics.operators && metrics.operators.length > 0) {
+            console.log('Actualizando datos de operadores con datos reales');
             updateOperatorsTable(metrics.operators);
             updateOperatorsChart(metrics.operators);
         } else {
-            // Datos por defecto para gráfico de operadores
-            updateOperatorsChart([
-                { operatorName: 'Operador 1', totalAmount: 10000 },
-                { operatorName: 'Operador 2', totalAmount: 5000 }
-            ]);
             console.warn('Datos de operadores no disponibles');
         }
         
-        console.log('Dashboard actualizado correctamente');
+        console.log('Dashboard actualizado correctamente con datos reales');
     } catch (error) {
         console.error('Error al actualizar dashboard:', error);
         showErrorMessage('Error al actualizar dashboard: ' + error.message);
@@ -1005,18 +1149,25 @@ function updateOperatorsChart(operators) {
     }
     
     try {
+        console.log('Actualizando gráfico de operadores con datos:', operators);
+        
         // Preparar datos para el gráfico
         const labels = [];
         const data = [];
         
         if (operators && operators.length > 0) {
-            operators.forEach(op => {
+            // Limitar a los 5 principales operadores para no sobrecargar el gráfico
+            const topOperators = operators.slice(0, 5);
+            
+            topOperators.forEach(op => {
                 labels.push(op.operatorName || 'Sin nombre');
                 data.push(op.totalAmount || 0);
             });
+            
+            console.log('Datos preparados para gráfico de operadores:', { labels, data });
         } else {
-            labels.push('Sin datos');
-            data.push(0);
+            console.warn('No hay datos de operadores disponibles');
+            return; // No crear gráfico si no hay datos
         }
         
         // Si ya existe el gráfico, destruirlo
@@ -1057,14 +1208,16 @@ function updateOperatorsChart(operators) {
                                 return formatCurrency(context.raw);
                             }
                         }
+                    },
+                    legend: {
+                        display: false  // Ocultar leyenda ya que solo tenemos una serie
                     }
                 }
             }
         });
         
-        console.log('Gráfico de operadores creado');
+        console.log('Gráfico de operadores creado exitosamente');
     } catch (error) {
         console.error('Error al actualizar el gráfico de operadores:', error);
-        showErrorMessage('Error al actualizar el gráfico de operadores: ' + error.message);
     }
 }
