@@ -28,15 +28,66 @@
                     </button>
                 </div>
 
+                <!-- Alerta para mensajes de error -->
+                <div class="alert alert-danger d-none" id="dashboardAlert" role="alert"></div>
+
+                <!-- Filtros de fecha -->
+                <div class="dashboard-filters mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Filtros de Fecha</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <div class="btn-group" role="group" aria-label="Filtros de fecha">
+                                        <button type="button" class="btn btn-outline-primary date-filter-btn active" id="filterToday" data-range="today">Hoy</button>
+                                        <button type="button" class="btn btn-outline-primary date-filter-btn" id="filterYesterday" data-range="yesterday">Ayer</button>
+                                        <button type="button" class="btn btn-outline-primary date-filter-btn" id="filterWeek" data-range="week">Esta Semana</button>
+                                        <button type="button" class="btn btn-outline-primary date-filter-btn" id="filterMonth" data-range="month">Este Mes</button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#customDateCollapse" aria-expanded="false" aria-controls="customDateCollapse">
+                                        Fecha Personalizada
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Selección de fecha personalizada (colapsada por defecto) -->
+                            <div class="collapse mt-3" id="customDateCollapse">
+                                <div class="card card-body bg-light">
+                                    <form id="dateRangeForm" class="row g-3">
+                                        <div class="col-md-5">
+                                            <label for="customStartDate" class="form-label">Fecha de inicio</label>
+                                            <input type="date" class="form-control" id="customStartDate" required>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label for="customEndDate" class="form-label">Fecha de fin</label>
+                                            <input type="date" class="form-control" id="customEndDate" required>
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <button type="submit" class="btn btn-primary w-100">Aplicar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Stats Cards -->
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4 mb-4">
                     <div class="col">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h5 class="card-title text-muted">Ventas del Día</h5>
+                                <h5 class="card-title text-muted">Ventas del Período</h5>
+                                <div class="dashboard-loading spinner-border spinner-border-sm text-primary d-none" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
                                 <h2 class="card-text" id="dailySales">$0</h2>
                                 <p class="card-text text-success">
-                                    <small id="percentageChange">0% vs ayer</small>
+                                    <small id="percentageChange">0% vs período anterior</small>
                                 </p>
                             </div>
                         </div>
@@ -45,9 +96,12 @@
                         <div class="card h-100">
                             <div class="card-body">
                                 <h5 class="card-title text-muted">Operaciones</h5>
+                                <div class="dashboard-loading spinner-border spinner-border-sm text-primary d-none" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
                                 <h2 class="card-text" id="totalOperations">0</h2>
                                 <p class="card-text text-muted">
-                                    <small>operaciones hoy</small>
+                                    <small>operaciones en el período</small>
                                 </p>
                             </div>
                         </div>
@@ -56,6 +110,9 @@
                         <div class="card h-100">
                             <div class="card-body">
                                 <h5 class="card-title text-muted">Promedio por Operación</h5>
+                                <div class="dashboard-loading spinner-border spinner-border-sm text-primary d-none" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
                                 <h2 class="card-text" id="averageOperation">$0</h2>
                                 <p class="card-text text-muted">
                                     <small>por operación</small>
@@ -67,9 +124,12 @@
                         <div class="card h-100">
                             <div class="card-body">
                                 <h5 class="card-title text-muted">Tasa Promedio</h5>
+                                <div class="dashboard-loading spinner-border spinner-border-sm text-primary d-none" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
                                 <h2 class="card-text" id="averageRate">3.85</h2>
                                 <p class="card-text text-muted">
-                                    <small>tasa del día</small>
+                                    <small>tasa del período</small>
                                 </p>
                             </div>
                         </div>
@@ -81,7 +141,12 @@
                     <div class="col-12 col-xl-6">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h5 class="card-title">Ventas por Hora</h5>
+                                <h5 class="card-title">Ventas por Período</h5>
+                                <div class="dashboard-loading text-center py-5 d-none">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </div>
                                 <canvas id="salesChart"></canvas>
                             </div>
                         </div>
@@ -90,6 +155,11 @@
                         <div class="card h-100">
                             <div class="card-body">
                                 <h5 class="card-title">Distribución de Operaciones</h5>
+                                <div class="dashboard-loading text-center py-5 d-none">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </div>
                                 <canvas id="operationsChart"></canvas>
                             </div>
                         </div>
@@ -126,4 +196,4 @@
         </div>
     </div>
 </body>
-</html> 
+</html>

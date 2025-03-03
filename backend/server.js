@@ -285,16 +285,266 @@ app.get('/api/transactions/:id/report', verifyToken, async (req, res) => {
 // Endpoint para obtener métricas para el dashboard
 app.get('/api/metrics', verifyToken, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { dateRange } = req.query;
+    
+    // Configurar fechas según el rango solicitado (por defecto: hoy)
+    const now = new Date();
+    let startDate = new Date(now);
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date(now);
+    endDate.setHours(23, 59, 59, 999);
+    let previousStartDate, previousEndDate;
+    
+    // Procesar diferentes rangos de fechas
+    if (dateRange === 'yesterday') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(now);
+      endDate.setDate(endDate.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+      
+      previousStartDate = new Date(startDate);
+      previousStartDate.setDate(previousStartDate.getDate() - 1);
+      previousEndDate = new Date(endDate);
+      previousEndDate.setDate(previousEndDate.getDate() - 1);
+    } else if (dateRange === 'week') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - startDate.getDay());
+      startDate.setHours(0, 0, 0, 0);
+      
+      previousStartDate = new Date(startDate);
+      previousStartDate.setDate(previousStartDate.getDate() - 7);
+      previousEndDate = new Date(startDate);
+      previousEndDate.setSeconds(previousEndDate.getSeconds() - 1);
+    } else if (dateRange === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      previousEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    } else if (dateRange === 'custom' && req.query.start && req.query.end) {
+      startDate = new Date(req.query.start);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(req.query.end);
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Para el período anterior, usamos el mismo intervalo pero más atrás
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+      previousStartDate = new Date(startDate);
+      previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
+      previousEndDate = new Date(endDate);
+      previousEndDate.setDate(previousEndDate.getDate() - daysDiff);
+    } else {
+      // Por defecto: hoy
+      previousStartDate = new Date(now);
+      previousStartDate.setDate(previousStartDate.getDate() - 1);
+      previousStartDate.setHours(0, 0, 0, 0);
+      previousEndDate = new Date(now);
+      previousEndDate.setDate(previousEndDate.getDate() - 1);
+      previousEndDate.setHours(23, 59, 59, 999);
+    }
+
+    // 1. Ventas del período actual
     const salesAggregate = await Transaction.aggregate([
-      { $match: { createdAt: { $gte: today }, type: 'venta' } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
+      { $match: { 
+          createdAt: { $gte: startDate, $lte: endDate },
+          type: 'venta'
+        } 
+      },
+      { $group: { 
+          _id: null, 
+          total: { $sum: "$amount" }, 
+          count: { $sum: 1 } 
+        } 
+      }
     ]);
-    const dailySales = salesAggregate[0] ? salesAggregate[0].total : 0;
-    res.json({ dailySales });
+    
+    // 2. Ventas del período anterior (para comparación)
+    const previousSalesAggregate = await Transaction.aggregate([
+      { $match: { 
+          createdAt: { $gte: previousStartDate, $lte: previousEndDate },
+          type: 'venta'
+        } 
+      },
+      { $group: { 
+          _id: null, 
+          total: { $sum: "$amount" }, 
+          count: { $sum: 1 } 
+        } 
+      }
+    ]);
+    
+    // 3. Operaciones por tipo (ventas, canjes internos, canjes externos)
+    const operationsByType = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { $group: { 
+          _id: {
+            type: "$type",
+            subtype: { $cond: [{ $eq: ["$type", "canje"] }, "$details.tipo", null] }
+          },
+          count: { $sum: 1 },
+          total: { $sum: "$amount" }
+        } 
+      }
+    ]);
+
+    // 4. Datos por hora para el gráfico de línea
+    const startHour = new Date(startDate);
+    const salesByHour = [];
+    const hoursInRange = dateRange === 'week' || dateRange === 'month' || dateRange === 'custom' 
+                         ? Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) * 24 
+                         : 24;
+
+    // Si el rango es mayor a un día, agrupamos por día en lugar de por hora
+    const groupByDay = hoursInRange > 24;
+    
+    if (groupByDay) {
+      // Agrupar por día
+      const salesByDay = await Transaction.aggregate([
+        { $match: { 
+            createdAt: { $gte: startDate, $lte: endDate },
+            type: 'venta'
+          } 
+        },
+        { 
+          $group: { 
+            _id: { 
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+              day: { $dayOfMonth: "$createdAt" }
+            },
+            total: { $sum: "$amount" }
+          } 
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+      ]);
+      
+      // Formatear los resultados para el gráfico
+      const labels = [];
+      const data = [];
+      
+      let currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const formattedDate = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
+        labels.push(formattedDate);
+        
+        // Buscar si hay datos para este día
+        const dayData = salesByDay.find(d => 
+          d._id.year === currentDate.getFullYear() && 
+          d._id.month === currentDate.getMonth() + 1 && 
+          d._id.day === currentDate.getDate()
+        );
+        
+        data.push(dayData ? dayData.total : 0);
+        
+        // Avanzar al siguiente día
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      salesByHour.push({ labels, data });
+    } else {
+      // Agrupar por hora (para un solo día)
+      const hourlyData = await Transaction.aggregate([
+        { $match: { 
+            createdAt: { $gte: startDate, $lte: endDate },
+            type: 'venta'
+          } 
+        },
+        { 
+          $group: { 
+            _id: { $hour: "$createdAt" },
+            total: { $sum: "$amount" }
+          } 
+        },
+        { $sort: { "_id": 1 } }
+      ]);
+      
+      // Formatear los resultados para el gráfico
+      const labels = [];
+      const data = [];
+      
+      for (let hour = 0; hour < 24; hour++) {
+        const hourLabel = `${hour}:00`;
+        labels.push(hourLabel);
+        
+        const hourData = hourlyData.find(h => h._id === hour);
+        data.push(hourData ? hourData.total : 0);
+      }
+      
+      salesByHour.push({ labels, data });
+    }
+    
+    // 5. Calcular métricas adicionales y organizar la respuesta
+    const currentPeriodSales = salesAggregate[0] ? salesAggregate[0].total : 0;
+    const previousPeriodSales = previousSalesAggregate[0] ? previousSalesAggregate[0].total : 0;
+    
+    // Calcular el cambio porcentual entre periodos
+    let percentageChange = 0;
+    if (previousPeriodSales > 0) {
+      percentageChange = Math.round(((currentPeriodSales - previousPeriodSales) / previousPeriodSales) * 100);
+    }
+    
+    // Calcular número total de operaciones en el período
+    const totalOperations = salesAggregate[0] ? salesAggregate[0].count : 0;
+    
+    // Calcular promedio por operación
+    const averageOperation = totalOperations > 0 ? Math.round(currentPeriodSales / totalOperations) : 0;
+    
+    // Organizar los datos por tipo de operación para el gráfico circular
+    const operationTypes = {
+      labels: [],
+      data: []
+    };
+    
+    operationsByType.forEach(op => {
+      let label;
+      if (op._id.type === 'venta') {
+        label = 'Ventas';
+      } else if (op._id.type === 'canje') {
+        if (op._id.subtype === 'interno') {
+          label = 'Canjes Internos';
+        } else if (op._id.subtype === 'externo') {
+          label = 'Canjes Externos';
+        } else {
+          label = 'Canjes';
+        }
+      } else {
+        label = op._id.type;
+      }
+      
+      operationTypes.labels.push(label);
+      operationTypes.data.push(op.count);
+    });
+    
+    // Construir respuesta final
+    const metrics = {
+      dateRange: {
+        start: startDate,
+        end: endDate
+      },
+      sales: {
+        current: currentPeriodSales,
+        previous: previousPeriodSales,
+        percentageChange
+      },
+      operations: {
+        total: totalOperations,
+        average: averageOperation,
+        distribution: operationTypes
+      },
+      charts: {
+        salesByTime: {
+          isDaily: !groupByDay,
+          data: salesByHour[0]
+        }
+      }
+    };
+    
+    res.json(metrics);
   } catch (error) {
-    res.status(500).json({ message: 'Error al calcular métricas' });
+    logger.error('Error al calcular métricas:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al calcular métricas', error: error.message });
   }
 });
 
