@@ -486,8 +486,8 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
             $sum: { 
               $cond: [
                 { $eq: ["$type", "venta"] }, 
-                "$profit", 
-                "$details.profit"
+                { $ifNull: ["$profit", 0] }, 
+                { $ifNull: ["$details.profit", 0] }
               ] 
             }
           }
@@ -513,7 +513,7 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
             $sum: { 
               $cond: [
                 { $eq: ["$type", "venta"] }, 
-                "$commission", 
+                { $ifNull: ["$commission", 0] }, 
                 { $ifNull: ["$details.commission", 0] }
               ] 
             }
@@ -538,7 +538,7 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
             $sum: { 
               $cond: [
                 { $eq: ["$type", "venta"] }, 
-                "$profit", 
+                { $ifNull: ["$profit", 0] }, 
                 { $ifNull: ["$details.profit", 0] }
               ] 
             }
@@ -547,7 +547,7 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
             $sum: { 
               $cond: [
                 { $eq: ["$type", "venta"] }, 
-                "$commission", 
+                { $ifNull: ["$commission", 0] }, 
                 { $ifNull: ["$details.commission", 0] }
               ] 
             }
@@ -626,6 +626,12 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
       operationTypes.data.push(op.count);
     });
     
+    // Si no hay datos de operaciones, establecer valores por defecto
+    if (operationTypes.labels.length === 0) {
+      operationTypes.labels = ['Ventas', 'Canjes Internos', 'Canjes Externos'];
+      operationTypes.data = [0, 0, 0];
+    }
+    
     // Formatear ganancias por tipo para el gráfico
     const profits = {
       labels: [],
@@ -703,7 +709,7 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
       performance.commissionPercentage = [0, 0, 0];
     }
     
-    // Construir respuesta final
+    // Construir respuesta final con valores por defecto si es necesario
     const metrics = {
       dateRange: {
         start: startDate,
@@ -722,13 +728,25 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
       charts: {
         salesByTime: {
           isDaily: !groupByDay,
-          data: salesByHour[0]
+          data: salesByHour[0] || { labels: [], data: [] }
         },
         profits: profits,
         commissions: commissions,
         performance: performance
       }
     };
+    
+    // Log para depuración
+    logger.info('Enviando métricas dashboard:', { 
+      user: req.user.username,
+      dateRange,
+      hasProfit: !!metrics.charts.profits,
+      profitLabels: metrics.charts.profits.labels,
+      hasCommissions: !!metrics.charts.commissions,
+      commissionLabels: metrics.charts.commissions.labels,
+      hasPerformance: !!metrics.charts.performance,
+      performanceLabels: metrics.charts.performance.labels
+    });
     
     res.json(metrics);
   } catch (error) {

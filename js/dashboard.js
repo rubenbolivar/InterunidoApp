@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Función principal para cargar datos del dashboard
-    async function loadDashboardData(dateRange = 'today', startDate = null, endDate = null) {
+    async function loadDashboardData(dateRange = currentDateRange, startDate = null, endDate = null) {
         // Actualizar la UI para mostrar que estamos cargando
         document.querySelectorAll('.dashboard-loading').forEach(el => {
             el.classList.remove('d-none');
@@ -873,6 +873,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Inicializar el dashboard
     function initDashboard() {
         setupDateFilters();
+        
+        // Cargar datos iniciales
         loadDashboardData();
         
         // Cargar datos de operadores si es administrador
@@ -886,7 +888,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }, 5 * 60 * 1000);
     }
-    
+
     // Iniciar la carga de datos
-    initDashboard();
+    document.addEventListener('DOMContentLoaded', function() {
+        initDashboard();
+    });
 });
