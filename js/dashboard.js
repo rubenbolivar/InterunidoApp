@@ -79,14 +79,17 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
     
     try {
         // Construir URL con parámetros
-        let url = `${apiUrl}/metrics?range=${dateRange}`;
+        let url = `${apiUrl}/metrics?dateRange=${dateRange}`;
         if (startDate) url += `&start=${startDate}`;
         if (endDate) url += `&end=${endDate}`;
         
         // URL para obtener operaciones en bruto (ajustar según tu API)
-        const operationsUrl = `${apiUrl}/operations?range=${dateRange}`;
+        let operationsUrl = `${apiUrl}/operations?dateRange=${dateRange}`;
         if (startDate) operationsUrl += `&start=${startDate}`;
         if (endDate) operationsUrl += `&end=${endDate}`;
+        
+        console.log('Obteniendo métricas desde:', url);
+        console.log('Obteniendo operaciones desde:', operationsUrl);
         
         // Token de autenticación desde localStorage
         const token = localStorage.getItem('token');
