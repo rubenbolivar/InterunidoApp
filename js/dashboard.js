@@ -252,15 +252,194 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
+    // Variables para los componentes de operadores
+    let operatorsChart = null;
+    
+    // Función para obtener los datos de rendimiento por operador
+    async function fetchOperatorsData(dateRange = 'today', startDate = null, endDate = null) {
+        try {
+            // Construir query params
+            let queryParams = `?dateRange=${dateRange}`;
+            if (dateRange === 'custom' && startDate && endDate) {
+                queryParams += `&start=${startDate}&end=${endDate}`;
+            }
+            
+            const response = await fetch(`/api/metrics/operators${queryParams}`, {
+                headers: {
+                    'Authorization': 'Bearer ' + getAuthToken()
+                }
+            });
+            
+            if (response.status === 403) {
+                // Usuario no tiene permisos
+                document.getElementById('operatorsPermissionMessage')?.classList.remove('d-none');
+                return null;
+            }
+            
+            if (!response.ok) {
+                throw new Error(`Error obteniendo datos de operadores: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error al obtener datos de operadores:', error);
+            return null;
+        }
+    }
+    
+    // Función para cargar los datos de operadores
+    async function loadOperatorsData(dateRange = currentDateRange, startDate = null, endDate = null) {
+        const operatorsSection = document.querySelector('.operators-section');
+        if (!operatorsSection) return;
+        
+        // Mostrar carga
+        operatorsSection.querySelectorAll('.dashboard-loading').forEach(el => {
+            el.classList.remove('d-none');
+        });
+        
+        // Ocultar mensaje de permisos
+        document.getElementById('operatorsPermissionMessage')?.classList.add('d-none');
+        
+        // Obtener datos
+        const data = await fetchOperatorsData(dateRange, startDate, endDate);
+        
+        // Ocultar carga
+        operatorsSection.querySelectorAll('.dashboard-loading').forEach(el => {
+            el.classList.add('d-none');
+        });
+        
+        // Actualizar la interfaz con los datos
+        if (data && data.operators) {
+            updateOperatorsTable(data.operators);
+            updateOperatorsChart(data.operators);
+        }
+    }
+    
+    // Función para actualizar la tabla de operadores
+    function updateOperatorsTable(operators) {
+        const tableBody = document.querySelector('#operatorsTable tbody');
+        if (!tableBody) return;
+        
+        // Limpiar tabla
+        tableBody.innerHTML = '';
+        
+        // Si no hay datos
+        if (operators.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="5" class="text-center">No hay datos para mostrar en el período seleccionado</td>';
+            tableBody.appendChild(row);
+            return;
+        }
+        
+        // Llenar la tabla con los datos
+        operators.forEach(op => {
+            const row = document.createElement('tr');
+            
+            // Calcular total de canjes
+            const totalCanjes = (op.canjeInternoCount || 0) + (op.canjeExternoCount || 0);
+            
+            row.innerHTML = `
+                <td>${op.operatorName || 'Sin nombre'}</td>
+                <td>${op.totalOperations}</td>
+                <td>${op.salesCount || 0}</td>
+                <td>${totalCanjes}</td>
+                <td>${formatCurrency(op.totalAmount)}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+    
+    // Función para actualizar el gráfico de operadores
+    function updateOperatorsChart(operators) {
+        const chartCanvas = document.getElementById('operatorsChart');
+        if (!chartCanvas) return;
+        
+        // Preparar datos para el gráfico
+        const labels = [];
+        const salesData = [];
+        const canjesInternosData = [];
+        const canjesExternosData = [];
+        
+        // Tomar los top 5 operadores por monto total
+        const topOperators = operators.slice(0, 5);
+        
+        topOperators.forEach(op => {
+            labels.push(op.operatorName || 'Sin nombre');
+            salesData.push(op.salesCount || 0);
+            canjesInternosData.push(op.canjeInternoCount || 0);
+            canjesExternosData.push(op.canjeExternoCount || 0);
+        });
+        
+        const chartData = {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Ventas',
+                    backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                    data: salesData
+                },
+                {
+                    label: 'Canjes Internos',
+                    backgroundColor: 'rgba(25, 135, 84, 0.8)',
+                    data: canjesInternosData
+                },
+                {
+                    label: 'Canjes Externos',
+                    backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                    data: canjesExternosData
+                }
+            ]
+        };
+        
+        // Si el gráfico ya existe, actualizar datos
+        if (operatorsChart) {
+            operatorsChart.data = chartData;
+            operatorsChart.update();
+        } else {
+            // Crear nuevo gráfico
+            operatorsChart = new Chart(chartCanvas.getContext('2d'), {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparativa de Operaciones por Operador'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false
+                        },
+                        y: {
+                            stacked: false,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
     // Inicializar el dashboard
     function initDashboard() {
         setupDateFilters();
         loadDashboardData();
         
+        // Cargar datos de operadores si es administrador
+        loadOperatorsData();
+        
         // Recargar datos cada 5 minutos
         setInterval(() => {
             if (document.visibilityState === 'visible') {
                 loadDashboardData(currentDateRange);
+                loadOperatorsData(currentDateRange);
             }
         }, 5 * 60 * 1000);
     }

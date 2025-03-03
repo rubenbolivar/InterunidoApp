@@ -548,6 +548,146 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint para obtener estadísticas por operador
+app.get('/api/metrics/operators', verifyToken, async (req, res) => {
+  try {
+    // Solo los administradores pueden ver las estadísticas de todos los operadores
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'No autorizado para ver estadísticas de operadores' });
+    }
+    
+    const { dateRange, start, end } = req.query;
+    
+    // Configurar fechas según el rango solicitado
+    const now = new Date();
+    let startDate = new Date(now);
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date(now);
+    endDate.setHours(23, 59, 59, 999);
+    
+    // Procesar diferentes rangos de fechas
+    if (dateRange === 'yesterday') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(now);
+      endDate.setDate(endDate.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (dateRange === 'week') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - startDate.getDay());
+      startDate.setHours(0, 0, 0, 0);
+    } else if (dateRange === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (dateRange === 'custom' && start && end) {
+      startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+    }
+    
+    // Log para depuración
+    logger.info(`Obteniendo estadísticas por operador para usuario ${req.user.username} (${req.user.role})`, {
+      dateRange,
+      startDate,
+      endDate
+    });
+    
+    // Consulta de rendimiento por operador
+    const operatorStats = await Transaction.aggregate([
+      { 
+        $match: { 
+          createdAt: { $gte: startDate, $lte: endDate }
+        } 
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'operatorId',
+          foreignField: '_id',
+          as: 'operator'
+        }
+      },
+      {
+        $unwind: {
+          path: '$operator',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      { 
+        $group: { 
+          _id: '$operatorId',
+          operatorName: { $first: '$operator.username' },
+          totalOperations: { $sum: 1 },
+          totalAmount: { $sum: '$amount' },
+          types: {
+            $push: {
+              type: '$type',
+              subtype: { $cond: [{ $eq: ["$type", "canje"] }, "$details.tipo", null] }
+            }
+          }
+        } 
+      },
+      {
+        $project: {
+          _id: 1,
+          operatorName: 1,
+          totalOperations: 1,
+          totalAmount: 1,
+          salesCount: {
+            $size: {
+              $filter: {
+                input: '$types',
+                as: 'type',
+                cond: { $eq: ['$$type.type', 'venta'] }
+              }
+            }
+          },
+          canjeInternoCount: {
+            $size: {
+              $filter: {
+                input: '$types',
+                as: 'type',
+                cond: { $and: [
+                  { $eq: ['$$type.type', 'canje'] },
+                  { $eq: ['$$type.subtype', 'interno'] }
+                ]}
+              }
+            }
+          },
+          canjeExternoCount: {
+            $size: {
+              $filter: {
+                input: '$types',
+                as: 'type',
+                cond: { $and: [
+                  { $eq: ['$$type.type', 'canje'] },
+                  { $eq: ['$$type.subtype', 'externo'] }
+                ]}
+              }
+            }
+          }
+        }
+      },
+      { $sort: { totalAmount: -1 } }
+    ]);
+    
+    // Devolver estadísticas
+    res.json({
+      dateRange: {
+        start: startDate,
+        end: endDate
+      },
+      operators: operatorStats
+    });
+    
+  } catch (error) {
+    logger.error('Error al obtener estadísticas por operador:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener estadísticas por operador', error: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => logger.info(`Servidor API corriendo en puerto ${PORT}`));
 // Actualización servidor: Wed Feb 19 15:47:23 -04 2025
