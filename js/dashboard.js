@@ -675,15 +675,40 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Función para mostrar mensajes de error
     function showErrorMessage(message) {
-        const alertEl = document.getElementById('dashboardAlert');
-        if (alertEl) {
-            alertEl.textContent = message;
-            alertEl.classList.remove('d-none');
+        console.error('ERROR:', message);
+        
+        // Intentar mostrar un mensaje en la UI si existe el elemento
+        const errorContainer = document.getElementById('errorContainer');
+        if (errorContainer) {
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+            
+            // Ocultar después de 5 segundos
             setTimeout(() => {
-                alertEl.classList.add('d-none');
+                errorContainer.style.display = 'none';
             }, 5000);
         } else {
-            console.error(message);
+            // Crear un elemento para mostrar el error si no existe
+            const newErrorContainer = document.createElement('div');
+            newErrorContainer.id = 'errorContainer';
+            newErrorContainer.style.cssText = 'position: fixed; top: 10px; right: 10px; background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; z-index: 9999;';
+            newErrorContainer.textContent = message;
+            document.body.appendChild(newErrorContainer);
+            
+            // Ocultar después de 5 segundos
+            setTimeout(() => {
+                document.body.removeChild(newErrorContainer);
+            }, 5000);
+        }
+    }
+    
+    // Función para mostrar/ocultar indicador de carga
+    function showLoading(show = true) {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = show ? 'block' : 'none';
+        } else if (show) {
+            console.warn('Elemento loadingIndicator no encontrado');
         }
     }
     
