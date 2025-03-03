@@ -12,7 +12,7 @@ let operationsChartEl = null;
 let profitsChartEl = null;
 let commissionsChartEl = null;
 let performanceChartEl = null;
-let operatorChartEl = null;
+let operatorsChartEl = null;
 
 // Variable para el rango de fechas actual
 let currentDateRange = 'today';
@@ -694,7 +694,7 @@ function initChartElements() {
     profitsChartEl = document.getElementById('profitsChart');
     commissionsChartEl = document.getElementById('commissionsChart');
     performanceChartEl = document.getElementById('performanceChart');
-    operatorChartEl = document.getElementById('operatorChart');
+    operatorsChartEl = document.getElementById('operatorsChart');
     
     // Verificar que todos los elementos existan
     if (!salesChartEl) console.warn('Elemento salesChart no encontrado');
@@ -702,7 +702,7 @@ function initChartElements() {
     if (!profitsChartEl) console.warn('Elemento profitsChart no encontrado');
     if (!commissionsChartEl) console.warn('Elemento commissionsChart no encontrado');
     if (!performanceChartEl) console.warn('Elemento performanceChart no encontrado');
-    if (!operatorChartEl) console.warn('Elemento operatorChart no encontrado');
+    if (!operatorsChartEl) console.warn('Elemento operatorsChart no encontrado');
     
     // Verificar que al menos un elemento canvas exista
     const canvases = document.querySelectorAll('canvas');
@@ -712,6 +712,13 @@ function initChartElements() {
         console.error('No se encontraron elementos canvas en el DOM');
         showErrorMessage('Error: No se encontraron elementos para gráficos');
     }
+    
+    // Establecer altura máxima para todos los canvas de gráficos
+    canvases.forEach(canvas => {
+        canvas.style.maxHeight = '400px';  // Limitar altura máxima
+        canvas.parentElement.style.maxHeight = '450px';  // Añadir un poco de espacio para el contenedor
+        canvas.parentElement.style.overflow = 'hidden';  // Evitar desbordamiento
+    });
 }
 
 // Función para inicializar los filtros de fecha
@@ -894,3 +901,75 @@ window.addEventListener('online', () => {
     // Recargar datos automáticamente
     loadDashboardData(currentDateRange);
 });
+
+// Función para actualizar el gráfico de rendimiento de operadores
+function updateOperatorsChart(operators) {
+    if (!operatorsChartEl) {
+        console.warn('Elemento operatorsChart no encontrado');
+        return;
+    }
+    
+    try {
+        // Preparar datos para el gráfico
+        const labels = [];
+        const data = [];
+        
+        if (operators && operators.length > 0) {
+            operators.forEach(op => {
+                labels.push(op.operatorName || 'Sin nombre');
+                data.push(op.totalAmount || 0);
+            });
+        } else {
+            labels.push('Sin datos');
+            data.push(0);
+        }
+        
+        // Si ya existe el gráfico, destruirlo
+        if (operatorsChart) {
+            operatorsChart.destroy();
+        }
+        
+        // Crear un nuevo gráfico
+        operatorsChart = new Chart(operatorsChartEl, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total Operado',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,  // Permitir que el gráfico se ajuste al contenedor
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatCurrency(context.raw);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        console.log('Gráfico de operadores creado');
+    } catch (error) {
+        console.error('Error al actualizar el gráfico de operadores:', error);
+        showErrorMessage('Error al actualizar el gráfico de operadores: ' + error.message);
+    }
+}

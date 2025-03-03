@@ -528,3 +528,54 @@ main {
     height: auto;
     margin-right: 1rem;
 }
+
+/* Estilos para gráficos y contenedores */
+.card-body {
+    padding: 1.25rem;
+    overflow: hidden; /* Prevenir desbordamiento */
+}
+
+/* Limitar la altura de los gráficos */
+canvas {
+    max-height: 400px !important; /* Forzar altura máxima */
+}
+
+/* Ajustes para los contenedores de gráficos */
+.card {
+    margin-bottom: 1.5rem;
+    height: auto !important; /* Evitar altura excesiva */
+}
+
+.card-body canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 400px !important;
+}
+
+/* Corregir el layout de la tabla de operadores */
+#operatorsTable {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Asegurar que la sección de rendimiento por operador no sea excesivamente alta */
+.operators-section .card-body {
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+/* Ajustes adicionales para vista móvil */
+@media (max-width: 767.98px) {
+    canvas {
+        max-height: 300px !important; /* Altura reducida en móviles */
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    /* Mejorar espaciado en móviles */
+    .card-body {
+        padding: 1rem;
+    }
+}

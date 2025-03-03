@@ -140,11 +140,11 @@
                 <div class="row mb-4">
                     <!-- Gráfico de ventas por período -->
                     <div class="col-12 col-xl-6 mb-4">
-                        <div class="card h-100">
+                        <div class="card">
                             <div class="card-header">
                                 <h5>Ventas por Período</h5>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body chart-container">
                                 <div class="dashboard-loading text-center py-5 d-none">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Cargando...</span>
@@ -157,11 +157,11 @@
                     
                     <!-- Gráfico de distribución de operaciones -->
                     <div class="col-12 col-xl-6 mb-4">
-                        <div class="card h-100">
+                        <div class="card">
                             <div class="card-header">
                                 <h5>Distribución de Operaciones</h5>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body chart-container">
                                 <div class="dashboard-loading text-center py-5 d-none">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Cargando...</span>
@@ -177,11 +177,11 @@
                 <div class="row mb-4">
                     <!-- Gráfico de ganancias (Venta y Canje) -->
                     <div class="col-12 col-xl-6 mb-4">
-                        <div class="card h-100">
+                        <div class="card">
                             <div class="card-header">
                                 <h5>Ganancias por Tipo de Operación</h5>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body chart-container">
                                 <div class="dashboard-loading text-center py-5 d-none">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Cargando...</span>
@@ -194,11 +194,11 @@
                     
                     <!-- Gráfico de comisión acumulada por oficina -->
                     <div class="col-12 col-xl-6 mb-4">
-                        <div class="card h-100">
+                        <div class="card">
                             <div class="card-header">
                                 <h5>Comisión Acumulada por Oficina</h5>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body chart-container">
                                 <div class="dashboard-loading text-center py-5 d-none">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Cargando...</span>
@@ -270,7 +270,9 @@
                                 
                                 <!-- Gráfico comparativo -->
                                 <div class="col-12 col-lg-5">
-                                    <canvas id="operatorsChart"></canvas>
+                                    <div class="chart-container" style="height: 300px;">
+                                        <canvas id="operatorsChart"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
