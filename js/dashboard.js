@@ -65,6 +65,51 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
+    // Función para obtener métricas del dashboard
+    async function fetchDashboardData(dateRange = 'today', startDate = null, endDate = null) {
+        try {
+            // Construir query params
+            let queryParams = `?dateRange=${dateRange}`;
+            if (dateRange === 'custom' && startDate && endDate) {
+                queryParams += `&start=${startDate}&end=${endDate}`;
+            }
+            
+            // Mostrar loading en los gráficos
+            document.querySelectorAll('.dashboard-loading').forEach(el => {
+                el.classList.remove('d-none');
+            });
+            
+            const response = await fetch(`/api/metrics${queryParams}`, {
+                headers: {
+                    'Authorization': 'Bearer ' + getAuthToken()
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error obteniendo métricas: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Log para depuración
+            console.log('Datos recibidos del API:', data);
+            console.log('Ganancias:', data.charts?.profits);
+            console.log('Comisiones:', data.charts?.commissions);
+            console.log('Rendimiento:', data.charts?.performance);
+            
+            return data;
+        } catch (error) {
+            console.error('Error al obtener métricas:', error);
+            showErrorMessage('Error al cargar los datos del dashboard: ' + error.message);
+            return null;
+        } finally {
+            // Ocultar loading en todos los casos
+            document.querySelectorAll('.dashboard-loading').forEach(el => {
+                el.classList.add('d-none');
+            });
+        }
+    }
+    
     // Función para actualizar los datos en el dashboard
     function updateDashboard(metrics) {
         if (!metrics) return;
@@ -102,6 +147,64 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Actualizar gráfico de rendimiento
         updatePerformanceChart(metrics.charts.performance);
+    }
+    
+    // Función para cargar los datos del dashboard
+    async function loadDashboardData(dateRange = currentDateRange, startDate = null, endDate = null) {
+        // Obtener métricas
+        const metrics = await fetchDashboardData(dateRange, startDate, endDate);
+        
+        if (!metrics) return;
+        
+        // Actualizar estadísticas
+        updateDashboardStats(metrics);
+        
+        // Actualizar gráfico de ventas
+        try {
+            updateSalesChart(metrics.charts.salesByTime);
+        } catch (e) {
+            console.error('Error al actualizar gráfico de ventas:', e);
+        }
+        
+        // Actualizar gráfico de distribución de operaciones
+        try {
+            updateOperationsChart(metrics.operations.distribution);
+        } catch (e) {
+            console.error('Error al actualizar gráfico de operaciones:', e);
+        }
+        
+        // Actualizar gráfico de ganancias
+        try {
+            if (metrics.charts?.profits) {
+                updateProfitsChart(metrics.charts.profits);
+            } else {
+                console.warn('No se encontraron datos de ganancias');
+            }
+        } catch (e) {
+            console.error('Error al actualizar gráfico de ganancias:', e);
+        }
+        
+        // Actualizar gráfico de comisiones
+        try {
+            if (metrics.charts?.commissions) {
+                updateCommissionsChart(metrics.charts.commissions);
+            } else {
+                console.warn('No se encontraron datos de comisiones');
+            }
+        } catch (e) {
+            console.error('Error al actualizar gráfico de comisiones:', e);
+        }
+        
+        // Actualizar gráfico de rendimiento
+        try {
+            if (metrics.charts?.performance) {
+                updatePerformanceChart(metrics.charts.performance);
+            } else {
+                console.warn('No se encontraron datos de rendimiento');
+            }
+        } catch (e) {
+            console.error('Error al actualizar gráfico de rendimiento:', e);
+        }
     }
     
     // Función para actualizar el gráfico de ventas
@@ -201,7 +304,25 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Función para actualizar el gráfico de ganancias
     function updateProfitsChart(profitsData) {
-        if (!profitsChartEl) return;
+        if (!profitsChartEl) {
+            console.warn('Elemento del gráfico de ganancias no encontrado');
+            return;
+        }
+        
+        console.log('Actualizando gráfico de ganancias con datos:', profitsData);
+        
+        // Validar datos
+        if (!profitsData || !profitsData.labels || !profitsData.data || !profitsData.totals) {
+            console.error('Datos de ganancias inválidos:', profitsData);
+            return;
+        }
+        
+        if (profitsData.labels.length === 0) {
+            console.warn('No hay etiquetas para el gráfico de ganancias');
+            profitsData.labels = ['Ventas', 'Canjes'];
+            profitsData.data = [0, 0];
+            profitsData.totals = [0, 0];
+        }
         
         // Preparar conjuntos de datos para monto total y ganancia
         const chartData = {
@@ -228,49 +349,71 @@ document.addEventListener('DOMContentLoaded', function () {
             ]
         };
         
-        if (profitsChart) {
-            profitsChart.data = chartData;
-            profitsChart.update();
-        } else {
-            profitsChart = new Chart(profitsChartEl.getContext('2d'), {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Ganancias por Tipo de Operación'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + formatCurrency(context.raw);
+        try {
+            if (profitsChart) {
+                profitsChart.data = chartData;
+                profitsChart.update();
+            } else {
+                profitsChart = new Chart(profitsChartEl.getContext('2d'), {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Ganancias por Tipo de Operación'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + formatCurrency(context.raw);
+                                    }
                                 }
                             }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatCurrency(value, false);
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value, false);
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+                console.log('Gráfico de ganancias creado');
+            }
+        } catch (e) {
+            console.error('Error al crear/actualizar gráfico de ganancias:', e);
         }
     }
     
     // Función para actualizar el gráfico de comisiones por oficina
     function updateCommissionsChart(commissionsData) {
-        if (!commissionsChartEl) return;
+        if (!commissionsChartEl) {
+            console.warn('Elemento del gráfico de comisiones no encontrado');
+            return;
+        }
+        
+        console.log('Actualizando gráfico de comisiones con datos:', commissionsData);
+        
+        // Validar datos
+        if (!commissionsData || !commissionsData.labels || !commissionsData.data) {
+            console.error('Datos de comisiones inválidos:', commissionsData);
+            return;
+        }
+        
+        if (commissionsData.labels.length === 0) {
+            console.warn('No hay etiquetas para el gráfico de comisiones');
+            commissionsData.labels = ['PZO', 'CCS', 'Sin oficina'];
+            commissionsData.data = [0, 0, 0];
+        }
         
         // Asignar colores por oficina
         const backgroundColors = [];
@@ -300,49 +443,74 @@ document.addEventListener('DOMContentLoaded', function () {
             }]
         };
         
-        if (commissionsChart) {
-            commissionsChart.data = chartData;
-            commissionsChart.update();
-        } else {
-            commissionsChart = new Chart(commissionsChartEl.getContext('2d'), {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Comisión Acumulada por Oficina'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return 'Comisión: ' + formatCurrency(context.raw);
+        try {
+            if (commissionsChart) {
+                commissionsChart.data = chartData;
+                commissionsChart.update();
+            } else {
+                commissionsChart = new Chart(commissionsChartEl.getContext('2d'), {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Comisión Acumulada por Oficina'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Comisión: ' + formatCurrency(context.raw);
+                                    }
                                 }
                             }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatCurrency(value, false);
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value, false);
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+                console.log('Gráfico de comisiones creado');
+            }
+        } catch (e) {
+            console.error('Error al crear/actualizar gráfico de comisiones:', e);
         }
     }
     
     // Función para actualizar el gráfico de rendimiento por tipo de operación
     function updatePerformanceChart(performanceData) {
-        if (!performanceChartEl) return;
+        if (!performanceChartEl) {
+            console.warn('Elemento del gráfico de rendimiento no encontrado');
+            return;
+        }
+        
+        console.log('Actualizando gráfico de rendimiento con datos:', performanceData);
+        
+        // Validar datos
+        if (!performanceData || !performanceData.labels || !performanceData.avgAmount || 
+            !performanceData.profitPercentage || !performanceData.commissionPercentage) {
+            console.error('Datos de rendimiento inválidos:', performanceData);
+            return;
+        }
+        
+        if (performanceData.labels.length === 0) {
+            console.warn('No hay etiquetas para el gráfico de rendimiento');
+            performanceData.labels = ['Ventas', 'Canjes Internos', 'Canjes Externos'];
+            performanceData.avgAmount = [0, 0, 0];
+            performanceData.profitPercentage = [0, 0, 0];
+            performanceData.commissionPercentage = [0, 0, 0];
+        }
         
         const chartData = {
             labels: performanceData.labels,
@@ -379,76 +547,81 @@ document.addEventListener('DOMContentLoaded', function () {
             ]
         };
         
-        if (performanceChart) {
-            performanceChart.data = chartData;
-            performanceChart.update();
-        } else {
-            performanceChart = new Chart(performanceChartEl.getContext('2d'), {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Rendimiento por Tipo de Operación'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.dataset.label;
-                                    const value = context.raw;
-                                    
-                                    if (label === 'Monto Promedio') {
-                                        return label + ': ' + formatCurrency(value);
-                                    } else {
-                                        return label + ': ' + value.toFixed(2) + '%';
+        try {
+            if (performanceChart) {
+                performanceChart.data = chartData;
+                performanceChart.update();
+            } else {
+                performanceChart = new Chart(performanceChartEl.getContext('2d'), {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Rendimiento por Tipo de Operación'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label;
+                                        const value = context.raw;
+                                        
+                                        if (label === 'Monto Promedio') {
+                                            return label + ': ' + formatCurrency(value);
+                                        } else {
+                                            return label + ': ' + value.toFixed(2) + '%';
+                                        }
                                     }
                                 }
                             }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Monto Promedio'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return formatCurrency(value, false);
-                                }
-                            }
                         },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
+                        scales: {
+                            y: {
+                                type: 'linear',
                                 display: true,
-                                text: 'Porcentaje (%)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
+                                position: 'left',
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Monto Promedio'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value, false);
+                                    }
                                 }
                             },
-                            grid: {
-                                drawOnChartArea: false
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Porcentaje (%)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+                console.log('Gráfico de rendimiento creado');
+            }
+        } catch (e) {
+            console.error('Error al crear/actualizar gráfico de rendimiento:', e);
         }
     }
     
@@ -509,7 +682,7 @@ document.addEventListener('DOMContentLoaded', function () {
         currentDateRange = dateRange;
         
         // Obtener las métricas
-        const metrics = await fetchMetrics(dateRange, startDate, endDate);
+        const metrics = await fetchDashboardData(dateRange, startDate, endDate);
         
         // Ocultar indicadores de carga
         document.querySelectorAll('.dashboard-loading').forEach(el => {

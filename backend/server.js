@@ -636,9 +636,16 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
     profitByType.forEach(item => {
       let label = item._id === 'venta' ? 'Ventas' : 'Canjes';
       profits.labels.push(label);
-      profits.data.push(item.profit);
-      profits.totals.push(item.total);
+      profits.data.push(item.profit || 0);
+      profits.totals.push(item.total || 0);
     });
+    
+    // Si no hay datos, añadir valores por defecto
+    if (profits.labels.length === 0) {
+      profits.labels = ['Ventas', 'Canjes'];
+      profits.data = [0, 0];
+      profits.totals = [0, 0];
+    }
     
     // Formatear comisiones por oficina para el gráfico
     const commissions = {
@@ -649,8 +656,14 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
     commissionByOffice.forEach(item => {
       let label = item._id || 'Sin oficina';
       commissions.labels.push(label);
-      commissions.data.push(item.commissionTotal);
+      commissions.data.push(item.commissionTotal || 0);
     });
+    
+    // Si no hay datos, añadir valores por defecto
+    if (commissions.labels.length === 0) {
+      commissions.labels = ['PZO', 'CCS', 'Sin oficina'];
+      commissions.data = [0, 0, 0];
+    }
     
     // Formatear rendimiento por tipo para el gráfico
     const performance = {
@@ -673,14 +686,22 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
           label = 'Canjes';
         }
       } else {
-        label = item._id.type;
+        label = item._id.type || 'Desconocido';
       }
       
       performance.labels.push(label);
-      performance.avgAmount.push(item.avgAmount);
-      performance.profitPercentage.push(item.profitPercentage);
-      performance.commissionPercentage.push(item.commissionPercentage);
+      performance.avgAmount.push(item.avgAmount || 0);
+      performance.profitPercentage.push(item.profitPercentage || 0);
+      performance.commissionPercentage.push(item.commissionPercentage || 0);
     });
+    
+    // Si no hay datos, añadir valores por defecto
+    if (performance.labels.length === 0) {
+      performance.labels = ['Ventas', 'Canjes Internos', 'Canjes Externos'];
+      performance.avgAmount = [0, 0, 0];
+      performance.profitPercentage = [0, 0, 0];
+      performance.commissionPercentage = [0, 0, 0];
+    }
     
     // Construir respuesta final
     const metrics = {
