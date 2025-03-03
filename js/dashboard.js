@@ -1107,42 +1107,43 @@ function initChartElements() {
 function initDateFilters() {
     console.log('Inicializando filtros de fecha...');
     
-    // Botones de filtro de fecha
-    const dateFilters = document.querySelectorAll('.date-filter');
+    // Botones de filtro de fecha (corregido para usar la clase date-filter-btn)
+    const dateFilters = document.querySelectorAll('.date-filter-btn');
     if (dateFilters.length === 0) {
         console.warn('No se encontraron botones de filtro de fecha');
-    }
-    
-    dateFilters.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const dateRange = this.dataset.range;
-            
-            // Remover clase activa de todos los botones
-            dateFilters.forEach(b => b.classList.remove('active'));
-            
-            // Agregar clase activa al botón seleccionado
-            this.classList.add('active');
-            
-            // Cargar datos para el rango seleccionado
-            loadDashboardData(dateRange);
+    } else {
+        console.log(`Se encontraron ${dateFilters.length} botones de filtro de fecha`);
+        dateFilters.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const dateRange = this.dataset.range;
+                console.log(`Filtro seleccionado: ${dateRange}`);
+                
+                // Remover clase activa de todos los botones
+                dateFilters.forEach(b => b.classList.remove('active'));
+                
+                // Agregar clase activa al botón seleccionado
+                this.classList.add('active');
+                
+                // Cargar datos para el rango seleccionado
+                loadDashboardData(dateRange);
+            });
         });
-    });
-    
-    // Marcar el filtro "Hoy" como seleccionado por defecto
-    const todayFilter = document.querySelector('.date-filter[data-range="today"]');
-    if (todayFilter) {
-        todayFilter.classList.add('active');
+        
+        // Marcar el filtro "Hoy" como seleccionado por defecto
+        const todayFilter = document.querySelector('.date-filter-btn[data-range="today"]');
+        if (todayFilter) {
+            todayFilter.classList.add('active');
+        }
     }
     
-    // Configurar fechas personalizadas
-    const startDateInput = document.getElementById('startDate');
-    const endDateInput = document.getElementById('endDate');
-    const applyDatesBtn = document.getElementById('applyDates');
-    
-    if (startDateInput && endDateInput && applyDatesBtn) {
-        applyDatesBtn.addEventListener('click', function() {
-            const startDate = startDateInput.value;
-            const endDate = endDateInput.value;
+    // Configurar formulario de fechas personalizadas
+    const dateRangeForm = document.getElementById('dateRangeForm');
+    if (dateRangeForm) {
+        dateRangeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const startDate = document.getElementById('customStartDate').value;
+            const endDate = document.getElementById('customEndDate').value;
             
             if (!startDate || !endDate) {
                 showErrorMessage('Por favor seleccione fechas de inicio y fin');
@@ -1156,7 +1157,7 @@ function initDateFilters() {
             loadDashboardData('custom', startDate, endDate);
         });
     } else {
-        console.warn('No se encontraron elementos para fechas personalizadas');
+        console.warn('No se encontró el formulario de fechas personalizadas');
     }
 }
 
