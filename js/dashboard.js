@@ -11,14 +11,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const commissionsChartEl = document.getElementById('commissionsChart');
     const performanceChartEl = document.getElementById('performanceChart');
     
-    // Referencias a los gráficos
+    // Variables globales para los gráficos
     let salesChart = null;
     let operationsChart = null;
     let profitsChart = null;
     let commissionsChart = null;
     let performanceChart = null;
-    
-    // Variable para almacenar el último rango de fechas seleccionado
+    let operatorsChart = null;
+
+    // Variable para el rango de fechas actual
     let currentDateRange = 'today';
 
     // Función para formatear montos monetarios
@@ -697,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Variables para los componentes de operadores
     let operatorsChart = null;
-    
+
     // Función para obtener los datos de rendimiento por operador
     async function fetchOperatorsData(dateRange = 'today', startDate = null, endDate = null) {
         try {
@@ -870,27 +871,156 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
+    // Función para inicializar elementos de gráficos
+    function initChartElements() {
+        console.log('Inicializando elementos de gráficos...');
+        
+        try {
+            // Obtener referencias a los elementos canvas
+            salesChartEl = document.getElementById('salesChart');
+            operationsChartEl = document.getElementById('operationsChart');
+            profitsChartEl = document.getElementById('profitsChart');
+            commissionsChartEl = document.getElementById('commissionsChart');
+            performanceChartEl = document.getElementById('performanceChart');
+            
+            console.log('Estado de elementos canvas:');
+            console.log('- salesChartEl:', salesChartEl ? 'Encontrado' : 'No encontrado');
+            console.log('- operationsChartEl:', operationsChartEl ? 'Encontrado' : 'No encontrado');
+            console.log('- profitsChartEl:', profitsChartEl ? 'Encontrado' : 'No encontrado');
+            console.log('- commissionsChartEl:', commissionsChartEl ? 'Encontrado' : 'No encontrado');
+            console.log('- performanceChartEl:', performanceChartEl ? 'Encontrado' : 'No encontrado');
+            
+            return true;
+        } catch (e) {
+            console.error('Error al inicializar elementos de gráficos:', e);
+            return false;
+        }
+    }
+    
     // Inicializar el dashboard
     function initDashboard() {
-        setupDateFilters();
+        console.log('Iniciando dashboard...');
         
-        // Cargar datos iniciales
-        loadDashboardData();
-        
-        // Cargar datos de operadores si es administrador
-        loadOperatorsData();
-        
-        // Recargar datos cada 5 minutos
-        setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                loadDashboardData(currentDateRange);
-                loadOperatorsData(currentDateRange);
+        try {
+            // Inicializar elementos de gráficos
+            const elementsInitialized = initChartElements();
+            if (!elementsInitialized) {
+                console.error('No se pudieron inicializar los elementos de gráficos');
+                return;
             }
-        }, 5 * 60 * 1000);
+            
+            // Configurar filtros de fecha
+            setupDateFilters();
+            
+            // Cargar datos iniciales
+            console.log('Cargando datos iniciales...');
+            loadDashboardData();
+            
+            // Cargar datos de operadores si es administrador
+            loadOperatorsData();
+            
+            // Recargar datos cada 5 minutos
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    loadDashboardData(currentDateRange);
+                    loadOperatorsData(currentDateRange);
+                }
+            }, 5 * 60 * 1000);
+            
+            console.log('Dashboard inicializado correctamente');
+        } catch (e) {
+            console.error('Error crítico al inicializar dashboard:', e);
+            showErrorMessage('Error al inicializar dashboard: ' + e.message);
+        }
     }
 
-    // Iniciar la carga de datos
+    // Añadir un simple gráfico de prueba para verificar que Chart.js funciona
+    function createTestChart() {
+        console.log('Creando gráfico de prueba...');
+        
+        try {
+            // Verificar si Chart está disponible
+            if (typeof Chart === 'undefined') {
+                console.error('Error: Chart.js no está disponible');
+                return false;
+            }
+            
+            // Verificar si los elementos están disponibles
+            if (!salesChartEl) {
+                salesChartEl = document.getElementById('salesChart');
+                if (!salesChartEl) {
+                    console.error('No se encontró el elemento salesChart');
+                    return false;
+                }
+            }
+            
+            // Datos de prueba
+            const testData = {
+                labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'],
+                datasets: [{
+                    label: 'Ventas de Prueba',
+                    data: [12, 19, 3, 5, 2],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            };
+            
+            // Crear gráfico de prueba
+            const testChart = new Chart(salesChartEl.getContext('2d'), {
+                type: 'bar',
+                data: testData,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            console.log('Gráfico de prueba creado correctamente');
+            return true;
+        } catch (e) {
+            console.error('Error al crear gráfico de prueba:', e);
+            return false;
+        }
+    }
+
+    // Inicializar cuando el DOM esté cargado
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM cargado. Verificando Chart.js...');
+        
+        // Verificar si Chart.js está cargado
+        if (typeof Chart === 'undefined') {
+            console.error('ERROR: Chart.js no está disponible al cargar la página');
+            showErrorMessage('Error: No se pudo cargar la biblioteca de gráficos. Por favor, recarga la página.');
+            return;
+        }
+        
+        console.log('Chart.js disponible. Procediendo con inicialización...');
+        
+        // Inicializar dashboard
         initDashboard();
+        
+        // Si los gráficos no se cargan correctamente, intentar con un gráfico de prueba
+        setTimeout(() => {
+            if (!salesChart && !operationsChart) {
+                console.warn('No se detectaron gráficos inicializados. Intentando crear gráfico de prueba...');
+                createTestChart();
+            }
+        }, 3000);
+    });
+
+    // Asegurarse de que los gráficos se inicialicen cuando la ventana esté completamente cargada
+    window.addEventListener('load', function() {
+        console.log('Ventana completamente cargada.');
+        
+        // Si los gráficos no están inicializados, intentar nuevamente
+        if (!salesChart && !operationsChart) {
+            console.warn('Gráficos no inicializados después de cargar la ventana. Reinicializando...');
+            initChartElements();
+            loadDashboardData();
+        }
     });
 });
