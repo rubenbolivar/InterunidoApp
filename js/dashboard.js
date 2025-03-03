@@ -113,41 +113,88 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Función para actualizar los datos en el dashboard
     function updateDashboard(metrics) {
-        if (!metrics) return;
+        console.log('Actualizando dashboard con métricas:', metrics);
         
-        // Actualizar las tarjetas de estadísticas
-        if (dailySalesEl) {
-            dailySalesEl.textContent = formatCurrency(metrics.sales.current);
+        try {
+            // Actualizar cards de estadísticas
+            document.getElementById('dailySales').textContent = formatCurrency(metrics.sales.current.total);
+            
+            const percentageChange = metrics.sales.percentageChange;
+            const percentageChangeEl = document.getElementById('percentageChange');
+            percentageChangeEl.textContent = `${Math.abs(percentageChange).toFixed(1)}% vs período anterior`;
+            percentageChangeEl.classList.remove('text-success', 'text-danger');
+            percentageChangeEl.classList.add(percentageChange >= 0 ? 'text-success' : 'text-danger');
+            
+            document.getElementById('totalOperations').textContent = metrics.operations.total || 0;
+            document.getElementById('averageOperation').textContent = formatCurrency(metrics.operations.average || 0);
+            document.getElementById('averageRate').textContent = metrics.operations.rate?.toFixed(2) || '3.85';
+            
+            // Verificar y actualizar gráficos
+            console.log('Verificando y actualizando gráficos...');
+            
+            // Gráfico de ventas por período
+            if (metrics.charts && metrics.charts.salesByTime) {
+                console.log('Actualizando gráfico de ventas por período');
+                updateSalesChart(metrics.charts.salesByTime);
+            } else {
+                console.warn('Datos para gráfico de ventas no disponibles');
+            }
+            
+            // Gráfico de operaciones
+            if (metrics.operations && metrics.operations.distribution) {
+                console.log('Actualizando gráfico de operaciones');
+                updateOperationsChart(metrics.operations.distribution);
+            } else {
+                console.warn('Datos para gráfico de operaciones no disponibles');
+            }
+            
+            // Gráfico de ganancias
+            if (metrics.charts && metrics.charts.profits) {
+                console.log('Actualizando gráfico de ganancias con datos:', metrics.charts.profits);
+                updateProfitsChart(metrics.charts.profits);
+            } else {
+                console.warn('Datos para gráfico de ganancias no disponibles, usando datos por defecto');
+                // Datos por defecto para gráfico de ganancias
+                updateProfitsChart({
+                    labels: ['Ventas', 'Canjes'],
+                    data: [0, 0],
+                    totals: [0, 0]
+                });
+            }
+            
+            // Gráfico de comisiones
+            if (metrics.charts && metrics.charts.commissions) {
+                console.log('Actualizando gráfico de comisiones con datos:', metrics.charts.commissions);
+                updateCommissionsChart(metrics.charts.commissions);
+            } else {
+                console.warn('Datos para gráfico de comisiones no disponibles, usando datos por defecto');
+                // Datos por defecto para gráfico de comisiones
+                updateCommissionsChart({
+                    labels: ['PZO', 'CCS', 'Sin oficina'],
+                    data: [0, 0, 0]
+                });
+            }
+            
+            // Gráfico de rendimiento
+            if (metrics.charts && metrics.charts.performance) {
+                console.log('Actualizando gráfico de rendimiento con datos:', metrics.charts.performance);
+                updatePerformanceChart(metrics.charts.performance);
+            } else {
+                console.warn('Datos para gráfico de rendimiento no disponibles, usando datos por defecto');
+                // Datos por defecto para gráfico de rendimiento
+                updatePerformanceChart({
+                    labels: ['Ventas', 'Canjes Internos', 'Canjes Externos'],
+                    avgAmount: [0, 0, 0],
+                    profitPercentage: [0, 0, 0],
+                    commissionPercentage: [0, 0, 0]
+                });
+            }
+            
+            console.log('Dashboard actualizado correctamente');
+        } catch (error) {
+            console.error('Error al actualizar dashboard:', error);
+            showErrorMessage('Error al actualizar datos: ' + error.message);
         }
-        
-        if (percentageChangeEl) {
-            const percentage = metrics.sales.percentageChange;
-            percentageChangeEl.textContent = `${percentage > 0 ? '+' : ''}${percentage}% vs periodo anterior`;
-            percentageChangeEl.className = percentage >= 0 ? 'card-text text-success' : 'card-text text-danger';
-        }
-        
-        if (totalOperationsEl) {
-            totalOperationsEl.textContent = metrics.operations.total;
-        }
-        
-        if (averageOperationEl) {
-            averageOperationEl.textContent = formatCurrency(metrics.operations.average);
-        }
-        
-        // Actualizar gráfico de ventas por hora/día
-        updateSalesChart(metrics.charts.salesByTime);
-        
-        // Actualizar gráfico de distribución de operaciones
-        updateOperationsChart(metrics.operations.distribution);
-        
-        // Actualizar gráfico de ganancias
-        updateProfitsChart(metrics.charts.profits);
-        
-        // Actualizar gráfico de comisiones
-        updateCommissionsChart(metrics.charts.commissions);
-        
-        // Actualizar gráfico de rendimiento
-        updatePerformanceChart(metrics.charts.performance);
     }
     
     // Función para cargar los datos del dashboard
@@ -665,134 +712,60 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Función principal para cargar datos del dashboard
     async function loadDashboardData(dateRange = currentDateRange, startDate = null, endDate = null) {
-        // Actualizar la UI para mostrar que estamos cargando
-        document.querySelectorAll('.dashboard-loading').forEach(el => {
-            el.classList.remove('d-none');
-        });
-        
-        // Actualizar el rango activo en los botones de filtro
-        document.querySelectorAll('.date-filter-btn').forEach(btn => {
-            if (btn.getAttribute('data-range') === dateRange) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        // Guardar el rango actual
-        currentDateRange = dateRange;
-        
-        // Obtener las métricas
+        // Obtener métricas
         const metrics = await fetchDashboardData(dateRange, startDate, endDate);
         
-        // Ocultar indicadores de carga
-        document.querySelectorAll('.dashboard-loading').forEach(el => {
-            el.classList.add('d-none');
-        });
+        if (!metrics) return;
         
-        // Actualizar el dashboard con los datos obtenidos
-        if (metrics) {
-            updateDashboard(metrics);
-        }
-    }
-    
-    // Variables para los componentes de operadores
-    let operatorsChart = null;
-
-    // Función para obtener los datos de rendimiento por operador
-    async function fetchOperatorsData(dateRange = 'today', startDate = null, endDate = null) {
+        // Actualizar estadísticas
+        updateDashboardStats(metrics);
+        
+        // Actualizar gráfico de ventas
         try {
-            // Construir query params
-            let queryParams = `?dateRange=${dateRange}`;
-            if (dateRange === 'custom' && startDate && endDate) {
-                queryParams += `&start=${startDate}&end=${endDate}`;
-            }
-            
-            const response = await fetch(`/api/metrics/operators${queryParams}`, {
-                headers: {
-                    'Authorization': 'Bearer ' + getAuthToken()
-                }
-            });
-            
-            if (response.status === 403) {
-                // Usuario no tiene permisos
-                document.getElementById('operatorsPermissionMessage')?.classList.remove('d-none');
-                return null;
-            }
-            
-            if (!response.ok) {
-                throw new Error(`Error obteniendo datos de operadores: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error al obtener datos de operadores:', error);
-            return null;
-        }
-    }
-    
-    // Función para cargar los datos de operadores
-    async function loadOperatorsData(dateRange = currentDateRange, startDate = null, endDate = null) {
-        const operatorsSection = document.querySelector('.operators-section');
-        if (!operatorsSection) return;
-        
-        // Mostrar carga
-        operatorsSection.querySelectorAll('.dashboard-loading').forEach(el => {
-            el.classList.remove('d-none');
-        });
-        
-        // Ocultar mensaje de permisos
-        document.getElementById('operatorsPermissionMessage')?.classList.add('d-none');
-        
-        // Obtener datos
-        const data = await fetchOperatorsData(dateRange, startDate, endDate);
-        
-        // Ocultar carga
-        operatorsSection.querySelectorAll('.dashboard-loading').forEach(el => {
-            el.classList.add('d-none');
-        });
-        
-        // Actualizar la interfaz con los datos
-        if (data && data.operators) {
-            updateOperatorsTable(data.operators);
-            updateOperatorsChart(data.operators);
-        }
-    }
-    
-    // Función para actualizar la tabla de operadores
-    function updateOperatorsTable(operators) {
-        const tableBody = document.querySelector('#operatorsTable tbody');
-        if (!tableBody) return;
-        
-        // Limpiar tabla
-        tableBody.innerHTML = '';
-        
-        // Si no hay datos
-        if (operators.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="5" class="text-center">No hay datos para mostrar en el período seleccionado</td>';
-            tableBody.appendChild(row);
-            return;
+            updateSalesChart(metrics.charts.salesByTime);
+        } catch (e) {
+            console.error('Error al actualizar gráfico de ventas:', e);
         }
         
-        // Llenar la tabla con los datos
-        operators.forEach(op => {
-            const row = document.createElement('tr');
-            
-            // Calcular total de canjes
-            const totalCanjes = (op.canjeInternoCount || 0) + (op.canjeExternoCount || 0);
-            
-            row.innerHTML = `
-                <td>${op.operatorName || 'Sin nombre'}</td>
-                <td>${op.totalOperations}</td>
-                <td>${op.salesCount || 0}</td>
-                <td>${totalCanjes}</td>
-                <td>${formatCurrency(op.totalAmount)}</td>
-            `;
-            
-            tableBody.appendChild(row);
-        });
+        // Actualizar gráfico de distribución de operaciones
+        try {
+            updateOperationsChart(metrics.operations.distribution);
+        } catch (e) {
+            console.error('Error al actualizar gráfico de operaciones:', e);
+        }
+        
+        // Actualizar gráfico de ganancias
+        try {
+            if (metrics.charts?.profits) {
+                updateProfitsChart(metrics.charts.profits);
+            } else {
+                console.warn('No se encontraron datos de ganancias');
+            }
+        } catch (e) {
+            console.error('Error al actualizar gráfico de ganancias:', e);
+        }
+        
+        // Actualizar gráfico de comisiones
+        try {
+            if (metrics.charts?.commissions) {
+                updateCommissionsChart(metrics.charts.commissions);
+            } else {
+                console.warn('No se encontraron datos de comisiones');
+            }
+        } catch (e) {
+            console.error('Error al actualizar gráfico de comisiones:', e);
+        }
+        
+        // Actualizar gráfico de rendimiento
+        try {
+            if (metrics.charts?.performance) {
+                updatePerformanceChart(metrics.charts.performance);
+            } else {
+                console.warn('No se encontraron datos de rendimiento');
+            }
+        } catch (e) {
+            console.error('Error al actualizar gráfico de rendimiento:', e);
+        }
     }
     
     // Función para actualizar el gráfico de operadores
@@ -1024,3 +997,162 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded: Inicializando dashboard...');
+    
+    // Verificar si Chart.js está disponible
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js no está disponible. Verifique que el script esté cargado correctamente.');
+        showErrorMessage('Error: Biblioteca de gráficos no disponible');
+        
+        // Intentar cargar Chart.js dinámicamente si no está disponible
+        const chartScript = document.createElement('script');
+        chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        chartScript.onload = () => {
+            console.log('Chart.js cargado dinámicamente');
+            initDashboard();
+        };
+        chartScript.onerror = () => {
+            console.error('No se pudo cargar Chart.js dinámicamente');
+            showErrorMessage('Error: No se pudo cargar la biblioteca de gráficos');
+        };
+        document.head.appendChild(chartScript);
+        return;
+    }
+    
+    initDashboard();
+});
+
+// Función para inicializar el dashboard
+function initDashboard() {
+    console.log('Inicializando dashboard...');
+    
+    try {
+        // Inicializar referencias a los elementos de gráficos
+        initChartElements();
+        
+        // Configurar filtros de fecha
+        initDateFilters();
+        
+        // Escuchar el clic en el botón de exportar reporte
+        document.getElementById('exportBtn').addEventListener('click', exportReport);
+        
+        // Cargar datos iniciales (vista por defecto: hoy)
+        loadDashboardData('today');
+        
+        console.log('Dashboard inicializado correctamente');
+    } catch (error) {
+        console.error('Error al inicializar dashboard:', error);
+        showErrorMessage('Error al inicializar dashboard: ' + error.message);
+    }
+}
+
+// Función para inicializar los elementos de gráficos
+function initChartElements() {
+    console.log('Inicializando elementos de gráficos...');
+    
+    // Elementos de gráficos
+    salesChartEl = document.getElementById('salesChart');
+    operationsChartEl = document.getElementById('operationsChart');
+    profitsChartEl = document.getElementById('profitsChart');
+    commissionsChartEl = document.getElementById('commissionsChart');
+    performanceChartEl = document.getElementById('performanceChart');
+    operatorChartEl = document.getElementById('operatorChart');
+    
+    // Verificar que todos los elementos existan
+    if (!salesChartEl) console.warn('Elemento salesChart no encontrado');
+    if (!operationsChartEl) console.warn('Elemento operationsChart no encontrado');
+    if (!profitsChartEl) console.warn('Elemento profitsChart no encontrado');
+    if (!commissionsChartEl) console.warn('Elemento commissionsChart no encontrado');
+    if (!performanceChartEl) console.warn('Elemento performanceChart no encontrado');
+    if (!operatorChartEl) console.warn('Elemento operatorChart no encontrado');
+    
+    // Verificar que al menos un elemento canvas exista
+    const canvases = document.querySelectorAll('canvas');
+    console.log(`Se encontraron ${canvases.length} elementos canvas`);
+    
+    if (canvases.length === 0) {
+        console.error('No se encontraron elementos canvas en el DOM');
+        showErrorMessage('Error: No se encontraron elementos para gráficos');
+    }
+}
+
+// Función para inicializar los filtros de fecha
+function initDateFilters() {
+    console.log('Inicializando filtros de fecha...');
+    
+    // Botones de filtro de fecha
+    const dateFilters = document.querySelectorAll('.date-filter');
+    if (dateFilters.length === 0) {
+        console.warn('No se encontraron botones de filtro de fecha');
+    }
+    
+    dateFilters.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const dateRange = this.dataset.range;
+            
+            // Remover clase activa de todos los botones
+            dateFilters.forEach(b => b.classList.remove('active'));
+            
+            // Agregar clase activa al botón seleccionado
+            this.classList.add('active');
+            
+            // Cargar datos para el rango seleccionado
+            loadDashboardData(dateRange);
+        });
+    });
+    
+    // Marcar el filtro "Hoy" como seleccionado por defecto
+    const todayFilter = document.querySelector('.date-filter[data-range="today"]');
+    if (todayFilter) {
+        todayFilter.classList.add('active');
+    }
+    
+    // Configurar fechas personalizadas
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const applyDatesBtn = document.getElementById('applyDates');
+    
+    if (startDateInput && endDateInput && applyDatesBtn) {
+        applyDatesBtn.addEventListener('click', function() {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            if (!startDate || !endDate) {
+                showErrorMessage('Por favor seleccione fechas de inicio y fin');
+                return;
+            }
+            
+            // Remover clase activa de todos los botones
+            dateFilters.forEach(b => b.classList.remove('active'));
+            
+            // Cargar datos para el rango personalizado
+            loadDashboardData('custom', startDate, endDate);
+        });
+    } else {
+        console.warn('No se encontraron elementos para fechas personalizadas');
+    }
+}
+
+// Función para cargar datos del dashboard
+async function loadDashboardData(dateRange, startDate = null, endDate = null) {
+    console.log(`Cargando datos para rango: ${dateRange}`, startDate, endDate);
+    
+    showLoading(true);
+    try {
+        const metrics = await fetchMetrics(dateRange, startDate, endDate);
+        if (metrics) {
+            updateDashboard(metrics);
+            console.log('Datos cargados y dashboard actualizado con éxito');
+        } else {
+            console.error('No se pudieron obtener métricas');
+            showErrorMessage('Error al obtener datos');
+        }
+    } catch (error) {
+        console.error('Error al cargar datos:', error);
+        showErrorMessage('Error al cargar datos: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
