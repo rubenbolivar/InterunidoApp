@@ -1664,9 +1664,15 @@ function updateOperatorsChart(operators) {
 function updateOperatorsTable(operatorsData) {
     console.log('Actualizando tabla de operadores con datos:', operatorsData);
     
-    const tableBody = document.getElementById('operatorsTableBody');
-    if (!tableBody) {
+    const operatorsTable = document.getElementById('operatorsTable');
+    if (!operatorsTable) {
         console.warn('Elemento de tabla de operadores no encontrado');
+        return;
+    }
+    
+    const tableBody = operatorsTable.querySelector('tbody');
+    if (!tableBody) {
+        console.warn('Elemento tbody de la tabla de operadores no encontrado');
         return;
     }
     
@@ -1684,8 +1690,6 @@ function updateOperatorsTable(operatorsData) {
     // Rellenar tabla con datos
     operatorsData.forEach(operator => {
         const row = document.createElement('tr');
-        
-      
         
         // Crear las celdas de la tabla
         row.innerHTML = `
