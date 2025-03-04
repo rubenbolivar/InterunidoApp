@@ -160,6 +160,7 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
 }
 
 // Función para procesar los datos crudos y generar la estructura necesaria para los gráficos
+// Función para procesar los datos crudos y generar la estructura necesaria para los gráficos
 function processDashboardData(rawData) {
     console.log('Procesando datos crudos para el dashboard');
     
@@ -180,11 +181,11 @@ function processDashboardData(rawData) {
     };
     
     try {
-        // Procesar métricas básicas
-        metrics.stats = processBasicMetrics(rawData);
+        // Asignar stats directamente desde rawData en lugar de procesarlos
+        metrics.stats = rawData.stats || {};
         
-        // Procesar distribución de operaciones
-        metrics.operations.distribution = processOperationsDistribution(rawData);
+        // Mantener la distribución de operaciones original
+        metrics.operations.distribution = rawData.operations?.distribution || null;
         
         // Procesar datos para gráficos específicos
         metrics.charts.salesByTime = processSalesByTimeData(rawData);
@@ -208,7 +209,6 @@ function processDashboardData(rawData) {
         return null;
     }
 }
-
 // Función para procesar datos de ventas por período
 function processSalesByTimeData(rawData) {
     console.log('Procesando datos para el gráfico de ventas por período');
