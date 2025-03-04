@@ -1227,7 +1227,8 @@ function updateDashboard(metrics) {
     
     try {
         // Actualizar cards de estadísticas
-        updateStatCards(metrics);
+console.log('Actualizando tarjetas con stats:', metrics.stats);
+updateStatCards(metrics.stats);
         
         // Verificar y actualizar gráficos
         console.log('Verificando y actualizando gráficos...');
