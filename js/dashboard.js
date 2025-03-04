@@ -160,7 +160,6 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
 }
 
 // Función para procesar los datos crudos y generar la estructura necesaria para los gráficos
-// Función para procesar los datos crudos y generar la estructura necesaria para los gráficos
 function processDashboardData(rawData) {
     console.log('Procesando datos crudos para el dashboard');
     
