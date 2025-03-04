@@ -1221,3 +1221,48 @@ function updateOperatorsChart(operators) {
         console.error('Error al actualizar el gráfico de operadores:', error);
     }
 }
+
+// Función para actualizar la tabla de operadores
+function updateOperatorsTable(operatorsData) {
+    console.log('Actualizando tabla de operadores con datos:', operatorsData);
+    
+    const tableBody = document.getElementById('operatorsTableBody');
+    if (!tableBody) {
+        console.warn('Elemento de tabla de operadores no encontrado');
+        return;
+    }
+    
+    // Limpiar tabla actual
+    tableBody.innerHTML = '';
+    
+    // Si no hay datos, mostrar mensaje
+    if (!operatorsData || operatorsData.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="5" class="text-center">No hay datos disponibles</td>';
+        tableBody.appendChild(row);
+        return;
+    }
+    
+    // Rellenar tabla con datos
+    operatorsData.forEach(operator => {
+        const row = document.createElement('tr');
+        
+        // Calcular el monto promedio por operación
+        const avgAmount = operator.totalOperations > 0 
+            ? operator.totalAmount / operator.totalOperations 
+            : 0;
+        
+        // Crear las celdas de la tabla
+        row.innerHTML = `
+            <td>${operator.operatorName}</td>
+            <td>${operator.totalOperations}</td>
+            <td>${formatCurrency(operator.totalSales)}</td>
+            <td>${formatCurrency(operator.totalExchanges)}</td>
+            <td>${formatCurrency(avgAmount)}</td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    console.log('Tabla de operadores actualizada correctamente');
+}
