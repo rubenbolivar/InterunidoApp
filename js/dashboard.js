@@ -182,6 +182,42 @@ function processDashboardData(rawData) {
     try {
         // Asignar stats directamente desde rawData en lugar de procesarlos
         metrics.stats = rawData.stats || {};
+
+        // Calcular estadísticas basadas en datos de operaciones disponibles
+if (rawData.operationsData && rawData.operationsData.length > 0) {
+    const operations = rawData.operationsData;
+    const totalOperations = operations.length;
+    
+    // Calcular ventas del período
+    const totalSales = operations.reduce((sum, op) => {
+        if (op.type === 'venta' || op.type === 'VENTA') {
+            const amount = parseFloat(op.amount || 0);
+            return sum + (isNaN(amount) ? 0 : amount);
+        }
+        return sum;
+    }, 0);
+    
+    // Calcular total de todas las operaciones
+    const totalAmount = operations.reduce((sum, op) => {
+        const amount = parseFloat(op.amount || 0);
+        return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    
+    // Calcular promedio por operación
+    const averageAmount = totalOperations > 0 ? totalAmount / totalOperations : 0;
+    
+    // Asignar valores calculados
+    metrics.stats.sales = metrics.stats.sales || {};
+    metrics.stats.sales.current = totalSales;
+    metrics.stats.sales.percentageChange = metrics.stats.sales.percentageChange || 0;
+    
+    metrics.stats.operations = metrics.stats.operations || {};
+    metrics.stats.operations.total = totalOperations;
+    metrics.stats.operations.average = averageAmount;
+    
+    metrics.stats.exchangeRate = metrics.stats.exchangeRate || {};
+    metrics.stats.exchangeRate.average = metrics.stats.exchangeRate.average || 3.85;
+}
         
         // Mantener la distribución de operaciones original
         metrics.operations.distribution = rawData.operations?.distribution || null;
