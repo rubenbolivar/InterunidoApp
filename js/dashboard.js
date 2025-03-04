@@ -1685,10 +1685,7 @@ function updateOperatorsTable(operatorsData) {
     operatorsData.forEach(operator => {
         const row = document.createElement('tr');
         
-        // Calcular el monto promedio por operación
-        const avgAmount = operator.totalOperations > 0 
-            ? operator.totalAmount / operator.totalOperations 
-            : 0;
+      
         
         // Crear las celdas de la tabla
         row.innerHTML = `
@@ -1696,7 +1693,7 @@ function updateOperatorsTable(operatorsData) {
             <td>${operator.totalOperations}</td>
             <td>${formatCurrency(operator.totalSales)}</td>
             <td>${formatCurrency(operator.totalExchanges)}</td>
-            <td>${formatCurrency(avgAmount)}</td>
+            <td>${formatCurrency(operator.totalAmount)}</td>
         `;
         
         tableBody.appendChild(row);
