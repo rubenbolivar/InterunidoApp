@@ -1289,6 +1289,7 @@ function updateDashboard(metrics) {
 }
 
 // Función para actualizar las tarjetas de estadísticas
+// Función para actualizar las tarjetas de estadísticas
 function updateStatCards(stats) {
     console.log('Actualizando tarjetas de estadísticas:', stats);
     
@@ -1298,36 +1299,64 @@ function updateStatCards(stats) {
     }
     
     try {
+        // Log detallado para depuración
+        console.log('Datos para tarjetas:', {
+            salesCurrent: stats.sales?.current,
+            salesPercentageChange: stats.sales?.percentageChange,
+            operationsTotal: stats.operations?.total,
+            operationsAverage: stats.operations?.average,
+            exchangeRateAverage: stats.exchangeRate?.average
+        });
+        
         // Actualizar ventas diarias
         const dailySalesEl = document.getElementById('dailySales');
         if (dailySalesEl) {
-            dailySalesEl.textContent = formatCurrency(stats.sales?.current || 0);
+            const salesValue = stats.sales?.current || 0;
+            console.log('Actualizando dailySales con:', salesValue);
+            dailySalesEl.textContent = formatCurrency(salesValue);
+        } else {
+            console.warn('Elemento dailySales no encontrado');
         }
         
         // Actualizar cambio porcentual
         const percentageChangeEl = document.getElementById('percentageChange');
         if (percentageChangeEl) {
             const changeVal = stats.sales?.percentageChange || 0;
+            console.log('Actualizando percentageChange con:', changeVal);
             percentageChangeEl.textContent = (changeVal > 0 ? '+' : '') + changeVal + '%';
             percentageChangeEl.className = changeVal >= 0 ? 'text-success' : 'text-danger';
+        } else {
+            console.warn('Elemento percentageChange no encontrado');
         }
         
         // Actualizar total de operaciones
         const totalOperationsEl = document.getElementById('totalOperations');
         if (totalOperationsEl) {
-            totalOperationsEl.textContent = stats.operations?.total || 0;
+            const totalOps = stats.operations?.total || 0;
+            console.log('Actualizando totalOperations con:', totalOps);
+            totalOperationsEl.textContent = totalOps;
+        } else {
+            console.warn('Elemento totalOperations no encontrado');
         }
         
         // Actualizar operación promedio
         const averageOperationEl = document.getElementById('averageOperation');
         if (averageOperationEl) {
-            averageOperationEl.textContent = formatCurrency(stats.operations?.average || 0);
+            const avgOp = stats.operations?.average || 0;
+            console.log('Actualizando averageOperation con:', avgOp);
+            averageOperationEl.textContent = formatCurrency(avgOp);
+        } else {
+            console.warn('Elemento averageOperation no encontrado');
         }
         
         // Actualizar tasa promedio
         const averageRateEl = document.getElementById('averageRate');
         if (averageRateEl) {
-            averageRateEl.textContent = stats.exchangeRate?.average?.toFixed(2) || '0.00';
+            const avgRate = stats.exchangeRate?.average?.toFixed(2) || '0.00';
+            console.log('Actualizando averageRate con:', avgRate);
+            averageRateEl.textContent = avgRate;
+        } else {
+            console.warn('Elemento averageRate no encontrado');
         }
         
         console.log('Tarjetas de estadísticas actualizadas correctamente');
