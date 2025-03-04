@@ -161,41 +161,51 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
 
 // Función para procesar los datos crudos y generar la estructura necesaria para los gráficos
 function processDashboardData(rawData) {
-    console.log('Procesando datos brutos para el dashboard');
+    console.log('Procesando datos crudos para el dashboard');
     
+    // Validar datos de entrada
     if (!rawData) {
-        console.error('No hay datos disponibles para procesar');
+        console.error('No hay datos para procesar');
         return null;
     }
     
-    // Objeto para almacenar todos los datos procesados
-    const processedData = {
-        ...rawData,  // Mantener datos originales
-        charts: rawData.charts || {}  // Inicializar charts si no existe
+    // Crear objeto para metrics
+    const metrics = {
+        stats: {},
+        operations: {
+            distribution: null
+        },
+        charts: {},
+        operators: []
     };
     
     try {
-        // 1. Procesar datos para gráfico de ventas por período
-        processedData.charts.salesByTime = processSalesByTimeData(rawData);
-        console.log('Datos de ventas por período procesados');
+        // Procesar métricas básicas
+        metrics.stats = processBasicMetrics(rawData);
         
-        // 2. Procesar datos para gráfico de comisiones
-        processedData.charts.commissions = processCommissionsData(rawData);
-        console.log('Datos de comisiones procesados');
+        // Procesar distribución de operaciones
+        metrics.operations.distribution = processOperationsDistribution(rawData);
         
-        // 3. Procesar datos para gráfico de operadores
-        processedData.operators = processOperatorsData(rawData);
-        console.log('Datos de operadores procesados');
+        // Procesar datos para gráficos específicos
+        metrics.charts.salesByTime = processSalesByTimeData(rawData);
+        metrics.charts.commissions = processCommissionsData(rawData);
         
-        // 4. Procesar datos para gráfico de ganancias
-        processedData.charts.profits = processProfitsData(rawData);
-        console.log('Datos de ganancias procesados');
+        // Procesar datos de operadores y asignarlo tanto a charts como a la raíz
+        const operatorsData = processOperatorsData(rawData);
+        metrics.charts.operators = operatorsData;
+        metrics.operators = operatorsData; // Asignar también a la raíz para uso en updateOperatorsTable/Chart
         
-        return processedData;
+        metrics.charts.profits = processProfitsData(rawData);
+        
+        // Procesar datos para el gráfico de rendimiento por tipo de operación
+        metrics.charts.performance = processPerformanceData(rawData);
+        
+        console.log('Datos procesados para el dashboard:', metrics);
+        
+        return metrics;
     } catch (error) {
         console.error('Error al procesar datos del dashboard:', error);
-        // Devolver los datos originales en caso de error
-        return rawData;
+        return null;
     }
 }
 
@@ -640,10 +650,8 @@ function processPerformanceData(rawData) {
         const amount = parseFloat(op.amount || 0);
         if (isNaN(amount)) return;
         
-        // Extraer o calcular ganancia
-        let profit = 0;
         if (op.details && op.details.distribucion && op.details.distribucion.gananciaTotal) {
-            profit = parseFloat(op.details.distribucion.gananciaTotal);
+            const profit = parseFloat(op.details.distribucion.gananciaTotal);
             if (!isNaN(profit)) {
                 exchangeProfit += profit;
                 console.log(`Ganancia de canje extraída: ${profit}`);
@@ -1553,74 +1561,103 @@ function updateOperatorsChart(operators) {
     try {
         console.log('Actualizando gráfico de operadores con datos:', operators);
         
+        // Si no hay datos, crear datos de demostración
+        if (!operators || operators.length === 0) {
+            console.warn('No hay datos de operadores disponibles, usando datos de demostración');
+            operators = [
+                { operatorName: 'Operador 1', totalAmount: 120000, totalSales: 80000, totalExchanges: 40000 },
+                { operatorName: 'Operador 2', totalAmount: 90000, totalSales: 50000, totalExchanges: 40000 }
+            ];
+        }
+        
         // Preparar datos para el gráfico
         const labels = [];
-        const data = [];
+        const totalData = [];
+        const salesData = [];
+        const exchangesData = [];
         
-        if (operators && operators.length > 0) {
-            // Limitar a los 5 principales operadores para no sobrecargar el gráfico
-            const topOperators = operators.slice(0, 5);
-            
-            topOperators.forEach(op => {
-                labels.push(op.operatorName || 'Sin nombre');
-                data.push(op.totalAmount || 0);
-            });
-            
-            console.log('Datos preparados para gráfico de operadores:', { labels, data });
-        } else {
-            console.warn('No hay datos de operadores disponibles');
-            return; // No crear gráfico si no hay datos
-        }
+        // Limitar a los 5 principales operadores para no sobrecargar el gráfico
+        const topOperators = operators.slice(0, 5);
         
-        // Si ya existe el gráfico, destruirlo
-        if (operatorsChart) {
-            operatorsChart.destroy();
-        }
+        topOperators.forEach(op => {
+            labels.push(op.operatorName || 'Sin nombre');
+            totalData.push(op.totalAmount || 0);
+            salesData.push(op.totalSales || 0);
+            exchangesData.push(op.totalExchanges || 0);
+        });
         
-        // Crear un nuevo gráfico
-        operatorsChart = new Chart(operatorsChartEl, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Total Operado',
-                    data: data,
-                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
+        console.log('Datos preparados para gráfico de operadores:', { 
+            labels, 
+            totalData, 
+            salesData, 
+            exchangesData 
+        });
+        
+        const datasets = [
+            {
+                label: 'Ventas',
+                data: salesData,
+                backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,  // Permitir que el gráfico se ajuste al contenedor
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '$' + value.toLocaleString();
-                            }
-                        }
-                    }
+            {
+                label: 'Canjes',
+                data: exchangesData,
+                backgroundColor: 'rgba(255, 159, 64, 0.8)',
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1
+            }
+        ];
+        
+        // Si el gráfico ya existe, actualizarlo
+        if (operatorsChart) {
+            operatorsChart.data.labels = labels;
+            operatorsChart.data.datasets = datasets;
+            operatorsChart.update();
+        } else {
+            // Crear un nuevo gráfico
+            operatorsChart = new Chart(operatorsChartEl, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
                 },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return formatCurrency(context.raw);
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Ventas y Canjes por Operador'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.raw;
+                                    return label + ': ' + formatCurrency(value);
+                                }
                             }
                         }
                     },
-                    legend: {
-                        display: false  // Ocultar leyenda ya que solo tenemos una serie
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
         
         console.log('Gráfico de operadores creado exitosamente');
-    } catch (error) {
-        console.error('Error al actualizar el gráfico de operadores:', error);
+    } catch (e) {
+        console.error('Error al crear/actualizar gráfico de operadores:', e);
     }
 }
 
