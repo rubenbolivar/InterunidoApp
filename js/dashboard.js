@@ -251,52 +251,136 @@ function processSalesByTimeData(rawData) {
     const operations = rawData.operationsData || [];
     console.log(`Total de operaciones disponibles: ${operations.length}`);
     
-    // Obtener el rango de fechas para los últimos 5 períodos (meses)
-    const today = new Date();
-    const labels = [];
-    const monthlySales = {};
+    // Determinar el tipo de período según el rango de fechas seleccionado
+    let periodType = 'month'; // Por defecto, mostrar meses
+    let numPeriods = 5; // Por defecto, mostrar 5 períodos
     
-    // Crear etiquetas para los últimos 5 meses
-    for (let i = 4; i >= 0; i--) {
-        const date = new Date(today);
-        date.setMonth(today.getMonth() - i);
-        
-        // Formato: nombre del mes abreviado (primera letra mayúscula)
-        const monthName = date.toLocaleString('es', { month: 'short' });
-        const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-        
-        // Clave para agrupar: YYYY-MM
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        
-        labels.push(formattedMonth);
-        monthlySales[monthKey] = 0;
+    // Si hay un rango de fechas específico, determinar el tipo de período
+    if (rawData.dateRange) {
+        if (rawData.dateRange === 'today' || rawData.dateRange === 'yesterday') {
+            periodType = 'hour';
+            numPeriods = 12; // Mostrar 12 horas
+        } else if (rawData.dateRange === 'week' || rawData.dateRange === 'lastWeek') {
+            periodType = 'day';
+            numPeriods = 7; // Mostrar 7 días
+        } else if (rawData.dateRange === 'month' || rawData.dateRange === 'lastMonth') {
+            periodType = 'day';
+            numPeriods = 30; // Mostrar hasta 30 días
+        }
     }
     
-    // Filtrar operaciones de tipo venta y agrupar por mes
-    const salesOperations = operations.filter(op => op.type === 'venta' || op.type === 'VENTA');
-    console.log(`Operaciones de venta encontradas: ${salesOperations.length}`);
+    console.log(`Tipo de período seleccionado: ${periodType}, Mostrando ${numPeriods} períodos`);
     
-    salesOperations.forEach(op => {
+    const today = new Date();
+    const labels = [];
+    const salesByPeriod = {}; // Para ventas
+    const exchangesByPeriod = {}; // Para canjes
+    
+    // Crear etiquetas y estructura para almacenar datos según el tipo de período
+    if (periodType === 'month') {
+        // Para meses, similar al código original
+        for (let i = numPeriods - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setMonth(today.getMonth() - i);
+            
+            // Formato: nombre del mes abreviado (primera letra mayúscula)
+            const monthName = date.toLocaleString('es', { month: 'short' });
+            const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            
+            // Clave para agrupar: YYYY-MM
+            const periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            labels.push(formattedMonth);
+            salesByPeriod[periodKey] = 0;
+            exchangesByPeriod[periodKey] = 0;
+        }
+    } else if (periodType === 'day') {
+        // Para días
+        for (let i = numPeriods - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            
+            // Formato: DD/MM
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const formattedDay = `${day}/${month}`;
+            
+            // Clave para agrupar: YYYY-MM-DD
+            const periodKey = `${date.getFullYear()}-${month}-${day}`;
+            
+            labels.push(formattedDay);
+            salesByPeriod[periodKey] = 0;
+            exchangesByPeriod[periodKey] = 0;
+        }
+    } else if (periodType === 'hour') {
+        // Para horas (en caso de hoy o ayer)
+        const baseDate = rawData.dateRange === 'yesterday' ? 
+            new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1) : 
+            new Date(today);
+        
+        for (let i = 0; i < numPeriods; i++) {
+            const hour = i * 2; // Cada 2 horas (0, 2, 4, ...)
+            const date = new Date(baseDate);
+            date.setHours(hour, 0, 0, 0);
+            
+            // Formato: HH:00
+            const formattedHour = `${String(date.getHours()).padStart(2, '0')}:00`;
+            
+            // Clave para agrupar: YYYY-MM-DD-HH
+            const periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}`;
+            
+            labels.push(formattedHour);
+            salesByPeriod[periodKey] = 0;
+            exchangesByPeriod[periodKey] = 0;
+        }
+    }
+    
+    // Procesar todas las operaciones y agruparlas según el período
+    operations.forEach(op => {
         if (!op.date || !op.amount) return;
         
         const amount = parseFloat(op.amount);
         if (isNaN(amount)) return;
         
-        // Convertir la fecha de la operación al formato YYYY-MM
+        // Convertir la fecha de la operación
         const opDate = new Date(op.date);
-        const monthKey = `${opDate.getFullYear()}-${String(opDate.getMonth() + 1).padStart(2, '0')}`;
+        let periodKey;
         
-        // Si el mes está dentro del rango que mostramos
-        if (monthKey in monthlySales) {
-            monthlySales[monthKey] += amount;
+        if (periodType === 'month') {
+            periodKey = `${opDate.getFullYear()}-${String(opDate.getMonth() + 1).padStart(2, '0')}`;
+        } else if (periodType === 'day') {
+            periodKey = `${opDate.getFullYear()}-${String(opDate.getMonth() + 1).padStart(2, '0')}-${String(opDate.getDate()).padStart(2, '0')}`;
+        } else if (periodType === 'hour') {
+            periodKey = `${opDate.getFullYear()}-${String(opDate.getMonth() + 1).padStart(2, '0')}-${String(opDate.getDate()).padStart(2, '0')}-${String(opDate.getHours()).padStart(2, '0')}`;
+        }
+        
+        // Determinar si es venta o canje
+        const isExchange = op.type === 'canje' || op.type === 'CANJE';
+        const isSale = op.type === 'venta' || op.type === 'VENTA';
+        
+        // Sumar al período correspondiente si existe
+        if (isSale && periodKey in salesByPeriod) {
+            salesByPeriod[periodKey] += amount;
+        } else if (isExchange && periodKey in exchangesByPeriod) {
+            exchangesByPeriod[periodKey] += amount;
         }
     });
     
-    // Convertir el objeto de ventas mensuales a un array para el gráfico
-    const data = Object.values(monthlySales);
+    // Convertir los objetos de datos a arrays para el gráfico
+    const salesData = Object.values(salesByPeriod);
+    const exchangesData = Object.values(exchangesByPeriod);
     
-    console.log('Datos procesados para ventas por período:', { labels, data });
-    return { labels, data };
+    console.log('Datos procesados para ventas/canjes por período:', { 
+        labels, 
+        sales: salesData, 
+        exchanges: exchangesData 
+    });
+    
+    return { 
+        labels, 
+        sales: salesData, 
+        exchanges: exchangesData 
+    };
 }
 
 // Función para procesar datos de comisiones por oficina
@@ -788,17 +872,32 @@ function updateSalesChart(salesData) {
     
     try {
         const ctx = salesChartEl.getContext('2d');
+        
+        // Datos para el gráfico
         const chartData = {
             labels: salesData.labels || [],
-            datasets: [{
-                label: 'Ventas por Período',
-                data: salesData.data || [],
-                borderColor: 'rgba(13, 110, 253, 1)',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: 'Ventas por Período',
+                    data: salesData.sales || [],
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                },
+                {
+                    label: 'Canjes por Período',
+                    data: salesData.exchanges || [],
+                    fill: true,
+                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }
+            ]
         };
         
         const chartOptions = {
@@ -823,9 +922,13 @@ function updateSalesChart(salesData) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return formatCurrency(context.raw);
+                            return context.dataset.label + ': ' + formatCurrency(context.raw);
                         }
                     }
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
                 }
             }
         };
@@ -843,6 +946,8 @@ function updateSalesChart(salesData) {
                 options: chartOptions
             });
         }
+        
+        console.log('Gráfico de ventas/canjes por período actualizado exitosamente');
     } catch (e) {
         console.error('Error al crear/actualizar gráfico de ventas:', e);
     }
