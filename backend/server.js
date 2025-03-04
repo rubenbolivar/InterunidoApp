@@ -755,6 +755,103 @@ app.get('/api/metrics', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint para obtener operaciones (datos crudos)
+app.get('/api/operations', verifyToken, async (req, res) => {
+  try {
+    const { dateRange, start, end } = req.query;
+    
+    // Configurar fechas según el rango solicitado
+    const now = new Date();
+    let startDate = new Date(now);
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date(now);
+    endDate.setHours(23, 59, 59, 999);
+    
+    // Procesar diferentes rangos de fechas
+    if (dateRange === 'yesterday') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(now);
+      endDate.setDate(endDate.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (dateRange === 'week') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - startDate.getDay());
+      startDate.setHours(0, 0, 0, 0);
+    } else if (dateRange === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (dateRange === 'custom' && start && end) {
+      startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+    }
+    
+    // Log para depuración
+    logger.info(`Obteniendo operaciones para usuario ${req.user.username} (${req.user.role})`, {
+      dateRange,
+      startDate,
+      endDate
+    });
+    
+    // Consulta de operaciones
+    const operations = await Transaction.aggregate([
+      { 
+        $match: { 
+          createdAt: { $gte: startDate, $lte: endDate }
+        } 
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'operatorId',
+          foreignField: '_id',
+          as: 'operatorInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$operatorInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          type: 1,
+          amount: 1,
+          details: 1,
+          client: 1,
+          date: '$createdAt',
+          status: '$estado',
+          operator: '$operatorInfo.username',
+          office: { $ifNull: ['$details.office', 'Sin oficina'] }
+        }
+      },
+      { 
+        $sort: { 
+          date: -1 
+        } 
+      }
+    ]);
+    
+    // Devolver operaciones
+    res.json({
+      dateRange: {
+        start: startDate,
+        end: endDate
+      },
+      operations
+    });
+    
+  } catch (error) {
+    logger.error('Error al obtener operaciones:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener operaciones', error: error.message });
+  }
+});
+
 // Endpoint para obtener estadísticas por operador
 app.get('/api/metrics/operators', verifyToken, async (req, res) => {
   try {
