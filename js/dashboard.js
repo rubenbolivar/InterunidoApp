@@ -135,10 +135,11 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
         }
         
         // Combinar métricas con operaciones
-        const combinedData = {
-            ...metricsData,
-            operationsData
-        };
+const combinedData = {
+    ...metricsData,
+    operationsData,
+    dateRange // Incluir explícitamente el rango de fechas seleccionado
+};
         
         // Procesar los datos brutos para generar datos para gráficos
         const processedData = processDashboardData(combinedData);
@@ -220,11 +221,14 @@ if (rawData.operationsData && rawData.operationsData.length > 0) {
 }
         
         // Mantener la distribución de operaciones original
-        metrics.operations.distribution = rawData.operations?.distribution || null;
-        
-        // Procesar datos para gráficos específicos
-        metrics.charts.salesByTime = processSalesByTimeData(rawData);
-        metrics.charts.commissions = processCommissionsData(rawData);
+metrics.operations.distribution = rawData.operations?.distribution || null;
+
+// Procesar datos para gráficos específicos
+console.log('Rango de fechas para procesar datos de ventas:', rawData.dateRange);
+
+// Pasar explícitamente el dateRange al procesar los datos de ventas por período
+metrics.charts.salesByTime = processSalesByTimeData(rawData);
+metrics.charts.commissions = processCommissionsData(rawData);
         
         // Procesar datos de operadores y asignarlo tanto a charts como a la raíz
         const operatorsData = processOperatorsData(rawData);
