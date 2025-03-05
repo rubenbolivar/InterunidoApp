@@ -10,6 +10,10 @@ require('dotenv').config();
 // Importar logger
 const logger = require('./logger');
 
+// Configurar zona horaria de Caracas (UTC-04:00)
+process.env.TZ = 'America/Caracas';
+logger.info('Zona horaria configurada: ' + process.env.TZ);
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
