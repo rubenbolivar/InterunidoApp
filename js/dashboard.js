@@ -226,7 +226,7 @@ metrics.operations.distribution = rawData.operations?.distribution || null;
 // Procesar datos para gráficos específicos
 console.log('Rango de fechas para procesar datos de ventas:', rawData.dateRange);
 
-// Pasar explícitamente el dateRange al procesar los datos de ventas por período
+// Pasar explícitamente el dateRange al procesar los datos de operaciones por período
 metrics.charts.salesByTime = processSalesByTimeData(rawData);
 metrics.charts.commissions = processCommissionsData(rawData);
         
@@ -248,9 +248,9 @@ metrics.charts.commissions = processCommissionsData(rawData);
         return null;
     }
 }
-// Función para procesar datos de ventas por período
+// Función para procesar datos de operaciones por período
 function processSalesByTimeData(rawData) {
-    console.log('Procesando datos para el gráfico de ventas por período');
+    console.log('Procesando datos para el gráfico de operaciones por período');
     
     const operations = rawData.operationsData || [];
     console.log(`Total de operaciones disponibles: ${operations.length}`);
@@ -882,7 +882,7 @@ function updateSalesChart(salesData) {
             labels: salesData.labels || [],
             datasets: [
                 {
-                    label: 'Ventas por Período',
+                    label: 'Operaciones por Período',
                     data: salesData.sales || [],
                     fill: true,
                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
@@ -951,9 +951,9 @@ function updateSalesChart(salesData) {
             });
         }
         
-        console.log('Gráfico de ventas/canjes por período actualizado exitosamente');
+        console.log('Gráfico de operaciones por período actualizado exitosamente');
     } catch (e) {
-        console.error('Error al crear/actualizar gráfico de ventas:', e);
+        console.error('Error al crear/actualizar gráfico de operaciones:', e);
     }
 }
 
@@ -1344,7 +1344,7 @@ updateStatCards(metrics.stats);
         
         // Gráfico de ventas por período
         if (metrics.charts && metrics.charts.salesByTime) {
-            console.log('Actualizando gráfico de ventas por período con datos reales');
+            console.log('Actualizando gráfico de operaciones por período con datos reales');
             updateSalesChart(metrics.charts.salesByTime);
         } else {
             console.warn('Datos para gráfico de ventas no disponibles');
