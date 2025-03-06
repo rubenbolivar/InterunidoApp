@@ -606,8 +606,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.head.appendChild(style);
   }
   
+  // Variable para controlar el tiempo de espera en la búsqueda dinámica
+  let clientSearchTimeout = null;
+  
   // Función para aplicar filtros con paginación
-  function applyFilters() {
+  function applyFilters(resetPage = true) {
+    // Si resetPage es true, volver a la primera página (comportamiento predeterminado)
+    if (resetPage) {
+      currentPage = 1;
+    }
+    
     const filterDate = document.getElementById('filterDate').value;
     const filterClient = document.getElementById('filterClient').value;
     const filterType = document.getElementById('filterType').value;
@@ -626,6 +634,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Añadir parámetros de paginación
     query += `page=${currentPage}&limit=${itemsPerPage}`;
     
+    // Mostrar indicador de carga
+    const listContainer = document.getElementById('operationsList');
+    if (listContainer) {
+      // Solo mostrar el indicador de carga si no hay contenido previo o en la búsqueda inicial
+      if (listContainer.innerHTML === '' || resetPage) {
+        listContainer.innerHTML = `
+          <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2">Buscando operaciones...</p>
+          </div>
+        `;
+      }
+    }
+    
     fetchOperations(query);
   }
   
@@ -633,10 +657,46 @@ document.addEventListener('DOMContentLoaded', function() {
   const filterForm = document.getElementById('filterForm');
   filterForm.addEventListener('submit', function(e) {
     e.preventDefault();
-    // Reiniciar a la primera página cuando se aplican nuevos filtros
-    currentPage = 1;
-    applyFilters();
+    applyFilters(true); // Reiniciar a la primera página cuando se aplican nuevos filtros
   });
+  
+  // Listener para búsqueda dinámica en el campo de cliente
+  const filterClient = document.getElementById('filterClient');
+  filterClient.addEventListener('input', function(e) {
+    // Cancelar cualquier búsqueda pendiente
+    if (clientSearchTimeout) {
+      clearTimeout(clientSearchTimeout);
+    }
+    
+    // Establecer un tiempo de espera para evitar muchas solicitudes seguidas
+    clientSearchTimeout = setTimeout(() => {
+      applyFilters(true); // Reiniciar a la primera página en cada búsqueda
+    }, 300); // Esperar 300ms después de que el usuario deje de escribir
+  });
+  
+  // Agregar un indicador visual para mostrar al usuario que la búsqueda es dinámica
+  filterClient.setAttribute('placeholder', 'Escriba para buscar...');
+  const searchIcon = document.createElement('i');
+  searchIcon.className = 'fas fa-search search-icon';
+  filterClient.parentNode.classList.add('position-relative');
+  filterClient.parentNode.appendChild(searchIcon);
+  
+  // Estilos para el icono de búsqueda
+  const searchIconStyle = document.createElement('style');
+  searchIconStyle.textContent = `
+    .search-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #aaa;
+      pointer-events: none;
+    }
+    .position-relative {
+      position: relative;
+    }
+  `;
+  document.head.appendChild(searchIconStyle);
   
   // Manejar eventos de redimensionamiento para UI responsiva
   window.addEventListener('resize', function() {
@@ -646,5 +706,11 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Carga inicial de operaciones
-  fetchOperations();
+  applyFilters();
+  
+  // Añadir un mensaje en la parte superior del formulario de filtros
+  const filterFormHeader = document.querySelector('.card-header h5');
+  if (filterFormHeader) {
+    filterFormHeader.innerHTML = 'Filtrar Operaciones <small class="text-muted">(El campo cliente actualiza en tiempo real)</small>';
+  }
 });
