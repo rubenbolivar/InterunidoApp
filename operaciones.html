@@ -78,12 +78,15 @@
           <!-- Lista de Operaciones -->
           <div class="card">
             <div class="card-header">
-              <h5>Últimas 10 Operaciones</h5>
+              <h5>Operaciones</h5>
             </div>
             <!-- Agregamos la clase "scrollable" para permitir scroll si hay muchas filas -->
             <div class="card-body scrollable">
               <!-- Este contenedor se llena dinámicamente con filas (columnas) desde operaciones.js -->
               <div id="operationsList" class="list-group"></div>
+              
+              <!-- Contenedor para paginación -->
+              <div id="pagination" class="mt-4"></div>
             </div>
           </div>
         </div>

@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // Variables globales para paginación
+  let currentPage = 1;
+  const itemsPerPage = 20;
+  let totalItems = 0;
+  let totalPages = 0;
   // Función para formatear montos en formato local
   function formatVES(amount) {
     return new Intl.NumberFormat('es-VE', {
@@ -27,12 +32,35 @@ document.addEventListener('DOMContentLoaded', function() {
   // Llamar al backend para traer las operaciones
   function fetchOperations(queryParams = '') {
     const token = getAuthToken();
+    
+    // Asegurar que los parámetros de paginación estén incluidos
+    if (!queryParams.includes('page=')) {
+      queryParams += (queryParams ? '&' : '?') + `page=${currentPage}&limit=${itemsPerPage}`;
+    }
+    
+    console.log('Fetching operations with:', queryParams);
+    
     fetch('/api/transactions' + queryParams, {
       headers: { 'Authorization': 'Bearer ' + token }
     })
     .then(response => response.json())
     .then(data => {
-      renderOperationsTable(data);
+      // Verificar si la data viene con el nuevo formato (con paginación)
+      if (data.transactions && data.pagination) {
+        // Actualizar variables de paginación
+        totalItems = data.pagination.total;
+        totalPages = data.pagination.pages;
+        currentPage = data.pagination.page;
+        
+        // Renderizar la tabla con las transacciones
+        renderOperationsTable(data.transactions);
+        
+        // Renderizar controles de paginación
+        renderPagination();
+      } else {
+        // Si aún no se ha actualizado el backend, usar el formato antiguo
+        renderOperationsTable(data);
+      }
     })
     .catch(error => {
       console.error('Error al obtener operaciones:', error);
@@ -318,13 +346,217 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Listener para el formulario de filtros
-  const filterForm = document.getElementById('filterForm');
-  filterForm.addEventListener('submit', function(e) {
-    e.preventDefault();
+  // Nueva función para renderizar controles de paginación
+  function renderPagination() {
+    const paginationContainer = document.getElementById('pagination');
+    
+    if (!paginationContainer) {
+      console.error('No se encontró el contenedor de paginación');
+      return;
+    }
+    
+    // Limpiar contenido previo
+    paginationContainer.innerHTML = '';
+    
+    // No mostrar paginación si solo hay una página
+    if (totalPages <= 1) {
+      paginationContainer.innerHTML = `<div class="text-center text-muted small mt-2">Mostrando ${totalItems} operaciones</div>`;
+      return;
+    }
+    
+    // Crear controles de paginación con Bootstrap
+    const nav = document.createElement('nav');
+    nav.setAttribute('aria-label', 'Navegación de páginas');
+    nav.className = 'pagination-container';
+    
+    const ul = document.createElement('ul');
+    ul.className = 'pagination pagination-sm justify-content-center flex-wrap';
+    
+    // Botón Anterior
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    
+    const prevA = document.createElement('a');
+    prevA.className = 'page-link';
+    prevA.href = '#';
+    prevA.setAttribute('aria-label', 'Anterior');
+    
+    // Usar icono para pantallas pequeñas
+    const prevIcon = document.createElement('span');
+    prevIcon.setAttribute('aria-hidden', 'true');
+    prevIcon.innerHTML = '&laquo;';
+    prevA.appendChild(prevIcon);
+    
+    prevA.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (currentPage > 1) {
+        currentPage--;
+        applyFilters();
+      }
+    });
+    
+    prevLi.appendChild(prevA);
+    ul.appendChild(prevLi);
+    
+    // Números de página (limitado a 5 para evitar sobrecarga visual)
+    const maxVisible = window.innerWidth < 768 ? 3 : 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    // Ajustar startPage si estamos cerca del final
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    // Si hay muchas páginas y no estamos al inicio, mostrar botón para la primera página
+    if (startPage > 1) {
+      const firstLi = document.createElement('li');
+      firstLi.className = 'page-item';
+      
+      const firstA = document.createElement('a');
+      firstA.className = 'page-link';
+      firstA.href = '#';
+      firstA.textContent = '1';
+      
+      firstA.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentPage = 1;
+        applyFilters();
+      });
+      
+      firstLi.appendChild(firstA);
+      ul.appendChild(firstLi);
+      
+      // Mostrar puntos suspensivos si no empezamos en la página 2
+      if (startPage > 2) {
+        const ellipsisLi = document.createElement('li');
+        ellipsisLi.className = 'page-item disabled';
+        
+        const ellipsisSpan = document.createElement('span');
+        ellipsisSpan.className = 'page-link';
+        ellipsisSpan.innerHTML = '&hellip;';
+        
+        ellipsisLi.appendChild(ellipsisSpan);
+        ul.appendChild(ellipsisLi);
+      }
+    }
+    
+    // Botones de páginas numéricas
+    for (let i = startPage; i <= endPage; i++) {
+      const pageLi = document.createElement('li');
+      pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+      
+      const pageA = document.createElement('a');
+      pageA.className = 'page-link';
+      pageA.href = '#';
+      pageA.textContent = i;
+      pageA.setAttribute('aria-label', `Página ${i}`);
+      
+      if (i === currentPage) {
+        pageA.setAttribute('aria-current', 'page');
+      }
+      
+      pageA.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentPage = i;
+        applyFilters();
+      });
+      
+      pageLi.appendChild(pageA);
+      ul.appendChild(pageLi);
+    }
+    
+    // Si hay muchas páginas y no estamos al final, mostrar botón para la última página
+    if (endPage < totalPages) {
+      // Mostrar puntos suspensivos si no terminamos en la penúltima página
+      if (endPage < totalPages - 1) {
+        const ellipsisLi = document.createElement('li');
+        ellipsisLi.className = 'page-item disabled';
+        
+        const ellipsisSpan = document.createElement('span');
+        ellipsisSpan.className = 'page-link';
+        ellipsisSpan.innerHTML = '&hellip;';
+        
+        ellipsisLi.appendChild(ellipsisSpan);
+        ul.appendChild(ellipsisLi);
+      }
+      
+      const lastLi = document.createElement('li');
+      lastLi.className = 'page-item';
+      
+      const lastA = document.createElement('a');
+      lastA.className = 'page-link';
+      lastA.href = '#';
+      lastA.textContent = totalPages;
+      
+      lastA.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentPage = totalPages;
+        applyFilters();
+      });
+      
+      lastLi.appendChild(lastA);
+      ul.appendChild(lastLi);
+    }
+    
+    // Botón Siguiente
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    
+    const nextA = document.createElement('a');
+    nextA.className = 'page-link';
+    nextA.href = '#';
+    nextA.setAttribute('aria-label', 'Siguiente');
+    
+    // Usar icono para pantallas pequeñas
+    const nextIcon = document.createElement('span');
+    nextIcon.setAttribute('aria-hidden', 'true');
+    nextIcon.innerHTML = '&raquo;';
+    nextA.appendChild(nextIcon);
+    
+    nextA.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (currentPage < totalPages) {
+        currentPage++;
+        applyFilters();
+      }
+    });
+    
+    nextLi.appendChild(nextA);
+    ul.appendChild(nextLi);
+    
+    nav.appendChild(ul);
+    paginationContainer.appendChild(nav);
+    
+    // Añadir información sobre total de elementos
+    const info = document.createElement('div');
+    info.className = 'text-center text-muted small mt-2';
+    info.textContent = `Mostrando ${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, totalItems)} de ${totalItems} operaciones`;
+    paginationContainer.appendChild(info);
+    
+    // Agregar estilos responsivos
+    const style = document.createElement('style');
+    style.textContent = `
+      @media (max-width: 576px) {
+        .pagination .page-link {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.75rem;
+        }
+        .pagination-container {
+          overflow-x: auto;
+          padding-bottom: 10px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Función para aplicar filtros con paginación
+  function applyFilters() {
     const filterDate = document.getElementById('filterDate').value;
     const filterClient = document.getElementById('filterClient').value;
     const filterType = document.getElementById('filterType').value;
+    
     let query = '?';
     if (filterDate) {
       query += 'date=' + encodeURIComponent(filterDate) + '&';
@@ -335,7 +567,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterType) {
       query += 'type=' + encodeURIComponent(filterType) + '&';
     }
+    
+    // Añadir parámetros de paginación
+    query += `page=${currentPage}&limit=${itemsPerPage}`;
+    
     fetchOperations(query);
+  }
+  
+  // Listener para el formulario de filtros
+  const filterForm = document.getElementById('filterForm');
+  filterForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Reiniciar a la primera página cuando se aplican nuevos filtros
+    currentPage = 1;
+    applyFilters();
+  });
+  
+  // Manejar eventos de redimensionamiento para UI responsiva
+  window.addEventListener('resize', function() {
+    if (totalPages > 1) {
+      renderPagination();
+    }
   });
 
   // Carga inicial de operaciones

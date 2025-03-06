@@ -236,7 +236,21 @@ app.get('/api/transactions/:id', verifyToken, async (req, res) => {
 // Endpoint para obtener transacciones con filtros
 app.get('/api/transactions', verifyToken, async (req, res) => {
   try {
-    const { type, client, date } = req.query;
+    // Capturar parámetros de paginación y filtros
+    const { type, client, date, page = '1', limit = '20' } = req.query;
+    
+    // Convertir página y límite a números
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    
+    // Validar valores
+    const validPage = isNaN(pageNum) || pageNum < 1 ? 1 : pageNum;
+    const validLimit = isNaN(limitNum) || limitNum < 1 || limitNum > 100 ? 20 : limitNum;
+    
+    // Calcular skip (cuántos documentos omitir)
+    const skip = (validPage - 1) * validLimit;
+    
+    // Construir filtro
     let filter = {};
     if (type) filter.type = type;
     if (client) filter.client = { $regex: client, $options: 'i' };
@@ -246,13 +260,39 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
       end.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: start, $lte: end };
     }
-    // Si el usuario no es administrador, filtra por su operatorId
+    
+    // Si el usuario no es administrador, filtrar por su operatorId
     if (req.user.role !== 'admin') {
       filter.operatorId = req.user.id;
     }
-    const transactions = await Transaction.find(filter).sort({ createdAt: -1 }).limit(50);
-    res.json(transactions);
+    
+    // Ejecutar consulta con paginación
+    const transactions = await Transaction.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(validLimit);
+    
+    // Contar total de documentos para metadatos de paginación
+    const total = await Transaction.countDocuments(filter);
+    
+    // Calcular el número total de páginas
+    const totalPages = Math.ceil(total / validLimit);
+    
+    // Registrar información de paginación
+    logger.info(`Paginación: página ${validPage} de ${totalPages}, mostrando ${transactions.length} de ${total} operaciones`);
+    
+    // Devolver datos con metadatos de paginación
+    res.json({
+      transactions,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        pages: totalPages
+      }
+    });
   } catch (error) {
+    logger.error('Error al obtener transacciones:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Error al obtener las transacciones' });
   }
 });
