@@ -81,14 +81,33 @@
               <h5>Operaciones</h5>
             </div>
             <!-- Agregamos la clase "scrollable" para permitir scroll si hay muchas filas -->
-            <div class="card-body scrollable">
+            <div class="card-body scrollable operations-card-body p-0 p-sm-3">
               <!-- Este contenedor se llena dinámicamente con filas (columnas) desde operaciones.js -->
               <div id="operationsList" class="list-group"></div>
               
               <!-- Contenedor para paginación -->
-              <div id="pagination" class="mt-4"></div>
+              <div id="pagination" class="mt-4 px-3 pb-3"></div>
             </div>
           </div>
+          
+          <style>
+            /* Estilos adicionales para mejorar la visualización en móviles */
+            @media (max-width: 767.98px) {
+              .operations-card-body {
+                overflow-x: hidden; /* Prevenir scroll horizontal */
+              }
+              .card-header h5 {
+                font-size: 1.1rem; /* Título más pequeño en móviles */
+              }
+              #filterForm .btn {
+                width: 100%; /* Botón de filtro a ancho completo */
+                margin-top: 0.5rem;
+              }
+              .form-label {
+                font-size: 0.9rem; /* Etiquetas más pequeñas */
+              }
+            }
+          </style>
         </div>
       </main>
     </div>

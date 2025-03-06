@@ -72,11 +72,66 @@ document.addEventListener('DOMContentLoaded', function() {
     const listContainer = document.getElementById('operationsList');
     listContainer.innerHTML = ''; // Limpiar contenido previo
 
-    // Crear tabla
-    const table = document.createElement('table');
-    table.className = 'table table-striped table-sm';
+    // Añadir estilos para mejorar la visualización en dispositivos móviles
+    const responsiveStyles = document.createElement('style');
+    responsiveStyles.textContent = `
+      @media (max-width: 767.98px) {
+        .table-responsive-stack {
+          width: 100%;
+        }
+        .table-responsive-stack thead {
+          display: none;
+        }
+        .table-responsive-stack tr {
+          display: block;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          margin-bottom: 15px;
+          padding: 8px;
+          background: #fff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .table-responsive-stack td {
+          display: block;
+          text-align: left;
+          position: relative;
+          padding-left: 45%;
+          min-height: 40px;
+          margin-bottom: 8px;
+          border-top: none !important;
+        }
+        .table-responsive-stack td:before {
+          content: attr(data-label);
+          position: absolute;
+          left: 10px;
+          width: 40%;
+          padding-right: 10px;
+          font-weight: bold;
+          text-align: left;
+          color: #666;
+        }
+        .table-responsive-stack td.action-cell {
+          padding-left: 10px;
+          margin-top: 15px;
+          text-align: center;
+        }
+        .table-responsive-stack td.action-cell button {
+          width: 100%;
+          padding: 8px;
+        }
+        /* Colores alternados para las filas en vista móvil */
+        .table-responsive-stack tr:nth-child(odd) {
+          background-color: #f9f9f9;
+        }
+      }
+    `;
+    document.head.appendChild(responsiveStyles);
 
-    // Thead
+    // Crear tabla con nueva clase para hacerla responsive
+    const table = document.createElement('table');
+    table.className = 'table table-striped table-sm table-responsive-stack';
+
+    // Thead (se ocultará en móviles pero es necesario mantenerlo para desktop)
     table.innerHTML = `
       <thead>
         <tr>
@@ -95,8 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Ordenar por fecha descendente
     operations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    // Tomar solo las 10 primeras
-    const opsToShow = operations.slice(0, 10);
+    // Ya no limitamos a 10 porque tenemos paginación
+    const opsToShow = operations;
 
     opsToShow.forEach(op => {
       // Determinar la divisa para formatear
@@ -107,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // 1) Cliente y fecha
       const clienteFecha = `
-        <td>
+        <td data-label="Cliente/Fecha">
           <strong>${op.client}</strong><br />
           <small>${new Date(op.createdAt).toLocaleDateString()}</small>
         </td>
@@ -116,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // 2) Total
       //   Se asume que op.amount es el total en la divisa
       const totalHTML = `
-        <td>
+        <td data-label="Total">
           ${currencySymbol}${formatVES(op.amount)}
         </td>
       `;
@@ -143,16 +198,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (op.estado === 'incompleta') {
           pendienteHTML = `
-            <td>
+            <td data-label="Pendiente">
               ${currencySymbol}${formatVES(pendingValue)}
             </td>
           `;
         } else {
           // Para completadas, podría ser vacío o 0
-          pendienteHTML = `<td>-</td>`;
+          pendienteHTML = `<td data-label="Pendiente">-</td>`;
         }
       } else {
-        pendienteHTML = `<td>-</td>`;
+        pendienteHTML = `<td data-label="Pendiente">-</td>`;
       }
 
       // 4) Ganancia
@@ -172,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const gananciaHTML = `
-        <td>
+        <td data-label="Ganancia">
           ${op.type === 'canje' ? '' : currencySymbol}${formatVES(ganancia)}
         </td>
       `;
@@ -181,14 +236,14 @@ document.addEventListener('DOMContentLoaded', function() {
       const tipoTexto = op.type === 'venta' ? 'Venta' : 
                         (op.type === 'canje' ? `Canje ${op.details?.tipo || ''}` : op.type);
       const tipoHTML = `
-        <td>${tipoTexto}</td>
+        <td data-label="Tipo">${tipoTexto}</td>
       `;
 
       // 6) Estado
       const estadoLabel = (op.estado === 'completa') ? 'Completada' : 'Incompleta';
       const estadoBadgeClass = (op.estado === 'completa') ? 'bg-success' : 'bg-warning';
       const estadoHTML = `
-        <td>
+        <td data-label="Estado">
           <span class="badge ${estadoBadgeClass}">
             ${estadoLabel}
           </span>
@@ -201,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let accionesHTML = '';
       if (op.estado === 'incompleta') {
         accionesHTML = `
-          <td>
+          <td data-label="Acciones" class="action-cell">
             <button class="btn btn-primary btn-sm"
                     data-id="${op._id}">
               Completar
@@ -210,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
       } else {
         accionesHTML = `
-          <td>
+          <td data-label="Acciones" class="action-cell">
             <button class="btn btn-secondary btn-sm"
                     data-id="${op._id}">
               Ver Detalle
