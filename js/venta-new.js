@@ -39,8 +39,10 @@ const COMMISSION_FACTORS = {
   class TransactionManager {
     constructor() {
       this.transactions = [];
-      this.totalAmount = 0;       // Monto total en la divisa
-      this.remainingAmount = 0;   // Monto pendiente en la divisa
+      this.previousTransactions = []; // Transacciones previas en operaciones incompletas
+      this.originalTotalAmount = 0;   // Monto original total de la operación
+      this.totalAmount = 0;           // Monto total en la divisa para esta sesión
+      this.remainingAmount = 0;       // Monto pendiente en la divisa
       this.clientRate = 0;
       this.selectedCurrency = '';
       this.clientName = '';
@@ -56,7 +58,8 @@ const COMMISSION_FACTORS = {
   
     /**
      * Si NO hay id en la URL, es una operación nueva.
-     * Si SÍ hay id, hacemos fetch y precargamos.
+     * Si SÍ hay id, hacemos fetch y precargamos tanto los datos básicos como
+     * las transacciones previas.
      */
     async loadOperationIfNeeded() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -81,13 +84,20 @@ const COMMISSION_FACTORS = {
         }
         
         const op = await resp.json();
+        console.log('Operación cargada:', op);
     
-        // Supongamos que op.details.transactions es un array de transacciones parciales
-        const partials = op.details?.transactions || [];
-        const sumOfPartials = partials.reduce((acc, t) => acc + (t.amount || 0), 0);
-    
+        // Guardar las transacciones previas
+        this.previousTransactions = op.details?.transactions || [];
+        console.log('Transacciones previas cargadas:', this.previousTransactions);
+        
+        // Calcular el monto total original de la operación
+        this.originalTotalAmount = op.amount || 0;
+        
+        // Calcular el monto ya procesado
+        const processedAmount = this.previousTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
+        
         // Monto pendiente
-        const pending = op.amount - sumOfPartials;
+        const pending = this.originalTotalAmount - processedAmount;
         if (pending < 0) {
           console.warn('El monto pendiente es negativo. Revisa tus datos.');
         }
@@ -95,10 +105,9 @@ const COMMISSION_FACTORS = {
         // Precargar en Stage 1
         this.clientName = op.client;
         this.selectedCurrency = op.details?.currency || 'USD';
-        // supondremos que la clientRate está en details
         this.clientRate = op.details?.clientRate || 0;
     
-        // Quiero que la UI muestre el pendiente, no el total original
+        // Configurar el monto pendiente para esta sesión
         this.setTotalAmount(pending);
     
         // Llenar los inputs
@@ -131,6 +140,9 @@ const COMMISSION_FACTORS = {
           useGrouping: true
         }).format(totalBs);
         
+        // Renderizar las transacciones previas en la UI
+        this.renderPreviousTransactions();
+        
         // Mostrar un mensaje con el monto restante
         if (pending > 0) {
           const message = `Se ha cargado la operación con ID: ${operationId}. Monto pendiente: ${this.formatForeign(pending)}`;
@@ -143,6 +155,53 @@ const COMMISSION_FACTORS = {
         console.error('Error al cargar la operación:', error);
         this.showNotification('No se pudo cargar la operación. Por favor, intente nuevamente.', 'error');
       }
+    }
+    
+    /**
+     * Renderiza las transacciones previas en la UI
+     * para que sean visibles en el Stage 3
+     */
+    renderPreviousTransactions() {
+      if (!this.previousTransactions || this.previousTransactions.length === 0) {
+        return;
+      }
+      
+      // Mostrar el Stage 3 para que sea visible
+      document.getElementById('stage3').style.display = 'block';
+      
+      // Actualizar el contenido del resultado
+      const resultContainer = document.getElementById('resultadoOperacion');
+      if (!resultContainer) return;
+      
+      // Crear HTML para las transacciones previas
+      let html = '<div class="previous-transactions mb-4"><h5>Transacciones Previas</h5>';
+      this.previousTransactions.forEach((t, index) => {
+        html += `
+          <div class="transaction-item card mb-2 previous-transaction">
+            <div class="card-body">
+              <h6 class="card-title">Transacción Previa ${index + 1} - ${t.operatorName || 'Sin operador'}</h6>
+              <table class="table table-sm">
+                <tr>
+                  <td>Monto en ${this.selectedCurrency}</td>
+                  <td class="text-end">${this.formatForeign(t.amount || t.amountForeign || 0)}</td>
+                </tr>
+                <tr>
+                  <td>Tasa de Venta (Bs)</td>
+                  <td class="text-end">${t.sellingRate || 0}</td>
+                </tr>
+                <tr>
+                  <td>Total de la Venta (Bs)</td>
+                  <td class="text-end">${this.formatBs(t.totalSaleBs || 0)}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      
+      // Añadir al contenedor de resultado
+      resultContainer.innerHTML = html + resultContainer.innerHTML;
     }
     
     showNotification(message, type = 'info') {
@@ -637,21 +696,53 @@ const COMMISSION_FACTORS = {
     submitOperation() {
       // Construir el payload final
       const globalTotals = this.calculateGlobalTotals();
+      
+      // Determinar qué transacciones enviar al backend
+      let allTransactions = [...this.transactions]; // Por defecto, solo las nuevas
+      let montoTotal = this.totalAmount;
+      let montoPendiente = NumberUtils.round(this.remainingAmount, 2);
+      
+      // Si es una operación existente que estamos completando,
+      // debemos incluir las transacciones previas y recalcular montos
+      if (this.existingOperationId && this.previousTransactions.length > 0) {
+        console.log('Combinando transacciones previas con las nuevas');
+        
+        // Combinar transacciones previas con las nuevas
+        allTransactions = [...this.previousTransactions, ...this.transactions];
+        
+        // Calcular el monto total (original + nuevas transacciones)
+        montoTotal = this.originalTotalAmount;
+        
+        // Recalcular el monto pendiente basado en todas las transacciones
+        const totalProcesado = allTransactions.reduce((acc, t) => acc + (t.amount || t.amountForeign || 0), 0);
+        montoPendiente = NumberUtils.round(montoTotal - totalProcesado, 2);
+        
+        // Si el monto pendiente es negativo o muy cercano a cero (por errores de redondeo),
+        // lo ajustamos a cero
+        if (montoPendiente < 0.01) {
+          montoPendiente = 0;
+        }
+        
+        console.log('Monto original:', this.originalTotalAmount);
+        console.log('Total procesado:', totalProcesado);
+        console.log('Monto pendiente recalculado:', montoPendiente);
+      }
+      
       // ADICIONA el pending para que aparezca en .details.summary
-      globalTotals.montoPendiente = NumberUtils.round(this.remainingAmount, 2);
+      globalTotals.montoPendiente = montoPendiente;
   
       const payload = {
         type: "venta",
         client: this.clientName,
-        amount: this.totalAmount,
+        amount: montoTotal, // Utilizamos el monto total correcto (original)
         details: {
           clientRate: this.clientRate,
           currency: this.selectedCurrency,
-          transactions: this.transactions,
+          transactions: allTransactions, // Utilizamos todas las transacciones
           summary: globalTotals
         },
-        // Determinar el estado basado en el monto pendiente
-        estado: this.remainingAmount <= 0 ? "completa" : "incompleta"
+        // Determinar el estado basado en el monto pendiente recalculado
+        estado: montoPendiente <= 0 ? "completa" : "incompleta"
       };
   
       const token = localStorage.getItem('auth_token');
@@ -663,6 +754,8 @@ const COMMISSION_FACTORS = {
         url = `/api/transactions/${this.existingOperationId}`;
         method = 'PUT';
       }
+      
+      console.log('Enviando payload:', payload);
   
       fetch(url, {
         method,
@@ -679,7 +772,7 @@ const COMMISSION_FACTORS = {
       .then(data => {
         alert('Operación registrada/actualizada con éxito');
         console.log('Operación guardada:', data);
-        // Podrías redirigir a operaciones.html
+        // Redirigir a operaciones.html
         window.location.href = 'operaciones.html';
       })
       .catch(err => {
