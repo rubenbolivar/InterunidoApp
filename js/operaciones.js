@@ -676,10 +676,21 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Agregar un indicador visual para mostrar al usuario que la búsqueda es dinámica
   filterClient.setAttribute('placeholder', 'Escriba para buscar...');
+  
+  // Mejorar la posición del icono de búsqueda
   const searchIcon = document.createElement('i');
   searchIcon.className = 'fas fa-search search-icon';
-  filterClient.parentNode.classList.add('position-relative');
-  filterClient.parentNode.appendChild(searchIcon);
+  
+  // Asegurar que el contenedor tenga la posición correcta
+  const filterClientContainer = filterClient.parentNode;
+  filterClientContainer.classList.add('position-relative');
+  filterClientContainer.appendChild(searchIcon);
+  
+  // Asegurarnos que Bootstrap no interfiera con el posicionamiento
+  setTimeout(() => {
+    // A veces Bootstrap sobreescribe los estilos, por lo que aplicamos esto después
+    filterClientContainer.style.position = 'relative';
+  }, 100);
   
   // Estilos para el icono de búsqueda
   const searchIconStyle = document.createElement('style');
@@ -687,13 +698,18 @@ document.addEventListener('DOMContentLoaded', function() {
     .search-icon {
       position: absolute;
       right: 10px;
-      top: 50%;
+      top: 38px; /* Posición alineada con el centro del input */
       transform: translateY(-50%);
-      color: #aaa;
+      color: #6c757d;
       pointer-events: none;
+      z-index: 5;
     }
+    #filterClient {
+      padding-right: 30px; /* Espacio para el icono */
+    }
+    /* Ajuste para asegurarnos que el contenedor tenga la posición correcta */
     .position-relative {
-      position: relative;
+      position: relative !important;
     }
   `;
   document.head.appendChild(searchIconStyle);
