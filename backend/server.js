@@ -54,6 +54,17 @@ const TransactionSchema = new mongoose.Schema({
 });
 const Transaction = mongoose.model('Transaction', TransactionSchema);
 
+// Modelo de Notas
+const NoteSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+  tags: [String],
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+const Note = mongoose.model('Note', NoteSchema);
+
 // Middleware para verificar el token
 function verifyToken(req, res, next) {
   // Omite la verificación en solicitudes OPTIONS (preflight)
@@ -1142,6 +1153,106 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('Error al eliminar usuario:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Error al eliminar usuario' });
+  }
+});
+
+// Endpoints para Notas
+// 1. Crear una nueva nota
+app.post('/api/notes', verifyToken, async (req, res) => {
+  try {
+    const { title, content, tags } = req.body;
+    const newNote = new Note({
+      title,
+      content,
+      tags: tags || [],
+      createdBy: req.userId
+    });
+    await newNote.save();
+    res.status(201).json(newNote);
+  } catch (error) {
+    logger.error('Error al crear nota:', { error: error.message });
+    res.status(500).json({ error: 'Error al crear la nota' });
+  }
+});
+
+// 2. Obtener todas las notas (con filtros opcionales)
+app.get('/api/notes', verifyToken, async (req, res) => {
+  try {
+    const { search, startDate, endDate, tags } = req.query;
+    let query = { createdBy: req.userId };
+    
+    // Filtro por texto (título o contenido)
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Filtro por fecha
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    
+    // Filtro por etiquetas
+    if (tags) {
+      const tagArray = tags.split(',');
+      query.tags = { $in: tagArray };
+    }
+    
+    const notes = await Note.find(query).sort({ createdAt: -1 });
+    res.json(notes);
+  } catch (error) {
+    logger.error('Error al obtener notas:', { error: error.message });
+    res.status(500).json({ error: 'Error al obtener las notas' });
+  }
+});
+
+// 3. Obtener una nota específica
+app.get('/api/notes/:id', verifyToken, async (req, res) => {
+  try {
+    const note = await Note.findOne({ _id: req.params.id, createdBy: req.userId });
+    if (!note) return res.status(404).json({ error: 'Nota no encontrada' });
+    res.json(note);
+  } catch (error) {
+    logger.error('Error al obtener nota:', { error: error.message });
+    res.status(500).json({ error: 'Error al obtener la nota' });
+  }
+});
+
+// 4. Actualizar una nota
+app.put('/api/notes/:id', verifyToken, async (req, res) => {
+  try {
+    const { title, content, tags } = req.body;
+    const updatedNote = await Note.findOneAndUpdate(
+      { _id: req.params.id, createdBy: req.userId },
+      { 
+        title, 
+        content, 
+        tags: tags || [],
+        updatedAt: Date.now() 
+      },
+      { new: true }
+    );
+    if (!updatedNote) return res.status(404).json({ error: 'Nota no encontrada' });
+    res.json(updatedNote);
+  } catch (error) {
+    logger.error('Error al actualizar nota:', { error: error.message });
+    res.status(500).json({ error: 'Error al actualizar la nota' });
+  }
+});
+
+// 5. Eliminar una nota
+app.delete('/api/notes/:id', verifyToken, async (req, res) => {
+  try {
+    const deletedNote = await Note.findOneAndDelete({ _id: req.params.id, createdBy: req.userId });
+    if (!deletedNote) return res.status(404).json({ error: 'Nota no encontrada' });
+    res.json({ message: 'Nota eliminada correctamente' });
+  } catch (error) {
+    logger.error('Error al eliminar nota:', { error: error.message });
+    res.status(500).json({ error: 'Error al eliminar la nota' });
   }
 });
 
