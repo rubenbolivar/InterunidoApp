@@ -9,6 +9,8 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 // Importar logger
 const logger = require('./logger');
+// Importar el modelo de Nota
+const Note = require('./models/Note');
 
 // Configurar zona horaria de Caracas (UTC-04:00)
 process.env.TZ = 'America/Caracas';
@@ -278,12 +280,34 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
     // Calcular el número total de páginas
     const totalPages = Math.ceil(total / validLimit);
     
+    // Añadir conteo de notas a cada transacción
+    const transactionsWithNotes = await Promise.all(transactions.map(async (transaction) => {
+      // Construir filtro para contar notas
+      const noteFilter = { 
+        operationId: transaction._id, 
+        isArchived: false 
+      };
+      
+      // Si no es admin, solo contar notas creadas por el usuario
+      if (req.user.role !== 'admin') {
+        noteFilter.createdBy = req.user.id;
+      }
+      
+      const notesCount = await Note.countDocuments(noteFilter);
+      
+      // Convertir a objeto para poder añadir propiedades
+      const transObj = transaction.toObject();
+      transObj.notesCount = notesCount;
+      
+      return transObj;
+    }));
+    
     // Registrar información de paginación
     logger.info(`Paginación: página ${validPage} de ${totalPages}, mostrando ${transactions.length} de ${total} operaciones`);
     
     // Devolver datos con metadatos de paginación
     res.json({
-      transactions,
+      transactions: transactionsWithNotes,
       pagination: {
         page: validPage,
         limit: validLimit,
@@ -1142,6 +1166,271 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('Error al eliminar usuario:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Error al eliminar usuario' });
+  }
+});
+
+// Endpoints para la gestión de notas
+
+// Obtener todas las notas (filtradas por permisos)
+app.get('/api/notes', verifyToken, async (req, res) => {
+  try {
+    const { search, dateFrom, dateTo, type, operationId, page = '1', limit = '20' } = req.query;
+    
+    // Convertir página y límite a números
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    
+    // Validar valores
+    const validPage = isNaN(pageNum) || pageNum < 1 ? 1 : pageNum;
+    const validLimit = isNaN(limitNum) || limitNum < 1 || limitNum > 100 ? 20 : limitNum;
+    
+    // Calcular skip (cuántos documentos omitir)
+    const skip = (validPage - 1) * validLimit;
+    
+    // Construir filtro base
+    let filter = { isArchived: false };
+    
+    // Filtrar por usuario creador (si no es admin)
+    if (req.user.role !== 'admin') {
+      filter.createdBy = req.user.id;
+    }
+    
+    // Aplicar filtros adicionales si se proporcionan
+    if (search) {
+      // Buscar en título, contenido o etiquetas
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } },
+        { tags: { $in: [search.toLowerCase()] } }
+      ];
+    }
+    
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      filter.createdAt = filter.createdAt || {};
+      filter.createdAt.$gte = fromDate;
+    }
+    
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999); // Fin del día
+      filter.createdAt = filter.createdAt || {};
+      filter.createdAt.$lte = toDate;
+    }
+    
+    if (type && ['venta', 'canje', 'general'].includes(type)) {
+      filter.operationType = type;
+    }
+    
+    if (operationId) {
+      filter.operationId = operationId;
+    }
+    
+    // Ejecutar consulta con paginación
+    const notes = await Note.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(validLimit)
+      .populate('createdBy', 'username');
+    
+    // Contar total de documentos para metadatos de paginación
+    const total = await Note.countDocuments(filter);
+    
+    // Calcular el número total de páginas
+    const totalPages = Math.ceil(total / validLimit);
+    
+    // Devolver datos con metadatos de paginación
+    res.json({
+      notes,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        pages: totalPages
+      }
+    });
+  } catch (error) {
+    logger.error('Error al obtener notas:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener notas' });
+  }
+});
+
+// Obtener una nota específica por ID
+app.get('/api/notes/:id', verifyToken, async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id).populate('createdBy', 'username');
+    
+    if (!note) {
+      return res.status(404).json({ message: 'Nota no encontrada' });
+    }
+    
+    // Verificar permisos (solo admin o creador pueden ver la nota)
+    if (req.user.role !== 'admin' && note.createdBy._id.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para ver esta nota' });
+    }
+    
+    res.json(note);
+  } catch (error) {
+    logger.error('Error al obtener nota:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener nota' });
+  }
+});
+
+// Obtener notas vinculadas a una operación específica
+app.get('/api/notes/operation/:operationId', verifyToken, async (req, res) => {
+  try {
+    const { operationId } = req.params;
+    
+    // Verificar si la operación existe y si el usuario tiene permisos para verla
+    const operation = await Transaction.findById(operationId);
+    
+    if (!operation) {
+      return res.status(404).json({ message: 'Operación no encontrada' });
+    }
+    
+    // Verificar permisos (solo admin o creador pueden ver la operación)
+    if (req.user.role !== 'admin' && operation.operatorId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para ver esta operación' });
+    }
+    
+    // Construir filtro base
+    let filter = { 
+      operationId, 
+      isArchived: false 
+    };
+    
+    // Si no es admin, solo mostrar notas creadas por el usuario
+    if (req.user.role !== 'admin') {
+      filter.createdBy = req.user.id;
+    }
+    
+    // Obtener notas vinculadas a la operación
+    const notes = await Note.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('createdBy', 'username');
+    
+    res.json(notes);
+  } catch (error) {
+    logger.error('Error al obtener notas de operación:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener notas de operación' });
+  }
+});
+
+// Crear una nueva nota
+app.post('/api/notes', verifyToken, async (req, res) => {
+  try {
+    const { title, content, operationType, operationId } = req.body;
+    
+    // Validar datos requeridos
+    if (!title || !content) {
+      return res.status(400).json({ message: 'El título y contenido son obligatorios' });
+    }
+    
+    // Validar operationType si se proporciona
+    if (operationType && !['venta', 'canje', 'general'].includes(operationType)) {
+      return res.status(400).json({ message: 'Tipo de operación no válido' });
+    }
+    
+    // Si se proporciona operationId, verificar que exista y que el usuario tenga permisos
+    if (operationId) {
+      const operation = await Transaction.findById(operationId);
+      
+      if (!operation) {
+        return res.status(404).json({ message: 'Operación no encontrada' });
+      }
+      
+      // Verificar permisos (solo admin o creador pueden añadir notas a la operación)
+      if (req.user.role !== 'admin' && operation.operatorId.toString() !== req.user.id) {
+        return res.status(403).json({ message: 'No autorizado para añadir notas a esta operación' });
+      }
+    }
+    
+    // Crear la nota
+    const note = new Note({
+      title,
+      content,
+      createdBy: req.user.id,
+      operationType: operationType || 'general',
+      operationId: operationId || null
+    });
+    
+    await note.save();
+    
+    // Poblar el campo createdBy para la respuesta
+    await note.populate('createdBy', 'username');
+    
+    logger.info(`Nota creada por ${req.user.id}, título: ${title}`);
+    res.status(201).json(note);
+  } catch (error) {
+    logger.error('Error al crear nota:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al crear nota' });
+  }
+});
+
+// Actualizar una nota existente
+app.put('/api/notes/:id', verifyToken, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    
+    // Validar datos requeridos
+    if (!title && !content) {
+      return res.status(400).json({ message: 'Debe proporcionar título o contenido para actualizar' });
+    }
+    
+    // Buscar la nota
+    const note = await Note.findById(req.params.id);
+    
+    if (!note) {
+      return res.status(404).json({ message: 'Nota no encontrada' });
+    }
+    
+    // Verificar permisos (solo admin o creador pueden editar la nota)
+    if (req.user.role !== 'admin' && note.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para editar esta nota' });
+    }
+    
+    // Actualizar campos
+    if (title) note.title = title;
+    if (content) note.content = content;
+    
+    // Guardar cambios
+    await note.save();
+    
+    // Poblar el campo createdBy para la respuesta
+    await note.populate('createdBy', 'username');
+    
+    logger.info(`Nota ${req.params.id} actualizada por ${req.user.id}`);
+    res.json(note);
+  } catch (error) {
+    logger.error('Error al actualizar nota:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al actualizar nota' });
+  }
+});
+
+// Eliminar/archivar una nota
+app.delete('/api/notes/:id', verifyToken, async (req, res) => {
+  try {
+    // Buscar la nota
+    const note = await Note.findById(req.params.id);
+    
+    if (!note) {
+      return res.status(404).json({ message: 'Nota no encontrada' });
+    }
+    
+    // Verificar permisos (solo admin o creador pueden eliminar la nota)
+    if (req.user.role !== 'admin' && note.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para eliminar esta nota' });
+    }
+    
+    // Archivar en lugar de eliminar físicamente
+    note.isArchived = true;
+    await note.save();
+    
+    logger.info(`Nota ${req.params.id} archivada por ${req.user.id}`);
+    res.json({ message: 'Nota archivada correctamente' });
+  } catch (error) {
+    logger.error('Error al archivar nota:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al archivar nota' });
   }
 });
 
