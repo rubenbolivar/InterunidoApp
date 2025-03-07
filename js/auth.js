@@ -47,8 +47,12 @@ class Auth {
             this.setAuthToken(data.token);
             this.setUserData(data.user);
 
-            // Redirigir al dashboard
-            window.location.replace('dashboard.html');
+            // Redirigir según el rol del usuario
+            if (data.user.role === 'admin') {
+                window.location.replace('dashboard.html');
+            } else {
+                window.location.replace('operaciones.html');
+            }
         } catch (error) {
             console.error('Error en login:', error);
             this.showError(error.message);
@@ -66,9 +70,9 @@ class Auth {
     showError(message) {
         if (this.errorMessage) {
             this.errorMessage.textContent = message;
-            this.errorMessage.classList.add('show');
+            this.errorMessage.style.display = 'block';
             setTimeout(() => {
-                this.errorMessage.classList.remove('show');
+                this.errorMessage.style.display = 'none';
             }, 3000);
         }
     }
@@ -77,9 +81,19 @@ class Auth {
         const token = localStorage.getItem('auth_token');
         const currentPath = window.location.pathname;
 
-        // Si estamos en index.html y hay token, ir al dashboard
+        // Si estamos en index.html y hay token, ir a la página correspondiente según el rol
         if (currentPath.includes('index.html') && token) {
-            window.location.replace('dashboard.html');
+            const userData = localStorage.getItem('user_data');
+            if (userData) {
+                const user = JSON.parse(userData);
+                if (user.role === 'admin') {
+                    window.location.replace('dashboard.html');
+                } else {
+                    window.location.replace('operaciones.html');
+                }
+            } else {
+                window.location.replace('operaciones.html');
+            }
             return true;
         }
 
@@ -90,6 +104,14 @@ class Auth {
         }
 
         return true;
+    }
+
+    static checkRole(requiredRole) {
+        const userData = localStorage.getItem('user_data');
+        if (!userData) return false;
+        
+        const user = JSON.parse(userData);
+        return user.role === requiredRole;
     }
 
     static logout() {

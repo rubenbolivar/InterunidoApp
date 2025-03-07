@@ -1036,6 +1036,115 @@ app.get('/api/metrics/operators', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint para listar usuarios (solo admin)
+app.get('/api/users', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+  
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (error) {
+    logger.error('Error al obtener usuarios:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al obtener usuarios' });
+  }
+});
+
+// Endpoint para crear usuario (solo admin)
+app.post('/api/users', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+  
+  try {
+    const { username, password, role } = req.body;
+    
+    // Verificar si el usuario ya existe
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: 'El usuario ya existe' });
+    }
+    
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Crear el usuario
+    const user = new User({
+      username,
+      password: hashedPassword,
+      role: role || 'operador' // Por defecto, operador
+    });
+    
+    await user.save();
+    logger.info(`Usuario creado: ${username}, rol: ${role}`);
+    res.status(201).json({ message: 'Usuario creado exitosamente', user: { username: user.username, role: user.role } });
+  } catch (error) {
+    logger.error('Error al crear usuario:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al crear usuario' });
+  }
+});
+
+// Endpoint para actualizar usuario (solo admin)
+app.put('/api/users/:id', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+  
+  try {
+    const { username, password, role } = req.body;
+    const updates = {};
+    
+    if (username) updates.username = username;
+    if (role) updates.role = role;
+    if (password) {
+      updates.password = await bcrypt.hash(password, 10);
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    logger.info(`Usuario actualizado: ${username}, rol: ${role}`);
+    res.json({ message: 'Usuario actualizado exitosamente', user });
+  } catch (error) {
+    logger.error('Error al actualizar usuario:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al actualizar usuario' });
+  }
+});
+
+// Endpoint para eliminar usuario (solo admin)
+app.delete('/api/users/:id', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+  
+  try {
+    // Evitar que un admin se elimine a sí mismo
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ message: 'No puedes eliminar tu propio usuario' });
+    }
+    
+    const user = await User.findByIdAndDelete(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    logger.info(`Usuario eliminado: ${user.username}`);
+    res.json({ message: 'Usuario eliminado exitosamente' });
+  } catch (error) {
+    logger.error('Error al eliminar usuario:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: 'Error al eliminar usuario' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => logger.info(`Servidor API corriendo en puerto ${PORT}`));
 // Actualización servidor: Wed Feb 19 15:47:23 -04 2025
