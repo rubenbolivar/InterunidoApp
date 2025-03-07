@@ -8,8 +8,15 @@ class ThemeManager {
     }
 
     init() {
-        // Aplicar tema guardado
+        // Aplicar tema guardado al elemento html
         document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
+        
+        // También aplicar clases específicas para elementos que no responden a data-bs-theme
+        if (this.currentTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+        } else {
+            document.body.classList.remove('dark-theme');
+        }
         
         // Actualizar ícono según el tema
         this.updateIcon();
@@ -25,8 +32,15 @@ class ThemeManager {
         // Guardar preferencia
         localStorage.setItem('theme', this.currentTheme);
         
-        // Aplicar tema
+        // Aplicar tema al elemento html
         document.documentElement.setAttribute('data-bs-theme', this.currentTheme);
+        
+        // También aplicar clases específicas para elementos que no responden a data-bs-theme
+        if (this.currentTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+        } else {
+            document.body.classList.remove('dark-theme');
+        }
         
         // Actualizar ícono
         this.updateIcon();
@@ -45,6 +59,19 @@ class ThemeManager {
                </svg>`;
     }
 }
+
+// Aplicar el tema guardado inmediatamente al cargar la página
+(function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    
+    // También aplicar clases específicas para elementos que no responden a data-bs-theme
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+    } else {
+        document.body.classList.remove('dark-theme');
+    }
+})();
 
 // Inicializar el manejador de temas cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
