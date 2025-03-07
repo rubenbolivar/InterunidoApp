@@ -36,6 +36,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Asegurar que los parámetros de paginación estén incluidos
     if (!queryParams.includes('page=')) {
       queryParams += (queryParams ? '&' : '?') + `page=${currentPage}&limit=${itemsPerPage}`;
+    } else {
+      // Si ya existe page= en la URL, asegurarse de que tenga el valor correcto
+      const pageRegex = /page=(\d+)/;
+      if (pageRegex.test(queryParams)) {
+        queryParams = queryParams.replace(pageRegex, `page=${currentPage}`);
+      }
     }
     
     console.log('Fetching operations with:', queryParams);
@@ -43,7 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/transactions' + queryParams, {
       headers: { 'Authorization': 'Bearer ' + token }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor: ' + response.status);
+      }
+      return response.json();
+    })
     .then(data => {
       // Verificar si la data viene con el nuevo formato (con paginación)
       if (data.transactions && data.pagination) {
@@ -51,6 +62,12 @@ document.addEventListener('DOMContentLoaded', function() {
         totalItems = data.pagination.total;
         totalPages = data.pagination.pages;
         currentPage = data.pagination.page;
+        
+        console.log('Datos de paginación recibidos:', {
+          total: totalItems,
+          pages: totalPages,
+          currentPage: currentPage
+        });
         
         // Renderizar la tabla con las transacciones
         renderOperationsTable(data.transactions);
@@ -64,6 +81,16 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(error => {
       console.error('Error al obtener operaciones:', error);
+      // Mostrar mensaje de error al usuario
+      const listContainer = document.getElementById('operationsList');
+      if (listContainer) {
+        listContainer.innerHTML = `
+          <div class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Error al cargar las operaciones. Por favor, intente nuevamente.
+          </div>
+        `;
+      }
     });
   }
 
@@ -419,6 +446,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
+    console.log(`Renderizando paginación: Página ${currentPage} de ${totalPages}, Total: ${totalItems}`);
+    
     // Crear controles de paginación con Bootstrap
     const nav = document.createElement('nav');
     nav.setAttribute('aria-label', 'Navegación de páginas');
@@ -442,11 +471,11 @@ document.addEventListener('DOMContentLoaded', function() {
     prevIcon.innerHTML = '&laquo;';
     prevA.appendChild(prevIcon);
     
-    prevA.addEventListener('click', (e) => {
+    prevA.addEventListener('click', function(e) {
       e.preventDefault();
       if (currentPage > 1) {
         currentPage--;
-        applyFilters();
+        applyFilters(false); // No resetear la página
       }
     });
     
@@ -473,10 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
       firstA.href = '#';
       firstA.textContent = '1';
       
-      firstA.addEventListener('click', (e) => {
+      firstA.addEventListener('click', function(e) {
         e.preventDefault();
         currentPage = 1;
-        applyFilters();
+        applyFilters(false); // No resetear la página
       });
       
       firstLi.appendChild(firstA);
@@ -511,10 +540,10 @@ document.addEventListener('DOMContentLoaded', function() {
         pageA.setAttribute('aria-current', 'page');
       }
       
-      pageA.addEventListener('click', (e) => {
+      pageA.addEventListener('click', function(e) {
         e.preventDefault();
         currentPage = i;
-        applyFilters();
+        applyFilters(false); // No resetear la página
       });
       
       pageLi.appendChild(pageA);
@@ -544,10 +573,10 @@ document.addEventListener('DOMContentLoaded', function() {
       lastA.href = '#';
       lastA.textContent = totalPages;
       
-      lastA.addEventListener('click', (e) => {
+      lastA.addEventListener('click', function(e) {
         e.preventDefault();
         currentPage = totalPages;
-        applyFilters();
+        applyFilters(false); // No resetear la página
       });
       
       lastLi.appendChild(lastA);
@@ -569,11 +598,11 @@ document.addEventListener('DOMContentLoaded', function() {
     nextIcon.innerHTML = '&raquo;';
     nextA.appendChild(nextIcon);
     
-    nextA.addEventListener('click', (e) => {
+    nextA.addEventListener('click', function(e) {
       e.preventDefault();
       if (currentPage < totalPages) {
         currentPage++;
-        applyFilters();
+        applyFilters(false); // No resetear la página
       }
     });
     
@@ -631,8 +660,10 @@ document.addEventListener('DOMContentLoaded', function() {
       query += 'type=' + encodeURIComponent(filterType) + '&';
     }
     
-    // Añadir parámetros de paginación
+    // Añadir parámetros de paginación explícitamente
     query += `page=${currentPage}&limit=${itemsPerPage}`;
+    
+    console.log(`Aplicando filtros: Página ${currentPage} de ${totalPages}, Límite: ${itemsPerPage}`);
     
     // Mostrar indicador de carga
     const listContainer = document.getElementById('operationsList');
