@@ -25,7 +25,8 @@ document.addEventListener('DOMContentLoaded', function() {
             logoutButtons.forEach(button => {
                 button.addEventListener('click', function(e) {
                     e.preventDefault();
-                    Auth.logout();
+                    // Usar una función de cierre de sesión más robusta
+                    logoutUser();
                 });
             });
             
@@ -33,6 +34,24 @@ document.addEventListener('DOMContentLoaded', function() {
             controlAccessByRole();
         });
 });
+
+// Función para cerrar sesión de forma segura
+function logoutUser() {
+    console.log('Cerrando sesión...');
+    // Guardar el tema actual
+    const theme = localStorage.getItem('theme');
+    
+    // Limpiar localStorage
+    localStorage.clear();
+    
+    // Restaurar el tema
+    if (theme) {
+        localStorage.setItem('theme', theme);
+    }
+    
+    // Redirigir al login
+    window.location.replace('index.html');
+}
 
 // Función para controlar acceso según el rol
 function controlAccessByRole() {
