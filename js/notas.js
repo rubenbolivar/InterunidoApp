@@ -183,7 +183,7 @@ class NotesManager {
       const noteCard = document.createElement('div');
       noteCard.className = 'col-md-6 col-lg-4 mb-4';
       noteCard.innerHTML = `
-        <div class="card h-100">
+        <div class="card h-100 note-card" data-id="${note._id || note.id}">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">${this.escapeHtml(note.title)}</h5>
             <div class="dropdown">
@@ -225,6 +225,19 @@ class NotesManager {
         e.preventDefault();
         const noteId = btn.getAttribute('data-id');
         this.confirmDeleteNote(noteId);
+      });
+    });
+    
+    // Configurar evento para abrir nota al hacer clic en la tarjeta
+    document.querySelectorAll('.note-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        // Evitar que se active si se hizo clic en el menú de opciones o sus elementos
+        if (e.target.closest('.dropdown') || e.target.closest('.dropdown-menu')) {
+          return;
+        }
+        
+        const noteId = card.getAttribute('data-id');
+        this.viewNote(noteId);
       });
     });
   }
@@ -494,6 +507,91 @@ class NotesManager {
     };
     
     return text.toString().replace(/[&<>"']/g, m => map[m]);
+  }
+  
+  /**
+   * Muestra una nota en un modal
+   */
+  viewNote(noteId) {
+    const token = this.getAuthToken();
+    
+    fetch(`/api/v2/notes/${noteId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Sesión expirada o inválida');
+        } else if (response.status === 404) {
+          throw new Error('Nota no encontrada');
+        }
+        throw new Error('Error al obtener la nota');
+      }
+      return response.json();
+    })
+    .then(note => {
+      this.openViewNoteModal(note);
+    })
+    .catch(error => {
+      this.showAlert(error.message, 'danger');
+    });
+  }
+  
+  /**
+   * Abre el modal para ver una nota
+   */
+  openViewNoteModal(note) {
+    // Configurar contenido del modal
+    document.getElementById('viewNoteTitle').textContent = note.title;
+    document.getElementById('viewNoteContent').innerHTML = this.formatNoteContent(note.content);
+    
+    // Manejar las etiquetas
+    let tagsHtml = '';
+    if (note.tags) {
+      let tags = [];
+      if (Array.isArray(note.tags)) {
+        tags = note.tags;
+      } else if (typeof note.tags === 'string' && note.tags) {
+        tags = note.tags.split(',').map(tag => tag.trim());
+      }
+      
+      tagsHtml = tags.map(tag => 
+        `<span class="badge bg-secondary me-1">${this.escapeHtml(tag)}</span>`
+      ).join('');
+    }
+    document.getElementById('viewNoteTags').innerHTML = tagsHtml;
+    
+    // Mostrar fecha
+    document.getElementById('viewNoteDate').textContent = `Creada: ${this.formatDate(note.createdAt)}`;
+    
+    // Configurar botón de editar
+    const editBtn = document.getElementById('editNoteFromViewBtn');
+    editBtn.onclick = () => {
+      // Cerrar modal de vista
+      const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewNoteModal'));
+      viewModal.hide();
+      
+      // Abrir modal de edición
+      this.editNote(note._id || note.id);
+    };
+    
+    // Mostrar modal
+    const viewNoteModal = new bootstrap.Modal(document.getElementById('viewNoteModal'));
+    viewNoteModal.show();
+  }
+  
+  /**
+   * Formatea el contenido de la nota para mostrar en el modal
+   * Convierte saltos de línea en <br> y mantiene el formato
+   */
+  formatNoteContent(content) {
+    if (!content) return '';
+    
+    // Escapar HTML para evitar inyección de código
+    const escapedContent = this.escapeHtml(content);
+    
+    // Convertir saltos de línea en <br>
+    return escapedContent.replace(/\n/g, '<br>');
   }
 }
 
