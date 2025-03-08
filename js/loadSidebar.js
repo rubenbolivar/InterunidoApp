@@ -5,25 +5,34 @@ document.addEventListener('DOMContentLoaded', function() {
             // Cargar en el sidebar original para desktop
             document.getElementById('sidebar-container').innerHTML = data;
             
-            // Cargar en el offcanvas para móvil - VERSIÓN CORREGIDA
+            // Cargar en el offcanvas para móvil - SOLUCIÓN RADICAL
             const offcanvasBody = document.querySelector('.offcanvas-body');
             if (offcanvasBody) {
-                // Crear una versión simplificada del sidebar para el offcanvas
+                // Extraer solo el contenido interno del sidebar
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data, 'text/html');
                 const sidebarContent = doc.querySelector('.sidebar');
                 
-                // Extraer los elementos necesarios
-                const headerContent = sidebarContent.querySelector('.sidebar-header').innerHTML;
-                const navContent = sidebarContent.querySelector('.sidebar-nav').innerHTML;
-                const footerContent = sidebarContent.querySelector('.sidebar-footer').innerHTML;
-                
-                // Construir el HTML para el offcanvas
-                offcanvasBody.innerHTML = `
-                    <div class="sidebar-header">${headerContent}</div>
-                    <nav class="sidebar-nav">${navContent}</nav>
-                    <div class="sidebar-footer">${footerContent}</div>
-                `;
+                if (sidebarContent) {
+                    // Crear una versión simplificada del sidebar
+                    const headerContent = sidebarContent.querySelector('.sidebar-header');
+                    const navContent = sidebarContent.querySelector('.sidebar-nav');
+                    const footerContent = sidebarContent.querySelector('.sidebar-footer');
+                    
+                    // Limpiar el offcanvas body
+                    offcanvasBody.innerHTML = '';
+                    
+                    // Añadir solo la navegación y el footer, omitiendo el header para evitar duplicar el logo
+                    if (navContent) {
+                        const navClone = navContent.cloneNode(true);
+                        offcanvasBody.appendChild(navClone);
+                    }
+                    
+                    if (footerContent) {
+                        const footerClone = footerContent.cloneNode(true);
+                        offcanvasBody.appendChild(footerClone);
+                    }
+                }
             }
             
             // Configurar el cierre de sesión

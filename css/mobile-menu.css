@@ -28,35 +28,25 @@
     white-space: normal !important;
 }
 
-/* Cabecera del sidebar en el offcanvas */
-.offcanvas-body .sidebar-header {
+/* Ajustes para el header del offcanvas */
+.offcanvas-header {
     padding: 1rem !important;
-    text-align: center !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
 }
 
-.offcanvas-body .sidebar-header img {
-    max-width: 120px !important;
+/* Ajuste para el logo en el header del offcanvas */
+.offcanvas-header .offcanvas-logo {
+    width: 120px !important;
     height: auto !important;
-    margin-bottom: 0.5rem !important;
-}
-
-.offcanvas-body .sidebar-header h3 {
-    margin: 0 !important;
-    font-size: 1.25rem !important;
-    font-weight: 600 !important;
-}
-
-.offcanvas-body .sidebar-header p {
-    margin: 0 !important;
-    font-size: 0.875rem !important;
-    color: #6c757d !important;
+    margin: 0 auto !important;
+    display: block !important;
 }
 
 /* Navegación del sidebar en el offcanvas */
 .offcanvas-body .sidebar-nav {
-    padding: 1rem 0 !important;
+    padding: 1.5rem 0 !important;
     overflow-y: auto !important;
+    margin-top: 0.5rem !important;
 }
 
 .offcanvas-body .sidebar-nav a.nav-link {
@@ -109,24 +99,14 @@
     margin-right: 10px !important;
 }
 
-/* Ajustes para el logo en el header del offcanvas */
-.offcanvas-header .offcanvas-logo {
-    width: 120px !important;
-    height: auto !important;
-}
-
 /* Ajustes para tema oscuro */
 [data-bs-theme="dark"] .offcanvas {
     background-color: #212529 !important;
     color: #fff !important;
 }
 
-[data-bs-theme="dark"] .offcanvas-body .sidebar-header {
+[data-bs-theme="dark"] .offcanvas-header {
     border-bottom-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-[data-bs-theme="dark"] .offcanvas-body .sidebar-header p {
-    color: #adb5bd !important;
 }
 
 [data-bs-theme="dark"] .offcanvas-body .sidebar-nav a.nav-link {
