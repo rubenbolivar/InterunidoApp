@@ -1,71 +1,165 @@
-document.addEventListener('DOMContentLoaded', function() {
-  // Variables globales
-  let currentNoteId = null;
-  
-  // Obtener el token
-  function getAuthToken() {
-    return localStorage.getItem('auth_token');
-  }
-  
-  // Formatear fecha
-  function formatDate(dateString) {
-    const options = { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleDateString('es-ES', options);
-  }
-  
-  // Cargar notas desde el backend
-  function fetchNotes(queryParams = '') {
-    const token = getAuthToken();
+/**
+ * Notas V2 - Gestión de notas para InterUnido
+ * Versión mejorada con mejor manejo de errores y compatibilidad
+ */
+
+class NotesManager {
+  constructor() {
+    // Referencias a elementos del DOM
+    this.notesList = document.getElementById('notesList');
+    this.filterForm = document.getElementById('filterForm');
+    this.newNoteBtn = document.getElementById('newNoteBtn');
+    this.saveNoteBtn = document.getElementById('saveNoteBtn');
+    this.confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    this.alertContainer = document.getElementById('alertContainer');
     
-    if (!token) {
-      showAlert('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+    // Variables de estado
+    this.currentNoteId = null;
+    this.notes = [];
+    
+    // Inicializar
+    this.init();
+  }
+  
+  /**
+   * Inicializa la aplicación
+   */
+  init() {
+    // Verificar autenticación
+    if (!this.isAuthenticated()) {
+      this.showAlert('Debe iniciar sesión para acceder a las notas', 'warning');
       setTimeout(() => {
         window.location.href = 'index.html';
       }, 2000);
       return;
     }
     
-    fetch('/api/notes' + queryParams, {
+    // Cargar notas
+    this.fetchNotes();
+    
+    // Configurar eventos
+    this.setupEventListeners();
+  }
+  
+  /**
+   * Configura los listeners de eventos
+   */
+  setupEventListeners() {
+    // Filtrar notas
+    this.filterForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.applyFilters();
+    });
+    
+    // Nueva nota
+    this.newNoteBtn.addEventListener('click', () => {
+      this.openNoteModal();
+    });
+    
+    // Guardar nota
+    this.saveNoteBtn.addEventListener('click', () => {
+      this.saveNote();
+    });
+    
+    // Confirmar eliminación
+    this.confirmDeleteBtn.addEventListener('click', () => {
+      this.deleteNote();
+    });
+  }
+  
+  /**
+   * Verifica si el usuario está autenticado
+   */
+  isAuthenticated() {
+    return !!this.getAuthToken();
+  }
+  
+  /**
+   * Obtiene el token de autenticación
+   */
+  getAuthToken() {
+    return localStorage.getItem('auth_token');
+  }
+  
+  /**
+   * Obtiene los datos del usuario actual
+   */
+  getUserData() {
+    const userData = localStorage.getItem('user_data');
+    return userData ? JSON.parse(userData) : null;
+  }
+  
+  /**
+   * Carga las notas desde el servidor
+   */
+  fetchNotes(queryParams = '') {
+    const token = this.getAuthToken();
+    
+    // Mostrar estado de carga
+    this.notesList.innerHTML = `
+      <div class="col-12 text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2">Cargando notas...</p>
+      </div>
+    `;
+    
+    console.log(`Cargando notas con parámetros: ${queryParams || 'ninguno'}`);
+    
+    // Realizar petición al servidor
+    fetch('/api/v2/notes' + queryParams, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(response => {
+      console.log('Respuesta de notas recibida:', response.status, response.statusText);
+      
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Sesión expirada o inválida');
         }
-        throw new Error('Error al cargar las notas');
+        return response.text().then(text => {
+          console.error('Error response body:', text);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        });
       }
       return response.json();
     })
     .then(notes => {
-      displayNotes(notes);
+      console.log(`Recibidas ${notes.length} notas`);
+      this.notes = notes;
+      this.displayNotes(notes);
     })
     .catch(error => {
       console.error('Error al cargar notas:', error);
-      if (error.message === 'Sesión expirada o inválida') {
-        showAlert('Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
+      
+      if (error.message.includes('Sesión expirada')) {
+        this.showAlert('Su sesión ha expirado. Por favor, inicie sesión nuevamente.', 'warning');
         setTimeout(() => {
           window.location.href = 'index.html';
         }, 2000);
       } else {
-        showAlert('Error al cargar las notas. Por favor, intente nuevamente.');
+        this.showAlert('Error al cargar las notas. ' + error.message, 'danger');
+        this.notesList.innerHTML = `
+          <div class="col-12 text-center my-5">
+            <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las notas</p>
+            <button class="btn btn-outline-primary mt-2" onclick="notesManager.fetchNotes()">
+              <i class="fas fa-sync"></i> Reintentar
+            </button>
+          </div>
+        `;
       }
     });
   }
   
-  // Mostrar notas en la interfaz
-  function displayNotes(notes) {
-    const notesContainer = document.getElementById('notesList');
-    notesContainer.innerHTML = '';
+  /**
+   * Muestra las notas en la interfaz
+   */
+  displayNotes(notes) {
+    this.notesList.innerHTML = '';
     
     if (notes.length === 0) {
-      notesContainer.innerHTML = `
+      this.notesList.innerHTML = `
         <div class="col-12 text-center my-5">
           <p class="text-muted">No hay notas disponibles. ¡Crea una nueva nota!</p>
         </div>
@@ -82,142 +176,207 @@ document.addEventListener('DOMContentLoaded', function() {
         tags = note.tags.split(',').map(tag => tag.trim());
       }
       
-      const tagsHtml = tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('');
+      const tagsHtml = tags.map(tag => 
+        `<span class="badge bg-secondary me-1">${this.escapeHtml(tag)}</span>`
+      ).join('');
       
       const noteCard = document.createElement('div');
       noteCard.className = 'col-md-6 col-lg-4 mb-4';
       noteCard.innerHTML = `
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">${note.title}</h5>
+            <h5 class="card-title mb-0">${this.escapeHtml(note.title)}</h5>
             <div class="dropdown">
               <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-ellipsis-v"></i>
               </button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item edit-note" href="#" data-id="${note.id}"><i class="fas fa-edit me-2"></i>Editar</a></li>
-                <li><a class="dropdown-item delete-note" href="#" data-id="${note.id}"><i class="fas fa-trash-alt me-2"></i>Eliminar</a></li>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item edit-note" href="#" data-id="${note._id || note.id}"><i class="fas fa-edit me-2"></i>Editar</a></li>
+                <li><a class="dropdown-item delete-note" href="#" data-id="${note._id || note.id}"><i class="fas fa-trash-alt me-2"></i>Eliminar</a></li>
               </ul>
             </div>
           </div>
           <div class="card-body">
-            <p class="card-text">${note.content}</p>
+            <p class="card-text">${this.escapeHtml(note.content)}</p>
             <div class="mt-3">
               ${tagsHtml}
             </div>
           </div>
           <div class="card-footer text-muted">
-            <small>${formatDate(note.created_at)}</small>
+            <small>${this.formatDate(note.createdAt)}</small>
           </div>
         </div>
       `;
       
-      notesContainer.appendChild(noteCard);
+      this.notesList.appendChild(noteCard);
     });
     
     // Configurar eventos para editar y eliminar
     document.querySelectorAll('.edit-note').forEach(btn => {
-      btn.addEventListener('click', function(e) {
+      btn.addEventListener('click', (e) => {
         e.preventDefault();
-        const noteId = this.getAttribute('data-id');
-        editNote(noteId);
+        const noteId = btn.getAttribute('data-id');
+        this.editNote(noteId);
       });
     });
     
     document.querySelectorAll('.delete-note').forEach(btn => {
-      btn.addEventListener('click', function(e) {
+      btn.addEventListener('click', (e) => {
         e.preventDefault();
-        const noteId = this.getAttribute('data-id');
-        confirmDeleteNote(noteId);
+        const noteId = btn.getAttribute('data-id');
+        this.confirmDeleteNote(noteId);
       });
     });
   }
   
-  // Abrir modal para editar nota
-  function editNote(noteId) {
-    currentNoteId = noteId;
-    const token = getAuthToken();
+  /**
+   * Aplica los filtros seleccionados
+   */
+  applyFilters() {
+    const startDate = document.getElementById('filterStartDate').value;
+    const endDate = document.getElementById('filterEndDate').value;
+    const tags = document.getElementById('filterTags').value;
+    const search = document.getElementById('filterSearch').value;
     
-    fetch(`/api/notes/${noteId}`, {
+    let queryParams = '?';
+    if (startDate) queryParams += `startDate=${startDate}&`;
+    if (endDate) queryParams += `endDate=${endDate}&`;
+    if (tags) queryParams += `tags=${encodeURIComponent(tags)}&`;
+    if (search) queryParams += `search=${encodeURIComponent(search)}&`;
+    
+    // Eliminar el último '&' o '?' si no hay parámetros
+    queryParams = queryParams.endsWith('&') 
+      ? queryParams.slice(0, -1) 
+      : (queryParams === '?' ? '' : queryParams);
+    
+    console.log('Aplicando filtros:', { startDate, endDate, tags, search });
+    console.log('Query params:', queryParams);
+    
+    this.fetchNotes(queryParams);
+  }
+  
+  /**
+   * Abre el modal para crear una nueva nota
+   */
+  openNoteModal(note = null) {
+    // Limpiar formulario
+    document.getElementById('noteId').value = note ? (note._id || note.id) : '';
+    document.getElementById('noteTitle').value = note ? note.title : '';
+    document.getElementById('noteContent').value = note ? note.content : '';
+    
+    // Manejar las etiquetas
+    let tagsValue = '';
+    if (note) {
+      if (Array.isArray(note.tags)) {
+        tagsValue = note.tags.join(', ');
+      } else if (typeof note.tags === 'string') {
+        tagsValue = note.tags;
+      }
+    }
+    document.getElementById('noteTags').value = tagsValue;
+    
+    // Actualizar título del modal
+    document.getElementById('noteModalLabel').textContent = note ? 'Editar Nota' : 'Nueva Nota';
+    
+    // Mostrar modal
+    const noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
+    noteModal.show();
+  }
+  
+  /**
+   * Edita una nota existente
+   */
+  editNote(noteId) {
+    this.currentNoteId = noteId;
+    const token = this.getAuthToken();
+    
+    fetch(`/api/v2/notes/${noteId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(response => {
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Sesión expirada o inválida');
+        } else if (response.status === 404) {
+          throw new Error('Nota no encontrada');
         }
-        throw new Error('Error al cargar la nota');
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       return response.json();
     })
     .then(note => {
-      document.getElementById('noteId').value = note.id || note._id;
-      document.getElementById('noteTitle').value = note.title;
-      document.getElementById('noteContent').value = note.content;
-      
-      // Manejar las etiquetas que pueden venir como array o como string
-      let tagsValue = '';
-      if (Array.isArray(note.tags)) {
-        tagsValue = note.tags.join(', ');
-      } else if (typeof note.tags === 'string') {
-        tagsValue = note.tags;
-      }
-      document.getElementById('noteTags').value = tagsValue;
-      
-      document.getElementById('noteModalLabel').textContent = 'Editar Nota';
-      
-      const noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
-      noteModal.show();
+      this.openNoteModal(note);
     })
     .catch(error => {
       console.error('Error al cargar la nota:', error);
-      showAlert('Error al cargar la nota. Por favor, intente nuevamente.');
+      this.showAlert('Error al cargar la nota: ' + error.message, 'danger');
     });
   }
   
-  // Confirmar eliminación de nota
-  function confirmDeleteNote(noteId) {
-    currentNoteId = noteId;
+  /**
+   * Confirma la eliminación de una nota
+   */
+  confirmDeleteNote(noteId) {
+    this.currentNoteId = noteId;
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteNoteModal'));
     deleteModal.show();
   }
   
-  // Eliminar nota
-  function deleteNote() {
-    const token = getAuthToken();
+  /**
+   * Elimina una nota
+   */
+  deleteNote() {
+    const token = this.getAuthToken();
     
-    fetch(`/api/notes/${currentNoteId}`, {
+    fetch(`/api/v2/notes/${this.currentNoteId}`, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(response => {
-      if (response.ok) {
-        // Cerrar modal
-        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteNoteModal'));
-        deleteModal.hide();
-        
-        // Recargar notas
-        fetchNotes();
-        
-        // Mostrar mensaje de éxito
-        showAlert('Nota eliminada correctamente.', 'success');
-      } else {
-        throw new Error('Error al eliminar la nota');
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Sesión expirada o inválida');
+        } else if (response.status === 404) {
+          throw new Error('Nota no encontrada');
+        }
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
+      return response.json();
+    })
+    .then(() => {
+      // Cerrar modal
+      const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteNoteModal'));
+      deleteModal.hide();
+      
+      // Mostrar mensaje de éxito
+      this.showAlert('Nota eliminada correctamente', 'success');
+      
+      // Recargar notas
+      this.fetchNotes();
     })
     .catch(error => {
-      console.error('Error:', error);
-      showAlert('Error al eliminar la nota. Por favor, intente nuevamente.');
+      console.error('Error al eliminar la nota:', error);
+      this.showAlert('Error al eliminar la nota: ' + error.message, 'danger');
     });
   }
   
-  // Guardar nota (crear o actualizar)
-  function saveNote() {
-    const token = getAuthToken();
+  /**
+   * Guarda una nota (crea o actualiza)
+   */
+  saveNote() {
+    const token = this.getAuthToken();
     const noteId = document.getElementById('noteId').value;
     const title = document.getElementById('noteTitle').value;
     const content = document.getElementById('noteContent').value;
     const tags = document.getElementById('noteTags').value;
+    
+    console.log('Guardando nota:', { title, content, tags: tags.split(',') });
+    
+    // Validar campos requeridos
+    if (!title.trim() || !content.trim()) {
+      this.showAlert('El título y el contenido son obligatorios', 'warning');
+      return;
+    }
     
     // Convertir las etiquetas de string a array
     const tagsArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
@@ -228,8 +387,10 @@ document.addEventListener('DOMContentLoaded', function() {
       tags: tagsArray
     };
     
-    const url = noteId ? `/api/notes/${noteId}` : '/api/notes';
+    const url = noteId ? `/api/v2/notes/${noteId}` : '/api/v2/notes';
     const method = noteId ? 'PUT' : 'POST';
+    
+    console.log(`Enviando solicitud ${method} a ${url}`);
     
     fetch(url, {
       method,
@@ -240,93 +401,104 @@ document.addEventListener('DOMContentLoaded', function() {
       body: JSON.stringify(noteData)
     })
     .then(response => {
-      if (response.ok) {
-        // Cerrar modal
-        const noteModal = bootstrap.Modal.getInstance(document.getElementById('noteModal'));
-        noteModal.hide();
-        
-        // Recargar notas
-        fetchNotes();
-        
-        // Mostrar mensaje de éxito
-        const message = noteId ? 'Nota actualizada correctamente.' : 'Nota creada correctamente.';
-        showAlert(message, 'success');
-      } else {
-        throw new Error('Error al guardar la nota');
+      console.log('Respuesta recibida:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Sesión expirada o inválida');
+        }
+        return response.text().then(text => {
+          console.error('Error response body:', text);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        });
       }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Nota guardada exitosamente:', data);
+      
+      // Cerrar modal
+      const noteModal = bootstrap.Modal.getInstance(document.getElementById('noteModal'));
+      noteModal.hide();
+      
+      // Mostrar mensaje de éxito
+      const message = noteId ? 'Nota actualizada correctamente' : 'Nota creada correctamente';
+      this.showAlert(message, 'success');
+      
+      // Recargar notas
+      this.fetchNotes();
     })
     .catch(error => {
-      console.error('Error:', error);
-      showAlert('Error al guardar la nota. Por favor, intente nuevamente.');
+      console.error('Error al guardar la nota:', error);
+      this.showAlert('Error al guardar la nota: ' + error.message, 'danger');
     });
   }
   
-  // Mostrar alerta
-  function showAlert(message, type = 'danger') {
-    const alertContainer = document.createElement('div');
-    alertContainer.className = `alert alert-${type} alert-dismissible fade show`;
-    alertContainer.innerHTML = `
+  /**
+   * Muestra una alerta en la interfaz
+   */
+  showAlert(message, type = 'danger') {
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert alert-${type} alert-dismissible fade show`;
+    alertElement.innerHTML = `
       ${message}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     
-    // Insertar alerta antes del contenido principal
-    const mainContent = document.querySelector('.dashboard-content');
-    mainContent.insertBefore(alertContainer, mainContent.firstChild);
+    this.alertContainer.innerHTML = '';
+    this.alertContainer.appendChild(alertElement);
     
     // Auto-cerrar después de 5 segundos
     setTimeout(() => {
-      alertContainer.classList.remove('show');
-      setTimeout(() => alertContainer.remove(), 150);
+      if (alertElement.parentNode) {
+        const bsAlert = new bootstrap.Alert(alertElement);
+        bsAlert.close();
+      }
     }, 5000);
   }
   
-  // Configurar eventos
-  document.addEventListener('DOMContentLoaded', function() {
-    // Cargar notas al iniciar
-    fetchNotes();
+  /**
+   * Formatea una fecha para mostrarla
+   */
+  formatDate(dateString) {
+    if (!dateString) return 'Fecha desconocida';
     
-    // Evento para nueva nota
-    document.getElementById('newNoteBtn').addEventListener('click', function() {
-      // Limpiar formulario
-      document.getElementById('noteId').value = '';
-      document.getElementById('noteTitle').value = '';
-      document.getElementById('noteContent').value = '';
-      document.getElementById('noteTags').value = '';
-      
-      document.getElementById('noteModalLabel').textContent = 'Nueva Nota';
-      
-      const noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
-      noteModal.show();
-    });
+    const options = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
     
-    // Evento para guardar nota
-    document.getElementById('saveNoteBtn').addEventListener('click', saveNote);
+    try {
+      return new Date(dateString).toLocaleDateString('es-ES', options);
+    } catch (error) {
+      console.error('Error al formatear fecha:', error);
+      return 'Fecha inválida';
+    }
+  }
+  
+  /**
+   * Escapa caracteres HTML para prevenir XSS
+   */
+  escapeHtml(text) {
+    if (!text) return '';
     
-    // Evento para confirmar eliminación
-    document.getElementById('confirmDeleteBtn').addEventListener('click', deleteNote);
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
     
-    // Evento para filtrar notas
-    document.getElementById('filterForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const startDate = document.getElementById('filterStartDate').value;
-      const endDate = document.getElementById('filterEndDate').value;
-      const tags = document.getElementById('filterTags').value;
-      const search = document.getElementById('filterSearch').value;
-      
-      let queryParams = '?';
-      if (startDate) queryParams += `start_date=${startDate}&`;
-      if (endDate) queryParams += `end_date=${endDate}&`;
-      if (tags) queryParams += `tags=${encodeURIComponent(tags)}&`;
-      if (search) queryParams += `search=${encodeURIComponent(search)}&`;
-      
-      // Eliminar el último '&' o '?' si no hay parámetros
-      queryParams = queryParams.endsWith('&') 
-        ? queryParams.slice(0, -1) 
-        : (queryParams === '?' ? '' : queryParams);
-      
-      fetchNotes(queryParams);
-    });
-  });
+    return text.toString().replace(/[&<>"']/g, m => map[m]);
+  }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+  // Crear instancia global
+  window.notesManager = new NotesManager();
 }); 
