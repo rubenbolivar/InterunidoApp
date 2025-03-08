@@ -360,23 +360,39 @@ input[type="number"] {
     background-color: var(--background-color);
 }
 
-/* Estilos para el offcanvas en dispositivos móviles */
+/* Estilos para el offcanvas en dispositivos móviles - VERSIÓN CORREGIDA */
+.offcanvas {
+    width: 280px !important;
+    max-width: 80vw;
+    overflow-x: hidden !important;
+}
+
 .offcanvas-body {
-    display: flex;
-    flex-direction: column;
-    padding: 0;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+}
+
+.offcanvas-body > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
 }
 
 .offcanvas-body .sidebar-header {
     padding: 1rem;
     text-align: center;
     border-bottom: 1px solid var(--border-color);
+    width: 100% !important;
 }
 
 .offcanvas-body .sidebar-nav {
     flex: 1;
     padding: 1rem 0;
     overflow-y: auto;
+    overflow-x: hidden !important;
+    width: 100% !important;
 }
 
 .offcanvas-body .sidebar-nav .nav-link {
@@ -386,36 +402,21 @@ input[type="number"] {
     align-items: center;
     text-decoration: none;
     transition: all 0.3s ease;
+    width: 100% !important;
 }
 
-.offcanvas-body .sidebar-nav .nav-link:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+.offcanvas-body .sidebar-nav #admin-links {
+    width: 100% !important;
 }
 
-.offcanvas-body .sidebar-nav .nav-link.active {
-    background-color: var(--primary-color);
-    color: #fff;
-}
-
-.offcanvas-body .sidebar-nav .nav-link i {
-    width: 20px;
-    text-align: center;
-    margin-right: 10px;
+.offcanvas-body .sidebar-nav #admin-links .nav-link {
+    width: 100% !important;
 }
 
 .offcanvas-body .sidebar-footer {
     padding: 1rem;
     border-top: 1px solid var(--border-color);
-}
-
-.offcanvas-body .sidebar-footer .nav-link {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 0;
-}
-
-.offcanvas-body .sidebar-footer .nav-link i {
-    margin-right: 10px;
+    width: 100% !important;
 }
 
 /* Ajustes para tema oscuro en el offcanvas */
@@ -445,9 +446,4 @@ input[type="number"] {
     width: 120px;
     height: auto;
     margin-bottom: 0;
-}
-
-/* Ajuste para el ancho del offcanvas */
-.offcanvas {
-    width: 280px !important;
 }

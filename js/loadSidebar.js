@@ -5,25 +5,25 @@ document.addEventListener('DOMContentLoaded', function() {
             // Cargar en el sidebar original para desktop
             document.getElementById('sidebar-container').innerHTML = data;
             
-            // Cargar en el offcanvas para móvil
+            // Cargar en el offcanvas para móvil - VERSIÓN CORREGIDA
             const offcanvasBody = document.querySelector('.offcanvas-body');
             if (offcanvasBody) {
-                // Extraer solo el contenido interno del sidebar, no el contenedor
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = data;
+                // Crear una versión simplificada del sidebar para el offcanvas
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data, 'text/html');
+                const sidebarContent = doc.querySelector('.sidebar');
                 
-                // Obtener los elementos internos del sidebar
-                const sidebarHeader = tempDiv.querySelector('.sidebar-header');
-                const sidebarNav = tempDiv.querySelector('.sidebar-nav');
-                const sidebarFooter = tempDiv.querySelector('.sidebar-footer');
+                // Extraer los elementos necesarios
+                const headerContent = sidebarContent.querySelector('.sidebar-header').innerHTML;
+                const navContent = sidebarContent.querySelector('.sidebar-nav').innerHTML;
+                const footerContent = sidebarContent.querySelector('.sidebar-footer').innerHTML;
                 
-                // Limpiar el offcanvas body
-                offcanvasBody.innerHTML = '';
-                
-                // Añadir los elementos al offcanvas manteniendo la estructura vertical
-                if (sidebarHeader) offcanvasBody.appendChild(sidebarHeader.cloneNode(true));
-                if (sidebarNav) offcanvasBody.appendChild(sidebarNav.cloneNode(true));
-                if (sidebarFooter) offcanvasBody.appendChild(sidebarFooter.cloneNode(true));
+                // Construir el HTML para el offcanvas
+                offcanvasBody.innerHTML = `
+                    <div class="sidebar-header">${headerContent}</div>
+                    <nav class="sidebar-nav">${navContent}</nav>
+                    <div class="sidebar-footer">${footerContent}</div>
+                `;
             }
             
             // Configurar el cierre de sesión

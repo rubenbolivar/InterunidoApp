@@ -1,0 +1,142 @@
+/* Estilos específicos para el menú móvil */
+
+/* Ajustes generales del offcanvas */
+.offcanvas {
+    width: 280px !important;
+    max-width: 80vw !important;
+    overflow-x: hidden !important;
+}
+
+/* Contenedor principal del offcanvas */
+.offcanvas-body {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+}
+
+/* Todos los elementos dentro del offcanvas */
+.offcanvas-body > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Cabecera del sidebar en el offcanvas */
+.offcanvas-body .sidebar-header {
+    padding: 1rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    width: 100% !important;
+}
+
+.offcanvas-body .sidebar-header img {
+    max-width: 120px;
+    height: auto;
+    margin-bottom: 0.5rem;
+}
+
+.offcanvas-body .sidebar-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.offcanvas-body .sidebar-header p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Navegación del sidebar en el offcanvas */
+.offcanvas-body .sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    width: 100% !important;
+}
+
+.offcanvas-body .sidebar-nav a.nav-link {
+    padding: 0.75rem 1.5rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    width: 100% !important;
+}
+
+.offcanvas-body .sidebar-nav a.nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.offcanvas-body .sidebar-nav a.nav-link.active {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.offcanvas-body .sidebar-nav a.nav-link i {
+    width: 20px;
+    text-align: center;
+    margin-right: 10px;
+}
+
+/* Contenedor de enlaces de admin */
+.offcanvas-body .sidebar-nav #admin-links {
+    width: 100% !important;
+}
+
+.offcanvas-body .sidebar-nav #admin-links a.nav-link {
+    width: 100% !important;
+}
+
+/* Footer del sidebar en el offcanvas */
+.offcanvas-body .sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    width: 100% !important;
+}
+
+.offcanvas-body .sidebar-footer a.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    color: #dc3545;
+}
+
+.offcanvas-body .sidebar-footer a.nav-link i {
+    margin-right: 10px;
+}
+
+/* Ajustes para el logo en el header del offcanvas */
+.offcanvas-header .offcanvas-logo {
+    width: 120px;
+    height: auto;
+}
+
+/* Ajustes para tema oscuro */
+[data-bs-theme="dark"] .offcanvas {
+    background-color: #212529;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-header p {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-nav a.nav-link {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-nav a.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-footer {
+    border-top-color: rgba(255, 255, 255, 0.1);
+} 
