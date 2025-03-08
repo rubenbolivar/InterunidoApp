@@ -8,16 +8,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // Cargar en el offcanvas para móvil
             const offcanvasBody = document.querySelector('.offcanvas-body');
             if (offcanvasBody) {
-                const sidebarContent = document.createElement('div');
-                sidebarContent.innerHTML = data;
+                // Extraer solo el contenido interno del sidebar, no el contenedor
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data;
                 
-                // Remover la clase sidebar del contenedor principal en el offcanvas
-                const sidebarDiv = sidebarContent.querySelector('.sidebar');
-                if (sidebarDiv) {
-                    sidebarDiv.classList.remove('sidebar');
-                }
+                // Obtener los elementos internos del sidebar
+                const sidebarHeader = tempDiv.querySelector('.sidebar-header');
+                const sidebarNav = tempDiv.querySelector('.sidebar-nav');
+                const sidebarFooter = tempDiv.querySelector('.sidebar-footer');
                 
-                offcanvasBody.appendChild(sidebarContent.firstChild);
+                // Limpiar el offcanvas body
+                offcanvasBody.innerHTML = '';
+                
+                // Añadir los elementos al offcanvas manteniendo la estructura vertical
+                if (sidebarHeader) offcanvasBody.appendChild(sidebarHeader.cloneNode(true));
+                if (sidebarNav) offcanvasBody.appendChild(sidebarNav.cloneNode(true));
+                if (sidebarFooter) offcanvasBody.appendChild(sidebarFooter.cloneNode(true));
             }
             
             // Configurar el cierre de sesión

@@ -359,3 +359,95 @@ input[type="number"] {
 [data-bs-theme="dark"] main {
     background-color: var(--background-color);
 }
+
+/* Estilos para el offcanvas en dispositivos móviles */
+.offcanvas-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.offcanvas-body .sidebar-header {
+    padding: 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.offcanvas-body .sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+    overflow-y: auto;
+}
+
+.offcanvas-body .sidebar-nav .nav-link {
+    padding: 0.75rem 1.5rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.offcanvas-body .sidebar-nav .nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.offcanvas-body .sidebar-nav .nav-link.active {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.offcanvas-body .sidebar-nav .nav-link i {
+    width: 20px;
+    text-align: center;
+    margin-right: 10px;
+}
+
+.offcanvas-body .sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.offcanvas-body .sidebar-footer .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.offcanvas-body .sidebar-footer .nav-link i {
+    margin-right: 10px;
+}
+
+/* Ajustes para tema oscuro en el offcanvas */
+[data-bs-theme="dark"] .offcanvas {
+    background-color: #212529;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-nav .nav-link {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-footer {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Ajuste para el logo en el offcanvas */
+.offcanvas-header .offcanvas-logo {
+    width: 120px;
+    height: auto;
+    margin-bottom: 0;
+}
+
+/* Ajuste para el ancho del offcanvas */
+.offcanvas {
+    width: 280px !important;
+}
