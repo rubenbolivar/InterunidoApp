@@ -1390,6 +1390,12 @@ app.delete('/api/v2/notes/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint de prueba para verificar que la API está funcionando
+app.get('/api/v2/test', (req, res) => {
+  logger.info('Endpoint de prueba accedido');
+  res.json({ message: 'API v2 funcionando correctamente', timestamp: new Date() });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => logger.info(`Servidor API corriendo en puerto ${PORT}`));
 // Actualización servidor: Wed Feb 19 15:47:23 -04 2025

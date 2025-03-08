@@ -95,6 +95,24 @@ class NotesManager {
   fetchNotes(queryParams = '') {
     const token = this.getAuthToken();
     
+    // Verificar primero si la API está funcionando
+    console.log('Verificando API...');
+    fetch('/api/v2/test')
+      .then(response => response.json())
+      .then(data => {
+        console.log('API test response:', data);
+        this.loadNotes(token, queryParams);
+      })
+      .catch(error => {
+        console.error('Error en test de API:', error);
+        this.showAlert('Error al conectar con el servidor. Por favor, intente nuevamente.', 'danger');
+      });
+  }
+  
+  /**
+   * Carga las notas desde el servidor
+   */
+  loadNotes(token, queryParams = '') {
     // Mostrar estado de carga
     this.notesList.innerHTML = `
       <div class="col-12 text-center my-5">
@@ -105,20 +123,28 @@ class NotesManager {
       </div>
     `;
     
+    console.log(`Cargando notas con parámetros: ${queryParams || 'ninguno'}`);
+    
     // Realizar petición al servidor
     fetch('/api/v2/notes' + queryParams, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(response => {
+      console.log('Respuesta de notas recibida:', response.status, response.statusText);
+      
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Sesión expirada o inválida');
         }
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        return response.text().then(text => {
+          console.error('Error response body:', text);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        });
       }
       return response.json();
     })
     .then(notes => {
+      console.log(`Recibidas ${notes.length} notas`);
       this.notes = notes;
       this.displayNotes(notes);
     })
@@ -241,7 +267,11 @@ class NotesManager {
       ? queryParams.slice(0, -1) 
       : (queryParams === '?' ? '' : queryParams);
     
-    this.fetchNotes(queryParams);
+    console.log('Aplicando filtros:', { startDate, endDate, tags, search });
+    console.log('Query params:', queryParams);
+    
+    const token = this.getAuthToken();
+    this.loadNotes(token, queryParams);
   }
   
   /**
@@ -341,7 +371,7 @@ class NotesManager {
       this.showAlert('Nota eliminada correctamente', 'success');
       
       // Recargar notas
-      this.fetchNotes();
+      this.loadNotes(this.getAuthToken());
     })
     .catch(error => {
       console.error('Error al eliminar la nota:', error);
@@ -358,6 +388,8 @@ class NotesManager {
     const title = document.getElementById('noteTitle').value;
     const content = document.getElementById('noteContent').value;
     const tags = document.getElementById('noteTags').value;
+    
+    console.log('Guardando nota:', { title, content, tags: tags.split(',') });
     
     // Validar campos requeridos
     if (!title.trim() || !content.trim()) {
@@ -377,6 +409,8 @@ class NotesManager {
     const url = noteId ? `/api/v2/notes/${noteId}` : '/api/v2/notes';
     const method = noteId ? 'PUT' : 'POST';
     
+    console.log(`Enviando solicitud ${method} a ${url}`);
+    
     fetch(url, {
       method,
       headers: {
@@ -386,15 +420,22 @@ class NotesManager {
       body: JSON.stringify(noteData)
     })
     .then(response => {
+      console.log('Respuesta recibida:', response.status, response.statusText);
+      
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Sesión expirada o inválida');
         }
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        return response.text().then(text => {
+          console.error('Error response body:', text);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        });
       }
       return response.json();
     })
-    .then(() => {
+    .then(data => {
+      console.log('Nota guardada exitosamente:', data);
+      
       // Cerrar modal
       const noteModal = bootstrap.Modal.getInstance(document.getElementById('noteModal'));
       noteModal.hide();
@@ -404,7 +445,7 @@ class NotesManager {
       this.showAlert(message, 'success');
       
       // Recargar notas
-      this.fetchNotes();
+      this.loadNotes(this.getAuthToken());
     })
     .catch(error => {
       console.error('Error al guardar la nota:', error);
