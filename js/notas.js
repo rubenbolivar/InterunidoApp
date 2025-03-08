@@ -23,16 +23,39 @@ document.addEventListener('DOMContentLoaded', function() {
   function fetchNotes(queryParams = '') {
     const token = getAuthToken();
     
+    if (!token) {
+      showAlert('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 2000);
+      return;
+    }
+    
     fetch('/api/notes' + queryParams, {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Sesión expirada o inválida');
+        }
+        throw new Error('Error al cargar las notas');
+      }
+      return response.json();
+    })
     .then(notes => {
       displayNotes(notes);
     })
     .catch(error => {
       console.error('Error al cargar notas:', error);
-      showAlert('Error al cargar las notas. Por favor, intente nuevamente.');
+      if (error.message === 'Sesión expirada o inválida') {
+        showAlert('Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 2000);
+      } else {
+        showAlert('Error al cargar las notas. Por favor, intente nuevamente.');
+      }
     });
   }
   
@@ -51,7 +74,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     notes.forEach(note => {
-      const tags = note.tags ? note.tags.split(',').map(tag => tag.trim()) : [];
+      // Manejar las etiquetas que pueden venir como array o como string
+      let tags = [];
+      if (Array.isArray(note.tags)) {
+        tags = note.tags;
+      } else if (typeof note.tags === 'string' && note.tags) {
+        tags = note.tags.split(',').map(tag => tag.trim());
+      }
+      
       const tagsHtml = tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('');
       
       const noteCard = document.createElement('div');
@@ -109,14 +139,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const token = getAuthToken();
     
     fetch(`/api/notes/${noteId}`, {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Sesión expirada o inválida');
+        }
+        throw new Error('Error al cargar la nota');
+      }
+      return response.json();
+    })
     .then(note => {
-      document.getElementById('noteId').value = note.id;
+      document.getElementById('noteId').value = note.id || note._id;
       document.getElementById('noteTitle').value = note.title;
       document.getElementById('noteContent').value = note.content;
-      document.getElementById('noteTags').value = note.tags || '';
+      
+      // Manejar las etiquetas que pueden venir como array o como string
+      let tagsValue = '';
+      if (Array.isArray(note.tags)) {
+        tagsValue = note.tags.join(', ');
+      } else if (typeof note.tags === 'string') {
+        tagsValue = note.tags;
+      }
+      document.getElementById('noteTags').value = tagsValue;
       
       document.getElementById('noteModalLabel').textContent = 'Editar Nota';
       
@@ -173,10 +219,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const content = document.getElementById('noteContent').value;
     const tags = document.getElementById('noteTags').value;
     
+    // Convertir las etiquetas de string a array
+    const tagsArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
+    
     const noteData = {
       title,
       content,
-      tags
+      tags: tagsArray
     };
     
     const url = noteId ? `/api/notes/${noteId}` : '/api/notes';
@@ -186,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
       method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(noteData)
     })
