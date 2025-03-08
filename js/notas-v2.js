@@ -95,24 +95,6 @@ class NotesManager {
   fetchNotes(queryParams = '') {
     const token = this.getAuthToken();
     
-    // Verificar primero si la API está funcionando
-    console.log('Verificando API...');
-    fetch('/api/v2/test')
-      .then(response => response.json())
-      .then(data => {
-        console.log('API test response:', data);
-        this.loadNotes(token, queryParams);
-      })
-      .catch(error => {
-        console.error('Error en test de API:', error);
-        this.showAlert('Error al conectar con el servidor. Por favor, intente nuevamente.', 'danger');
-      });
-  }
-  
-  /**
-   * Carga las notas desde el servidor
-   */
-  loadNotes(token, queryParams = '') {
     // Mostrar estado de carga
     this.notesList.innerHTML = `
       <div class="col-12 text-center my-5">
@@ -270,8 +252,7 @@ class NotesManager {
     console.log('Aplicando filtros:', { startDate, endDate, tags, search });
     console.log('Query params:', queryParams);
     
-    const token = this.getAuthToken();
-    this.loadNotes(token, queryParams);
+    this.fetchNotes(queryParams);
   }
   
   /**
@@ -371,7 +352,7 @@ class NotesManager {
       this.showAlert('Nota eliminada correctamente', 'success');
       
       // Recargar notas
-      this.loadNotes(this.getAuthToken());
+      this.fetchNotes();
     })
     .catch(error => {
       console.error('Error al eliminar la nota:', error);
@@ -445,7 +426,7 @@ class NotesManager {
       this.showAlert(message, 'success');
       
       // Recargar notas
-      this.loadNotes(this.getAuthToken());
+      this.fetchNotes();
     })
     .catch(error => {
       console.error('Error al guardar la nota:', error);
