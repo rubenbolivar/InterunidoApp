@@ -313,8 +313,12 @@ document.addEventListener('DOMContentLoaded', function() {
           e.preventDefault();
           const operationId = e.target.getAttribute('data-id');
           if (op.estado === 'incompleta') {
-            // Redirigir a la venta con ?id=...
-            window.location.href = `venta.html?id=${operationId}`;
+            // Redirigir según el tipo de operación
+            if (op.type === 'canje') {
+              window.location.href = `canje.html?id=${operationId}`;
+            } else {
+              window.location.href = `venta.html?id=${operationId}`;
+            }
           } else {
             // Llamar modal con detalles
             showOperationDetailModal(op);
@@ -389,8 +393,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (op.estado === 'incompleta') {
       modalActionButton.textContent = 'Completar';
       modalActionButton.onclick = function() {
-        // Redirigir a la venta con ?id=...
-        window.location.href = `venta.html?id=${op._id}`;
+        // Redirigir según el tipo de operación
+        if (op.type === 'canje') {
+          window.location.href = `canje.html?id=${op._id}`;
+        } else {
+          window.location.href = `venta.html?id=${op._id}`;
+        }
       };
     } else {
       modalActionButton.textContent = 'Cerrar';
