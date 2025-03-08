@@ -32,6 +32,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         const footerClone = footerContent.cloneNode(true);
                         offcanvasBody.appendChild(footerClone);
                     }
+                    
+                    // Aplicar control de acceso específicamente al menú móvil
+                    applyAccessControlToMobileMenu();
                 }
             }
             
@@ -45,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
             
-            // Controlar visibilidad de enlaces según el rol
+            // Controlar visibilidad de enlaces según el rol para el sidebar desktop
             controlAccessByRole();
         });
 });
@@ -68,6 +71,28 @@ function logoutUser() {
     window.location.replace('index.html');
 }
 
+// Función para aplicar control de acceso específicamente al menú móvil
+function applyAccessControlToMobileMenu() {
+    // Obtener datos del usuario
+    const userData = localStorage.getItem('user_data');
+    if (!userData) return;
+    
+    const user = JSON.parse(userData);
+    const isAdmin = user.role === 'admin';
+    
+    // Seleccionar específicamente el contenedor de enlaces de admin en el menú móvil
+    const mobileAdminLinks = document.querySelector('.offcanvas-body #admin-links');
+    
+    // Mostrar u ocultar según el rol
+    if (mobileAdminLinks) {
+        if (isAdmin) {
+            mobileAdminLinks.style.display = 'block';
+        } else {
+            mobileAdminLinks.style.display = 'none';
+        }
+    }
+}
+
 // Función para controlar acceso según el rol
 function controlAccessByRole() {
     // Obtener datos del usuario
@@ -77,17 +102,17 @@ function controlAccessByRole() {
     const user = JSON.parse(userData);
     const isAdmin = user.role === 'admin';
     
-    // Seleccionar todos los contenedores de enlaces de admin
-    const adminLinks = document.querySelectorAll('#admin-links');
+    // Seleccionar los contenedores de enlaces de admin en el sidebar desktop
+    const desktopAdminLinks = document.querySelector('#sidebar-container #admin-links');
     
     // Mostrar u ocultar según el rol
-    adminLinks.forEach(container => {
+    if (desktopAdminLinks) {
         if (isAdmin) {
-            container.style.display = 'block';
+            desktopAdminLinks.style.display = 'block';
         } else {
-            container.style.display = 'none';
+            desktopAdminLinks.style.display = 'none';
         }
-    });
+    }
     
     // Verificar la página actual y redirigir si no tiene acceso
     const currentPath = window.location.pathname;
