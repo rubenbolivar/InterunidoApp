@@ -208,12 +208,19 @@ document.addEventListener('DOMContentLoaded', function() {
       let pendingValue = 0;
       
       // Verificar si hay detalles y montoPendiente
-      if (op.details && op.details.summary) {
-        // Corregido: Verificar ambos campos posibles
-        if (typeof op.details.summary.montoPendiente !== 'undefined') {
-          pendingValue = op.details.summary.montoPendiente;
-        } else if (typeof op.details.summary.montoRestante !== 'undefined') {
-          pendingValue = op.details.summary.montoRestante;
+      if (op.details) {
+        // Para operaciones de venta, el monto pendiente está en details.summary
+        if (op.details.summary) {
+          if (typeof op.details.summary.montoPendiente !== 'undefined') {
+            pendingValue = op.details.summary.montoPendiente;
+          } else if (typeof op.details.summary.montoRestante !== 'undefined') {
+            pendingValue = op.details.summary.montoRestante;
+          }
+        }
+        
+        // Para operaciones de canje, el monto pendiente puede estar directamente en details
+        if (op.type === 'canje' && typeof op.details.montoPendiente !== 'undefined') {
+          pendingValue = op.details.montoPendiente;
         }
         
         // Asegurarse de que el estado sea coherente con el monto pendiente

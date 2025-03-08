@@ -499,7 +499,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             tipo: operationData.tipo,
             transacciones: todasLasTransacciones,
             totalDiferencia: operationData.totalDiferencia,
-            montoPendiente: montoPendiente
+            montoPendiente: montoPendiente,
+            summary: {
+              montoPendiente: montoPendiente
+            }
           },
           estado: operacionCompleta ? 'completa' : 'incompleta'
         };
