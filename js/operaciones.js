@@ -209,18 +209,35 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Verificar si hay detalles y montoPendiente
       if (op.details) {
-        // Para operaciones de venta, el monto pendiente está en details.summary
-        if (op.details.summary) {
-          if (typeof op.details.summary.montoPendiente !== 'undefined') {
-            pendingValue = op.details.summary.montoPendiente;
-          } else if (typeof op.details.summary.montoRestante !== 'undefined') {
-            pendingValue = op.details.summary.montoRestante;
-          }
+        // Añadir logs para depuración
+        if (op.type === 'canje') {
+          console.log(`Operación de canje ${op._id}:`, op);
+          console.log(`Estructura de details:`, op.details);
+          console.log(`Monto pendiente en details:`, op.details.montoPendiente);
+          console.log(`Monto pendiente en details.summary:`, op.details.summary?.montoPendiente);
         }
         
-        // Para operaciones de canje, el monto pendiente puede estar directamente en details
-        if (op.type === 'canje' && typeof op.details.montoPendiente !== 'undefined') {
-          pendingValue = op.details.montoPendiente;
+        // Lógica específica según el tipo de operación
+        if (op.type === 'venta') {
+          // Para operaciones de venta, el monto pendiente está en details.summary
+          if (op.details.summary) {
+            if (typeof op.details.summary.montoPendiente !== 'undefined') {
+              pendingValue = op.details.summary.montoPendiente;
+            } else if (typeof op.details.summary.montoRestante !== 'undefined') {
+              pendingValue = op.details.summary.montoRestante;
+            }
+          }
+        } else if (op.type === 'canje') {
+          // Para operaciones de canje, primero intentamos obtener el monto pendiente directamente de details
+          if (typeof op.details.montoPendiente !== 'undefined') {
+            pendingValue = op.details.montoPendiente;
+            console.log(`Monto pendiente asignado desde details.montoPendiente:`, pendingValue);
+          } 
+          // Si no está en details, intentamos obtenerlo de details.summary (para compatibilidad con nuevas operaciones)
+          else if (op.details.summary && typeof op.details.summary.montoPendiente !== 'undefined') {
+            pendingValue = op.details.summary.montoPendiente;
+            console.log(`Monto pendiente asignado desde details.summary.montoPendiente:`, pendingValue);
+          }
         }
         
         // Asegurarse de que el estado sea coherente con el monto pendiente
@@ -322,8 +339,12 @@ document.addEventListener('DOMContentLoaded', function() {
           if (op.estado === 'incompleta') {
             // Redirigir según el tipo de operación
             if (op.type === 'canje') {
-              window.location.href = `canje.html?id=${operationId}`;
+              console.log(`Redirigiendo a canje.html para completar operación ${operationId}`);
+              // Usar replace para evitar problemas con el historial del navegador
+              window.location.replace(`canje.html?id=${operationId}`);
+              return; // Detener la ejecución para evitar redirecciones adicionales
             } else {
+              console.log(`Redirigiendo a venta.html para completar operación ${operationId}`);
               window.location.href = `venta.html?id=${operationId}`;
             }
           } else {
@@ -402,8 +423,12 @@ document.addEventListener('DOMContentLoaded', function() {
       modalActionButton.onclick = function() {
         // Redirigir según el tipo de operación
         if (op.type === 'canje') {
-          window.location.href = `canje.html?id=${op._id}`;
+          console.log(`Redirigiendo a canje.html para completar operación ${op._id}`);
+          // Usar replace para evitar problemas con el historial del navegador
+          window.location.replace(`canje.html?id=${op._id}`);
+          return; // Detener la ejecución para evitar redirecciones adicionales
         } else {
+          console.log(`Redirigiendo a venta.html para completar operación ${op._id}`);
           window.location.href = `venta.html?id=${op._id}`;
         }
       };
