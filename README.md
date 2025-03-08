@@ -3,6 +3,34 @@ Aplicación para gestión de operaciones de Interunido
 
 ## Estado del Proyecto - Marzo 2025
 
+### Actualización: 15 de Marzo 2025
+
+#### Mejoras Recientes en el Sistema de Notas
+
+1. **Visualización Modal de Notas** ✅
+   - Implementación de funcionalidad para abrir notas en modal al hacer clic
+   - Visualización completa del contenido de la nota con formato mejorado
+   - Integración con el sistema de edición existente
+   - Mejora en la experiencia de usuario al interactuar con las notas
+
+2. **Mejoras en la Interfaz de Notas** ✅
+   - Tarjetas de notas interactivas con efectos visuales al pasar el cursor
+   - Indicadores visuales de que las notas son clickeables
+   - Transiciones suaves para mejorar la experiencia de usuario
+   - Formato mejorado para la visualización de contenido con múltiples líneas
+
+3. **Consolidación de la Página de Notas** ✅
+   - Unificación de las versiones anteriores en una sola página de notas
+   - Eliminación de referencias a "Nueva Versión" para una experiencia más limpia
+   - Simplificación del menú lateral con una única entrada para notas
+   - Estandarización de la interfaz para mayor consistencia
+
+4. **Optimización del Flujo de Trabajo** ✅
+   - Estandarización del proceso de despliegue usando la rama principal
+   - Mejora en la gestión de cambios y actualizaciones
+   - Documentación detallada de las nuevas funcionalidades
+   - Implementación de buenas prácticas para futuros desarrollos
+
 ### Actualización: 6 de Marzo 2025
 
 #### Características Implementadas
@@ -24,6 +52,13 @@ Aplicación para gestión de operaciones de Interunido
    - Implementación de técnica de "debounce" para optimizar llamadas al servidor
    - Indicadores visuales de búsqueda activa
    - Integración con el sistema de paginación
+
+4. **Libreta de Notas con Filtrado Avanzado** ✅
+   - Sistema completo para crear, editar y eliminar notas
+   - Filtrado por fecha, contenido y etiquetas
+   - Organización mediante sistema de etiquetas
+   - Visualización detallada al hacer clic en las notas
+   - Interfaz intuitiva integrada con el diseño existente
 
 #### Estado Actual y Puntos de Atención
 
