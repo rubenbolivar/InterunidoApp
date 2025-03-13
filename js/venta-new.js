@@ -113,18 +113,10 @@ const COMMISSION_FACTORS = {
         // Llenar los inputs
         document.getElementById('clientName').value = this.clientName;
         
-        // Formatear el monto pendiente si la función de formateo está disponible
+        // Usamos el valor directo sin formatear inicialmente
         const amountInput = document.getElementById('amountToSell');
         if (amountInput) {
-          // Guardar el valor numérico real como atributo data-value
-          amountInput.setAttribute('data-value', pending.toString());
-          
-          // Si ya cambiamos el tipo a 'text' y existe la función formatAmount
-          if (amountInput.type === 'text' && typeof formatAmount === 'function') {
-            amountInput.value = formatAmount(pending);
-          } else {
-            amountInput.value = pending;
-          }
+          amountInput.value = pending;
         }
     
         // Con base en la divisa
@@ -812,7 +804,8 @@ const COMMISSION_FACTORS = {
     
     // Función para formatear montos con formato venezolano (90.000,00)
     function formatAmount(value) {
-      const numValue = parseFloat(value) || 0;
+      const numValue = parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
+      if (numValue === 0) return '';  // No mostrar 0,00 si no hay valor
       return new Intl.NumberFormat('es-VE', {
         style: 'decimal',
         minimumFractionDigits: 2,
@@ -829,8 +822,8 @@ const COMMISSION_FACTORS = {
   
     // Actualiza el monto en Bs en tiempo real
     function updateClientAmount() {
-      // Obtenemos el valor numérico real desde el atributo data-value
-      const amount = parseFloat(amountToSellInput.getAttribute('data-value') || amountToSellInput.value) || 0;
+      // Usamos el valor directo del input, parseFloat maneja tanto formatos
+      const amount = parseFloat((amountToSellInput.value || '').replace(/\./g, '').replace(',', '.')) || 0;
       const rate = parseFloat(clientRateInput.value) || 0;
       if (amount > 0 && rate > 0) {
         const totalBs = amount * rate;
@@ -840,55 +833,34 @@ const COMMISSION_FACTORS = {
       }
     }
     
-    // Evento para formatear el campo de monto
+    // Enfoque simplificado: convertir a tipo texto y aplicar formato solo al perder el foco
     if (amountToSellInput) {
-      // Guardamos el tipo original del input
-      const originalType = amountToSellInput.type;
-      
-      // Cambiamos temporalmente a tipo text para permitir formateo
+      // Cambiamos a tipo texto
       amountToSellInput.type = 'text';
       
-      // Si ya tiene un valor, lo formateamos
-      if (amountToSellInput.value) {
-        const numValue = parseFloat(amountToSellInput.value) || 0;
-        amountToSellInput.setAttribute('data-value', numValue.toString());
-        amountToSellInput.value = formatAmount(numValue);
-      }
-      
-      // Evento al escribir
-      amountToSellInput.addEventListener('input', function(e) {
-        // Guardar posición del cursor
-        const cursorPos = this.selectionStart;
-        const oldLength = this.value.length;
-        
-        // Si se está escribiendo, extraer solo dígitos y punto decimal
-        let rawValue = this.value.replace(/[^\d,]/g, '');
-        
-        // Convertir a valor numérico
-        let numValue;
-        if (rawValue.includes(',')) {
-          numValue = parseFloat(rawValue.replace(',', '.')) || 0;
-        } else {
-          numValue = parseFloat(rawValue) || 0;
+      // Al perder el foco, formateamos para mostrar bonito
+      amountToSellInput.addEventListener('blur', function() {
+        if (this.value) {
+          // Guardamos valor numérico
+          const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
+          // Solo formateamos si hay un valor > 0
+          if (numValue > 0) {
+            this.value = formatAmount(numValue);
+          }
         }
-        
-        // Guardar el valor numérico real para cálculos
-        this.setAttribute('data-value', numValue.toString());
-        
-        // Formatear para mostrar
-        this.value = formatAmount(numValue);
-        
-        // Ajustar posición del cursor
-        const newLength = this.value.length;
-        const newPos = cursorPos + (newLength - oldLength);
-        this.setSelectionRange(newPos, newPos);
-        
-        // Actualizar el monto en Bs
-        updateClientAmount();
       });
       
-      // Evento de enfoque: seleccionar todo el texto
+      // Al obtener el foco, quitamos formato para facilitar edición
       amountToSellInput.addEventListener('focus', function() {
+        const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
+        if (numValue > 0) {
+          // Mostramos valor sin formatear
+          this.value = numValue.toString().replace('.', ',');
+        } else {
+          // Si es 0 o vacío, limpiamos el campo
+          this.value = '';
+        }
+        // Seleccionamos todo el texto
         this.select();
       });
     }
@@ -900,8 +872,8 @@ const COMMISSION_FACTORS = {
     if (operationForm) {
       operationForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        // Usar el valor numérico guardado en data-value, o fallback al value si no existe
-        const totalAmount = parseFloat(amountToSellInput.getAttribute('data-value') || amountToSellInput.value) || 0;
+        // Parsear el valor directamente del campo
+        const totalAmount = parseFloat((amountToSellInput.value || '').replace(/\./g, '').replace(',', '.')) || 0;
         const rate = parseFloat(clientRateInput.value) || 0;
         const userSelection = currencyTypeSelect.value;
         if (totalAmount > 0 && rate > 0 && userSelection) {
