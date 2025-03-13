@@ -112,7 +112,20 @@ const COMMISSION_FACTORS = {
     
         // Llenar los inputs
         document.getElementById('clientName').value = this.clientName;
-        document.getElementById('amountToSell').value = pending;
+        
+        // Formatear el monto pendiente si la función de formateo está disponible
+        const amountInput = document.getElementById('amountToSell');
+        if (amountInput) {
+          // Guardar el valor numérico real como atributo data-value
+          amountInput.setAttribute('data-value', pending.toString());
+          
+          // Si ya cambiamos el tipo a 'text' y existe la función formatAmount
+          if (amountInput.type === 'text' && typeof formatAmount === 'function') {
+            amountInput.value = formatAmount(pending);
+          } else {
+            amountInput.value = pending;
+          }
+        }
     
         // Con base en la divisa
         let currencyOption = '';
@@ -796,22 +809,88 @@ const COMMISSION_FACTORS = {
     const clientRateInput = document.getElementById('clientRate');
     const amountClientReceivesInput = document.getElementById('amountClientReceives');
     const currencyTypeSelect = document.getElementById('currencyType');
+    
+    // Función para formatear montos con formato venezolano (90.000,00)
+    function formatAmount(value) {
+      const numValue = parseFloat(value) || 0;
+      return new Intl.NumberFormat('es-VE', {
+        style: 'decimal',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true
+      }).format(numValue);
+    }
+    
+    // Función para obtener el valor numérico de un monto formateado
+    function unformatAmount(formattedValue) {
+      if (!formattedValue) return '';
+      return formattedValue.replace(/\./g, '').replace(',', '.');
+    }
   
     // Actualiza el monto en Bs en tiempo real
     function updateClientAmount() {
-      const amount = parseFloat(amountToSellInput.value) || 0;
+      // Obtenemos el valor numérico real desde el atributo data-value
+      const amount = parseFloat(amountToSellInput.getAttribute('data-value') || amountToSellInput.value) || 0;
       const rate = parseFloat(clientRateInput.value) || 0;
       if (amount > 0 && rate > 0) {
         const totalBs = amount * rate;
-        amountClientReceivesInput.value = new Intl.NumberFormat('es-VE', {
-          style: 'decimal',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-          useGrouping: true
-        }).format(totalBs);
+        amountClientReceivesInput.value = formatAmount(totalBs);
       } else {
         amountClientReceivesInput.value = '';
       }
+    }
+    
+    // Evento para formatear el campo de monto
+    if (amountToSellInput) {
+      // Guardamos el tipo original del input
+      const originalType = amountToSellInput.type;
+      
+      // Cambiamos temporalmente a tipo text para permitir formateo
+      amountToSellInput.type = 'text';
+      
+      // Si ya tiene un valor, lo formateamos
+      if (amountToSellInput.value) {
+        const numValue = parseFloat(amountToSellInput.value) || 0;
+        amountToSellInput.setAttribute('data-value', numValue.toString());
+        amountToSellInput.value = formatAmount(numValue);
+      }
+      
+      // Evento al escribir
+      amountToSellInput.addEventListener('input', function(e) {
+        // Guardar posición del cursor
+        const cursorPos = this.selectionStart;
+        const oldLength = this.value.length;
+        
+        // Si se está escribiendo, extraer solo dígitos y punto decimal
+        let rawValue = this.value.replace(/[^\d,]/g, '');
+        
+        // Convertir a valor numérico
+        let numValue;
+        if (rawValue.includes(',')) {
+          numValue = parseFloat(rawValue.replace(',', '.')) || 0;
+        } else {
+          numValue = parseFloat(rawValue) || 0;
+        }
+        
+        // Guardar el valor numérico real para cálculos
+        this.setAttribute('data-value', numValue.toString());
+        
+        // Formatear para mostrar
+        this.value = formatAmount(numValue);
+        
+        // Ajustar posición del cursor
+        const newLength = this.value.length;
+        const newPos = cursorPos + (newLength - oldLength);
+        this.setSelectionRange(newPos, newPos);
+        
+        // Actualizar el monto en Bs
+        updateClientAmount();
+      });
+      
+      // Evento de enfoque: seleccionar todo el texto
+      amountToSellInput.addEventListener('focus', function() {
+        this.select();
+      });
     }
   
     amountToSellInput.addEventListener('input', updateClientAmount);
@@ -821,7 +900,8 @@ const COMMISSION_FACTORS = {
     if (operationForm) {
       operationForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const totalAmount = parseFloat(amountToSellInput.value) || 0;
+        // Usar el valor numérico guardado en data-value, o fallback al value si no existe
+        const totalAmount = parseFloat(amountToSellInput.getAttribute('data-value') || amountToSellInput.value) || 0;
         const rate = parseFloat(clientRateInput.value) || 0;
         const userSelection = currencyTypeSelect.value;
         if (totalAmount > 0 && rate > 0 && userSelection) {
