@@ -253,7 +253,7 @@ const COMMISSION_FACTORS = {
         </div>
         <div class="mb-3">
           <label class="form-label">Monto (${this.selectedCurrency}):</label>
-          <input type="number" class="form-control text-end" name="montoTransaccion" step="0.01" required>
+          <input type="text" class="form-control text-end" name="montoTransaccion" step="0.01" required>
         </div>
         <div class="mb-3">
           <label class="form-label">Tasa de Venta (Bs / ${this.selectedCurrency}):</label>
@@ -307,6 +307,37 @@ const COMMISSION_FACTORS = {
         </button>
       `;
       this.setupFormEventListeners(form);
+      
+      // Aplicar formateo al campo de monto en este formulario específico
+      const montoField = form.querySelector('[name="montoTransaccion"]');
+      if (montoField && window.formatAmount && window.unformatAmount) {
+        // Al perder el foco, formateamos para mostrar bonito
+        montoField.addEventListener('blur', function() {
+          if (this.value) {
+            // Guardamos valor numérico
+            const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
+            // Solo formateamos si hay un valor > 0
+            if (numValue > 0) {
+              this.value = window.formatAmount(numValue);
+            }
+          }
+        });
+        
+        // Al obtener el foco, quitamos formato para facilitar edición
+        montoField.addEventListener('focus', function() {
+          const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
+          if (numValue > 0) {
+            // Mostramos valor sin formatear
+            this.value = numValue.toString().replace('.', ',');
+          } else {
+            // Si es 0 o vacío, limpiamos el campo
+            this.value = '';
+          }
+          // Seleccionamos todo el texto
+          this.select();
+        });
+      }
+      
       return form;
     }
   
@@ -352,9 +383,17 @@ const COMMISSION_FACTORS = {
     }
   
     collectFormData(form) {
+      const montoField = form.querySelector('[name="montoTransaccion"]');
+      let montoValue = 0;
+      
+      // Parsear el monto formateado (puede tener puntos y comas)
+      if (montoField && montoField.value) {
+        montoValue = parseFloat(montoField.value.replace(/\./g, '').replace(',', '.')) || 0;
+      }
+      
       const data = {
         operatorName: form.querySelector('[name="operador"]').value.trim(),
-        amount: NumberUtils.parseAmount(form.querySelector('[name="montoTransaccion"]').value),
+        amount: montoValue, // Usamos nuestro valor parseado
         sellingRate: NumberUtils.parseAmount(form.querySelector('[name="tasaVenta"]').value),
         officeRate: NumberUtils.parseAmount(form.querySelector('[name="tasaOficina"]').value),
         bankCommission: form.querySelector('[name="bankCommission"]').value,
@@ -789,6 +828,24 @@ const COMMISSION_FACTORS = {
   
   document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inicializando sistema de ventas...');
+    
+    // Hacemos las funciones de formateo globales
+    window.formatAmount = function(value) {
+      const numValue = parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
+      if (numValue === 0) return '';  // No mostrar 0,00 si no hay valor
+      return new Intl.NumberFormat('es-VE', {
+        style: 'decimal',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true
+      }).format(numValue);
+    };
+    
+    window.unformatAmount = function(formattedValue) {
+      if (!formattedValue) return '';
+      return formattedValue.replace(/\./g, '').replace(',', '.');
+    };
+    
     const transactionManager = new TransactionManager();
   
     // Cargar la operación si viene ?id=...
@@ -802,24 +859,6 @@ const COMMISSION_FACTORS = {
     const amountClientReceivesInput = document.getElementById('amountClientReceives');
     const currencyTypeSelect = document.getElementById('currencyType');
     
-    // Función para formatear montos con formato venezolano (90.000,00)
-    function formatAmount(value) {
-      const numValue = parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
-      if (numValue === 0) return '';  // No mostrar 0,00 si no hay valor
-      return new Intl.NumberFormat('es-VE', {
-        style: 'decimal',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-        useGrouping: true
-      }).format(numValue);
-    }
-    
-    // Función para obtener el valor numérico de un monto formateado
-    function unformatAmount(formattedValue) {
-      if (!formattedValue) return '';
-      return formattedValue.replace(/\./g, '').replace(',', '.');
-    }
-  
     // Actualiza el monto en Bs en tiempo real
     function updateClientAmount() {
       // Usamos el valor directo del input, parseFloat maneja tanto formatos
@@ -827,7 +866,7 @@ const COMMISSION_FACTORS = {
       const rate = parseFloat(clientRateInput.value) || 0;
       if (amount > 0 && rate > 0) {
         const totalBs = amount * rate;
-        amountClientReceivesInput.value = formatAmount(totalBs);
+        amountClientReceivesInput.value = window.formatAmount(totalBs);
       } else {
         amountClientReceivesInput.value = '';
       }
@@ -845,7 +884,7 @@ const COMMISSION_FACTORS = {
           const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
           // Solo formateamos si hay un valor > 0
           if (numValue > 0) {
-            this.value = formatAmount(numValue);
+            this.value = window.formatAmount(numValue);
           }
         }
       });
