@@ -308,35 +308,8 @@ const COMMISSION_FACTORS = {
       `;
       this.setupFormEventListeners(form);
       
-      // Aplicar formateo al campo de monto en este formulario específico
-      const montoField = form.querySelector('[name="montoTransaccion"]');
-      if (montoField && window.formatAmount && window.unformatAmount) {
-        // Al perder el foco, formateamos para mostrar bonito
-        montoField.addEventListener('blur', function() {
-          if (this.value) {
-            // Guardamos valor numérico
-            const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
-            // Solo formateamos si hay un valor > 0
-            if (numValue > 0) {
-              this.value = window.formatAmount(numValue);
-            }
-          }
-        });
-        
-        // Al obtener el foco, quitamos formato para facilitar edición
-        montoField.addEventListener('focus', function() {
-          const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
-          if (numValue > 0) {
-            // Mostramos valor sin formatear
-            this.value = numValue.toString().replace('.', ',');
-          } else {
-            // Si es 0 o vacío, limpiamos el campo
-            this.value = '';
-          }
-          // Seleccionamos todo el texto
-          this.select();
-        });
-      }
+      // Calcular comisión inicial
+      this.calculateCommission(form);
       
       return form;
     }
@@ -355,6 +328,57 @@ const COMMISSION_FACTORS = {
           this.processTransaction(form);
         });
       }
+      
+      // Añadir event listeners para el campo de monto
+      const montoInput = form.querySelector('[name="montoTransaccion"]');
+      if (montoInput) {
+        // Al perder el foco, formateamos para mostrar bonito
+        montoInput.addEventListener('blur', function() {
+          if (this.value) {
+            // Guardamos valor numérico
+            const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
+            // Solo formateamos si hay un valor > 0
+            if (numValue > 0) {
+              this.value = new Intl.NumberFormat('es-VE', {
+                style: 'decimal',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+                useGrouping: true
+              }).format(numValue);
+            }
+          }
+        });
+        
+        // Al obtener el foco, quitamos formato para facilitar edición
+        montoInput.addEventListener('focus', function() {
+          const numValue = parseFloat(this.value.replace(/\./g, '').replace(',', '.')) || 0;
+          if (numValue > 0) {
+            // Mostramos valor sin formatear
+            this.value = numValue.toString().replace('.', ',');
+          } else {
+            // Si es 0 o vacío, limpiamos el campo
+            this.value = '';
+          }
+          // Seleccionamos todo el texto
+          this.select();
+        });
+      }
+      
+      // Añadir event listeners para actualizar el campo de comisión
+      const tasaVentaInput = form.querySelector('[name="tasaVenta"]');
+      const tasaOficinaInput = form.querySelector('[name="tasaOficina"]');
+      const bankCommissionSelect = form.querySelector('[name="bankCommission"]');
+      
+      if (tasaVentaInput) {
+        tasaVentaInput.addEventListener('input', () => this.calculateCommission(form));
+      }
+      if (tasaOficinaInput) {
+        tasaOficinaInput.addEventListener('input', () => this.calculateCommission(form));
+      }
+      if (bankCommissionSelect) {
+        bankCommissionSelect.addEventListener('change', () => this.calculateCommission(form));
+      }
+      
       const addCommissionBtn = form.querySelector('.add-arbitrary-commission');
       if (addCommissionBtn) {
         addCommissionBtn.addEventListener('click', () => {
@@ -383,17 +407,14 @@ const COMMISSION_FACTORS = {
     }
   
     collectFormData(form) {
-      const montoField = form.querySelector('[name="montoTransaccion"]');
-      let montoValue = 0;
-      
-      // Parsear el monto formateado (puede tener puntos y comas)
-      if (montoField && montoField.value) {
-        montoValue = parseFloat(montoField.value.replace(/\./g, '').replace(',', '.')) || 0;
-      }
+      // Obtener el valor del monto y convertirlo a número
+      const montoInput = form.querySelector('[name="montoTransaccion"]');
+      const montoValue = montoInput ? montoInput.value.replace(/\./g, '').replace(',', '.') : '0';
+      const amount = NumberUtils.parseAmount(montoValue);
       
       const data = {
         operatorName: form.querySelector('[name="operador"]').value.trim(),
-        amount: montoValue, // Usamos nuestro valor parseado
+        amount: amount,
         sellingRate: NumberUtils.parseAmount(form.querySelector('[name="tasaVenta"]').value),
         officeRate: NumberUtils.parseAmount(form.querySelector('[name="tasaOficina"]').value),
         bankCommission: form.querySelector('[name="bankCommission"]').value,
