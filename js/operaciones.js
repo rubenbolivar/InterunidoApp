@@ -75,6 +75,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
+    // IMPORTANTE: Añadir parámetro para obtener datos completos
+    if (!queryParams.includes('include_all_data=true')) {
+      queryParams += '&include_all_data=true';
+    }
+    
     console.log('Fetching operations with:', queryParams);
     
     fetch('/api/transactions' + queryParams, {
@@ -297,66 +302,45 @@ document.addEventListener('DOMContentLoaded', function() {
       //   Para canjes: Se usa totalDiferencia
       let ganancia = 0;
       if (op.type === 'venta') {
-        // Imprimir toda la estructura para depuración
-        console.log(`DEBUG Operación de venta ${op._id}:`);
-        console.log(`DEBUG Estructura de operación:`, exploreObject(op, 'op'));
-        
         // Para ventas primero intentamos calcular la suma de todas las transacciones
         if (op.details && op.details.transactions && Array.isArray(op.details.transactions)) {
-          console.log(`DEBUG ✅ Encontradas ${op.details.transactions.length} transacciones para operación ${op._id}`);
-          
-          // Examinar cada transacción
-          let totalAcumulado = 0;
-          op.details.transactions.forEach((t, idx) => {
-            console.log(`DEBUG   [TX ${idx+1}] Estructura:`, exploreObject(t, `tx[${idx}]`));
-            
-            // Verificar si la transacción tiene clientProfit correctamente estructurado
-            const clientProfit = t.distribution && t.distribution.clientProfit 
-              ? parseFloat(t.distribution.clientProfit) || 0 
-              : 0;
-            
-            totalAcumulado += clientProfit;
-            console.log(`DEBUG   [TX ${idx+1}] clientProfit: ${clientProfit}, Total acumulado: ${totalAcumulado}`);
-          });
-          
-          // Sumar la ganancia (clientProfit) de todas las transacciones - esto debería coincidir con el cálculo anterior
+          // Sumar la ganancia (clientProfit) de todas las transacciones
           ganancia = op.details.transactions.reduce((total, transaction) => {
-            const clientProfit = transaction.distribution && transaction.distribution.clientProfit 
-              ? parseFloat(transaction.distribution.clientProfit) || 0 
-              : 0;
+            // Extraer clientProfit de la transacción
+            let clientProfit = 0;
+            
+            // Verificar si está en distribution.clientProfit
+            if (transaction.distribution && transaction.distribution.clientProfit !== undefined) {
+              clientProfit = parseFloat(transaction.distribution.clientProfit) || 0;
+            } 
+            // Alternativa: verificar si está directamente en clientProfit
+            else if (transaction.clientProfit !== undefined) {
+              clientProfit = parseFloat(transaction.clientProfit) || 0;
+            }
+            
             return total + clientProfit;
           }, 0);
-          
-          // Verificar que las dos formas de cálculo den el mismo resultado
-          console.log(`DEBUG ✅ Ganancia calculada (1): ${totalAcumulado}`);
-          console.log(`DEBUG ✅ Ganancia calculada (2): ${ganancia}`);
-          console.log(`DEBUG ✅ ¿Coinciden los cálculos? ${Math.abs(totalAcumulado - ganancia) < 0.001 ? 'SÍ' : 'NO - POSIBLE ERROR'}`);
-          
-          // Verificar si hay discrepancias con el valor en el summary
-          if (op.details?.summary?.totalClientProfit) {
-            console.log(`DEBUG ⚠️ Valor en summary: ${op.details.summary.totalClientProfit}`);
-            console.log(`DEBUG ⚠️ ¿Coincide con el calculado? ${Math.abs(ganancia - op.details.summary.totalClientProfit) < 0.001 ? 'SÍ' : 'NO - POSIBLE ERROR'}`);
-          }
-        } else {
-          console.log(`DEBUG ❌ No se encontraron transacciones o no es un array válido para operación ${op._id}`);
-          console.log(`DEBUG op.details:`, op.details);
-          console.log(`DEBUG op.details.transactions:`, op.details?.transactions);
         }
         
-        // Si no hay transacciones o la suma es 0, usar el totalClientProfit del summary como respaldo
-        if (ganancia === 0 && op.details && op.details.summary && op.details.summary.totalClientProfit) {
-          ganancia = op.details.summary.totalClientProfit;
-          console.log(`DEBUG ⚠️ Usando ganancia desde summary: ${ganancia}`);
+        // Si no hay transacciones o no se pudo calcular la ganancia, usar el totalClientProfit del summary como respaldo
+        if ((ganancia === 0 || isNaN(ganancia)) && op.details && op.details.summary && op.details.summary.totalClientProfit) {
+          ganancia = parseFloat(op.details.summary.totalClientProfit) || 0;
         }
       } else if (op.type === 'canje') {
         // Para canjes usamos la diferencia total
         if (op.details && op.details.totalDiferencia) {
-          ganancia = op.details.totalDiferencia;
+          ganancia = parseFloat(op.details.totalDiferencia) || 0;
+        } else if (op.details && op.details.transacciones && Array.isArray(op.details.transacciones)) {
+          // Si no hay totalDiferencia, sumar las diferencias de todas las transacciones
+          ganancia = op.details.transacciones.reduce((total, transaction) => {
+            const diferencia = parseFloat(transaction.diferencia || 0);
+            return total + diferencia;
+          }, 0);
         }
       }
       
-      // Mostrar el resultado final que se va a renderizar
-      console.log(`DEBUG 📋 Valor FINAL de ganancia para ${op._id}: ${ganancia}`);
+      // Asegurar que ganancia sea un número
+      ganancia = isNaN(ganancia) ? 0 : ganancia;
       
       const gananciaHTML = `
         <td data-label="Ganancia">
@@ -473,50 +457,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let ganancia = 0;
     if (op.type === 'venta') {
-      // Imprimir toda la estructura para depuración
-      console.log(`DEBUG MODAL Operación de venta ${op._id}:`, JSON.stringify(op, null, 2));
-      console.log(`DEBUG MODAL Estructura de details:`, JSON.stringify(op.details, null, 2));
-      
       // Para ventas primero intentamos calcular la suma de todas las transacciones
       if (op.details && op.details.transactions && Array.isArray(op.details.transactions)) {
-        console.log(`DEBUG MODAL ✅ Encontradas ${op.details.transactions.length} transacciones para operación ${op._id}`);
-        
-        // Imprimir cada transacción para depurar
-        op.details.transactions.forEach((t, idx) => {
-          console.log(`DEBUG MODAL   Transacción ${idx+1}:`, t);
-          console.log(`DEBUG MODAL   - distribution:`, t.distribution);
-          console.log(`DEBUG MODAL   - clientProfit:`, t.distribution?.clientProfit);
-        });
-        
         // Sumar la ganancia (clientProfit) de todas las transacciones
         ganancia = op.details.transactions.reduce((total, transaction) => {
-          const clientProfit = transaction.distribution && transaction.distribution.clientProfit 
-            ? parseFloat(transaction.distribution.clientProfit) || 0 
-            : 0;
-          console.log(`DEBUG MODAL   - Sumando clientProfit: ${clientProfit}, total actual: ${total + clientProfit}`);
+          // Extraer clientProfit de la transacción
+          let clientProfit = 0;
+          
+          // Verificar si está en distribution.clientProfit
+          if (transaction.distribution && transaction.distribution.clientProfit !== undefined) {
+            clientProfit = parseFloat(transaction.distribution.clientProfit) || 0;
+          } 
+          // Alternativa: verificar si está directamente en clientProfit
+          else if (transaction.clientProfit !== undefined) {
+            clientProfit = parseFloat(transaction.clientProfit) || 0;
+          }
+          
           return total + clientProfit;
         }, 0);
-        console.log(`DEBUG MODAL ✅ Ganancia calculada desde transacciones individuales: ${ganancia}`);
-      } else {
-        console.log(`DEBUG MODAL ❌ No se encontraron transacciones o no es un array válido para operación ${op._id}`);
-        console.log(`DEBUG MODAL op.details:`, op.details);
-        console.log(`DEBUG MODAL op.details.transactions:`, op.details?.transactions);
       }
       
-      // Si no hay transacciones o la suma es 0, usar el totalClientProfit del summary como respaldo
-      if (ganancia === 0 && op.details && op.details.summary && op.details.summary.totalClientProfit) {
-        ganancia = op.details.summary.totalClientProfit;
-        console.log(`DEBUG MODAL ⚠️ Usando ganancia desde summary: ${ganancia}`);
+      // Si no hay transacciones o no se pudo calcular la ganancia, usar el totalClientProfit del summary como respaldo
+      if ((ganancia === 0 || isNaN(ganancia)) && op.details && op.details.summary && op.details.summary.totalClientProfit) {
+        ganancia = parseFloat(op.details.summary.totalClientProfit) || 0;
       }
     } else if (op.type === 'canje') {
       // Para canjes usamos la diferencia total
       if (op.details && op.details.totalDiferencia) {
-        ganancia = op.details.totalDiferencia;
+        ganancia = parseFloat(op.details.totalDiferencia) || 0;
+      } else if (op.details && op.details.transacciones && Array.isArray(op.details.transacciones)) {
+        // Si no hay totalDiferencia, sumar las diferencias de todas las transacciones
+        ganancia = op.details.transacciones.reduce((total, transaction) => {
+          const diferencia = parseFloat(transaction.diferencia || 0);
+          return total + diferencia;
+        }, 0);
       }
     }
     
-    // Mostrar el resultado final que se va a renderizar
-    console.log(`DEBUG MODAL 📋 Valor FINAL de ganancia para ${op._id}: ${ganancia}`);
+    // Asegurar que ganancia sea un número
+    ganancia = isNaN(ganancia) ? 0 : ganancia;
     
     const gananciaStr = op.type === 'canje' ? formatVES(ganancia) : currencySymbol + formatVES(ganancia);
 

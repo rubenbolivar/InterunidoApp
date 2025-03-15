@@ -137,6 +137,30 @@ app.put('/api/transactions/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'El monto debe ser un número positivo' });
     }
     
+    // Asegurar que las transacciones se mantienen completas
+    if (req.body.details && req.body.details.transactions) {
+      // Verificar que cada transacción tenga la estructura completa
+      req.body.details.transactions.forEach(tx => {
+        if (tx.distribution) {
+          // Convertir todos los valores numéricos a números para evitar problemas de formato
+          if (tx.distribution.clientProfit !== undefined) {
+            tx.distribution.clientProfit = parseFloat(tx.distribution.clientProfit);
+          }
+          if (tx.distribution.executive !== undefined) {
+            tx.distribution.executive = parseFloat(tx.distribution.executive);
+          }
+          if (tx.distribution.PZO !== undefined) {
+            tx.distribution.PZO = parseFloat(tx.distribution.PZO);
+          }
+          if (tx.distribution.CCS !== undefined) {
+            tx.distribution.CCS = parseFloat(tx.distribution.CCS);
+          }
+        }
+      });
+      
+      logger.info(`Actualizando operación ${req.params.id} con ${req.body.details.transactions.length} transacciones`);
+    }
+    
     // Registrar cambios en el historial
     const historyEntry = {
       date: new Date(),
@@ -248,7 +272,7 @@ app.get('/api/transactions/:id', verifyToken, async (req, res) => {
 app.get('/api/transactions', verifyToken, async (req, res) => {
   try {
     // Capturar parámetros de paginación y filtros
-    const { type, client, date, page = '1', limit = '20' } = req.query;
+    const { type, client, date, page = '1', limit = '20', include_all_data } = req.query;
     
     // Convertir página y límite a números
     const pageNum = parseInt(page, 10);
@@ -278,10 +302,17 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
     }
     
     // Ejecutar consulta con paginación
-    const transactions = await Transaction.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(validLimit);
+    let query = Transaction.find(filter).sort({ createdAt: -1 });
+    
+    // Si se solicitan datos completos, no aplicar proyección
+    if (include_all_data !== 'true') {
+      // Aplicar paginación
+      query = query.skip(skip).limit(validLimit);
+    } else {
+      logger.info(`Se solicitaron datos completos para operaciones, enviando todas las transacciones`);
+    }
+    
+    const transactions = await query;
     
     // Contar total de documentos para metadatos de paginación
     const total = await Transaction.countDocuments(filter);
@@ -292,9 +323,39 @@ app.get('/api/transactions', verifyToken, async (req, res) => {
     // Registrar información de paginación
     logger.info(`Paginación: página ${validPage} de ${totalPages}, mostrando ${transactions.length} de ${total} operaciones`);
     
+    // Verificar si alguna operación tiene estado incorrecto (monto pendiente 0 pero estado incompleto)
+    const checkedTransactions = transactions.map(t => {
+      // Clonar para no modificar el objeto original de la base de datos
+      const transaction = t.toObject();
+      
+      // Verificar si hay monto pendiente en los detalles
+      let pendingAmount = 0;
+      if (transaction.type === 'venta' && transaction.details?.summary) {
+        if (transaction.details.summary.montoPendiente !== undefined) {
+          pendingAmount = transaction.details.summary.montoPendiente;
+        } else if (transaction.details.summary.montoRestante !== undefined) {
+          pendingAmount = transaction.details.summary.montoRestante;
+        }
+      } else if (transaction.type === 'canje' && transaction.details) {
+        if (transaction.details.montoPendiente !== undefined) {
+          pendingAmount = transaction.details.montoPendiente;
+        } else if (transaction.details.summary?.montoPendiente !== undefined) {
+          pendingAmount = transaction.details.summary.montoPendiente;
+        }
+      }
+      
+      // Si el monto pendiente es 0 o negativo pero el estado es incompleto, corregirlo
+      if (pendingAmount <= 0 && transaction.estado !== 'completa') {
+        logger.warn(`Inconsistencia detectada: Operación ${transaction._id} tiene monto pendiente ${pendingAmount} pero estado ${transaction.estado}`);
+        transaction.estado = 'completa';
+      }
+      
+      return transaction;
+    });
+    
     // Devolver datos con metadatos de paginación
     res.json({
-      transactions,
+      transactions: checkedTransactions,
       pagination: {
         page: validPage,
         limit: validLimit,
