@@ -1,3 +1,34 @@
+// Función de depuración para explorar estructura de objetos
+function exploreObject(obj, prefix = '') {
+  if (!obj) return `${prefix} = null o undefined`;
+  
+  let result = '';
+  if (typeof obj === 'object') {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+        if (typeof value === 'object' && value !== null) {
+          // Para arrays, mostrar longitud
+          if (Array.isArray(value)) {
+            result += `${prefix}.${key} = Array con ${value.length} elementos\n`;
+            if (value.length > 0) {
+              result += exploreObject(value[0], `${prefix}.${key}[0]`);
+            }
+          } else {
+            result += `${prefix}.${key} = Object\n`;
+            result += exploreObject(value, `${prefix}.${key}`);
+          }
+        } else {
+          result += `${prefix}.${key} = ${value}\n`;
+        }
+      }
+    }
+  } else {
+    result += `${prefix} = ${obj}\n`;
+  }
+  return result;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   // Variables globales para paginación
   let currentPage = 1;
@@ -266,21 +297,56 @@ document.addEventListener('DOMContentLoaded', function() {
       //   Para canjes: Se usa totalDiferencia
       let ganancia = 0;
       if (op.type === 'venta') {
+        // Imprimir toda la estructura para depuración
+        console.log(`DEBUG Operación de venta ${op._id}:`);
+        console.log(`DEBUG Estructura de operación:`, exploreObject(op, 'op'));
+        
         // Para ventas primero intentamos calcular la suma de todas las transacciones
         if (op.details && op.details.transactions && Array.isArray(op.details.transactions)) {
-          // Sumar la ganancia (clientProfit) de todas las transacciones
+          console.log(`DEBUG ✅ Encontradas ${op.details.transactions.length} transacciones para operación ${op._id}`);
+          
+          // Examinar cada transacción
+          let totalAcumulado = 0;
+          op.details.transactions.forEach((t, idx) => {
+            console.log(`DEBUG   [TX ${idx+1}] Estructura:`, exploreObject(t, `tx[${idx}]`));
+            
+            // Verificar si la transacción tiene clientProfit correctamente estructurado
+            const clientProfit = t.distribution && t.distribution.clientProfit 
+              ? parseFloat(t.distribution.clientProfit) || 0 
+              : 0;
+            
+            totalAcumulado += clientProfit;
+            console.log(`DEBUG   [TX ${idx+1}] clientProfit: ${clientProfit}, Total acumulado: ${totalAcumulado}`);
+          });
+          
+          // Sumar la ganancia (clientProfit) de todas las transacciones - esto debería coincidir con el cálculo anterior
           ganancia = op.details.transactions.reduce((total, transaction) => {
             const clientProfit = transaction.distribution && transaction.distribution.clientProfit 
               ? parseFloat(transaction.distribution.clientProfit) || 0 
               : 0;
             return total + clientProfit;
           }, 0);
-          console.log(`Modal - Ganancia calculada desde transacciones individuales: ${ganancia}`);
-        } 
+          
+          // Verificar que las dos formas de cálculo den el mismo resultado
+          console.log(`DEBUG ✅ Ganancia calculada (1): ${totalAcumulado}`);
+          console.log(`DEBUG ✅ Ganancia calculada (2): ${ganancia}`);
+          console.log(`DEBUG ✅ ¿Coinciden los cálculos? ${Math.abs(totalAcumulado - ganancia) < 0.001 ? 'SÍ' : 'NO - POSIBLE ERROR'}`);
+          
+          // Verificar si hay discrepancias con el valor en el summary
+          if (op.details?.summary?.totalClientProfit) {
+            console.log(`DEBUG ⚠️ Valor en summary: ${op.details.summary.totalClientProfit}`);
+            console.log(`DEBUG ⚠️ ¿Coincide con el calculado? ${Math.abs(ganancia - op.details.summary.totalClientProfit) < 0.001 ? 'SÍ' : 'NO - POSIBLE ERROR'}`);
+          }
+        } else {
+          console.log(`DEBUG ❌ No se encontraron transacciones o no es un array válido para operación ${op._id}`);
+          console.log(`DEBUG op.details:`, op.details);
+          console.log(`DEBUG op.details.transactions:`, op.details?.transactions);
+        }
+        
         // Si no hay transacciones o la suma es 0, usar el totalClientProfit del summary como respaldo
         if (ganancia === 0 && op.details && op.details.summary && op.details.summary.totalClientProfit) {
           ganancia = op.details.summary.totalClientProfit;
-          console.log(`Modal - Ganancia obtenida desde summary: ${ganancia}`);
+          console.log(`DEBUG ⚠️ Usando ganancia desde summary: ${ganancia}`);
         }
       } else if (op.type === 'canje') {
         // Para canjes usamos la diferencia total
@@ -288,6 +354,9 @@ document.addEventListener('DOMContentLoaded', function() {
           ganancia = op.details.totalDiferencia;
         }
       }
+      
+      // Mostrar el resultado final que se va a renderizar
+      console.log(`DEBUG 📋 Valor FINAL de ganancia para ${op._id}: ${ganancia}`);
       
       const gananciaHTML = `
         <td data-label="Ganancia">
@@ -404,21 +473,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let ganancia = 0;
     if (op.type === 'venta') {
+      // Imprimir toda la estructura para depuración
+      console.log(`DEBUG MODAL Operación de venta ${op._id}:`, JSON.stringify(op, null, 2));
+      console.log(`DEBUG MODAL Estructura de details:`, JSON.stringify(op.details, null, 2));
+      
       // Para ventas primero intentamos calcular la suma de todas las transacciones
       if (op.details && op.details.transactions && Array.isArray(op.details.transactions)) {
+        console.log(`DEBUG MODAL ✅ Encontradas ${op.details.transactions.length} transacciones para operación ${op._id}`);
+        
+        // Imprimir cada transacción para depurar
+        op.details.transactions.forEach((t, idx) => {
+          console.log(`DEBUG MODAL   Transacción ${idx+1}:`, t);
+          console.log(`DEBUG MODAL   - distribution:`, t.distribution);
+          console.log(`DEBUG MODAL   - clientProfit:`, t.distribution?.clientProfit);
+        });
+        
         // Sumar la ganancia (clientProfit) de todas las transacciones
         ganancia = op.details.transactions.reduce((total, transaction) => {
           const clientProfit = transaction.distribution && transaction.distribution.clientProfit 
             ? parseFloat(transaction.distribution.clientProfit) || 0 
             : 0;
+          console.log(`DEBUG MODAL   - Sumando clientProfit: ${clientProfit}, total actual: ${total + clientProfit}`);
           return total + clientProfit;
         }, 0);
-        console.log(`Modal - Ganancia calculada desde transacciones individuales: ${ganancia}`);
-      } 
+        console.log(`DEBUG MODAL ✅ Ganancia calculada desde transacciones individuales: ${ganancia}`);
+      } else {
+        console.log(`DEBUG MODAL ❌ No se encontraron transacciones o no es un array válido para operación ${op._id}`);
+        console.log(`DEBUG MODAL op.details:`, op.details);
+        console.log(`DEBUG MODAL op.details.transactions:`, op.details?.transactions);
+      }
+      
       // Si no hay transacciones o la suma es 0, usar el totalClientProfit del summary como respaldo
       if (ganancia === 0 && op.details && op.details.summary && op.details.summary.totalClientProfit) {
         ganancia = op.details.summary.totalClientProfit;
-        console.log(`Modal - Ganancia obtenida desde summary: ${ganancia}`);
+        console.log(`DEBUG MODAL ⚠️ Usando ganancia desde summary: ${ganancia}`);
       }
     } else if (op.type === 'canje') {
       // Para canjes usamos la diferencia total
@@ -426,6 +514,10 @@ document.addEventListener('DOMContentLoaded', function() {
         ganancia = op.details.totalDiferencia;
       }
     }
+    
+    // Mostrar el resultado final que se va a renderizar
+    console.log(`DEBUG MODAL 📋 Valor FINAL de ganancia para ${op._id}: ${ganancia}`);
+    
     const gananciaStr = op.type === 'canje' ? formatVES(ganancia) : currencySymbol + formatVES(ganancia);
 
     modalBody.innerHTML = `
