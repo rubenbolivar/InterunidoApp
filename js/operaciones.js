@@ -266,9 +266,21 @@ document.addEventListener('DOMContentLoaded', function() {
       //   Para canjes: Se usa totalDiferencia
       let ganancia = 0;
       if (op.type === 'venta') {
-        // Para ventas usamos la ganancia del cliente guardada en summary
-        if (op.details && op.details.summary && op.details.summary.totalClientProfit) {
+        // Para ventas primero intentamos calcular la suma de todas las transacciones
+        if (op.details && op.details.transactions && Array.isArray(op.details.transactions)) {
+          // Sumar la ganancia (clientProfit) de todas las transacciones
+          ganancia = op.details.transactions.reduce((total, transaction) => {
+            const clientProfit = transaction.distribution && transaction.distribution.clientProfit 
+              ? parseFloat(transaction.distribution.clientProfit) || 0 
+              : 0;
+            return total + clientProfit;
+          }, 0);
+          console.log(`Modal - Ganancia calculada desde transacciones individuales: ${ganancia}`);
+        } 
+        // Si no hay transacciones o la suma es 0, usar el totalClientProfit del summary como respaldo
+        if (ganancia === 0 && op.details && op.details.summary && op.details.summary.totalClientProfit) {
           ganancia = op.details.summary.totalClientProfit;
+          console.log(`Modal - Ganancia obtenida desde summary: ${ganancia}`);
         }
       } else if (op.type === 'canje') {
         // Para canjes usamos la diferencia total
@@ -392,9 +404,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let ganancia = 0;
     if (op.type === 'venta') {
-      // Para ventas usamos la ganancia del cliente guardada en summary
-      if (op.details && op.details.summary && op.details.summary.totalClientProfit) {
+      // Para ventas primero intentamos calcular la suma de todas las transacciones
+      if (op.details && op.details.transactions && Array.isArray(op.details.transactions)) {
+        // Sumar la ganancia (clientProfit) de todas las transacciones
+        ganancia = op.details.transactions.reduce((total, transaction) => {
+          const clientProfit = transaction.distribution && transaction.distribution.clientProfit 
+            ? parseFloat(transaction.distribution.clientProfit) || 0 
+            : 0;
+          return total + clientProfit;
+        }, 0);
+        console.log(`Modal - Ganancia calculada desde transacciones individuales: ${ganancia}`);
+      } 
+      // Si no hay transacciones o la suma es 0, usar el totalClientProfit del summary como respaldo
+      if (ganancia === 0 && op.details && op.details.summary && op.details.summary.totalClientProfit) {
         ganancia = op.details.summary.totalClientProfit;
+        console.log(`Modal - Ganancia obtenida desde summary: ${ganancia}`);
       }
     } else if (op.type === 'canje') {
       // Para canjes usamos la diferencia total
