@@ -509,5 +509,236 @@ class ReportGenerator {
   }
 }
 
+/**
+ * Clase especializada para generar reportes desde el Dashboard
+ * Extiende la clase general ReportGenerator
+ */
+class DashboardReportGenerator extends ReportGenerator {
+  constructor() {
+    super();
+  }
+  
+  /**
+   * Genera un informe general desde el dashboard basado en los datos filtrados
+   * @param {Object} dashboardData - Datos del dashboard ya procesados
+   * @param {Object} dateInfo - Información sobre el periodo seleccionado
+   * @param {Array<Object>} chartImages - Array de objetos {id, image} con las imágenes de los gráficos
+   */
+  async generateDashboardReport(dashboardData, dateInfo, chartImages) {
+    // Verificar que tenemos la librería html2pdf
+    if (typeof html2pdf === 'undefined') {
+      await this.loadLibrary();
+    }
+    
+    // Formatear fecha actual
+    const currentDate = new Date();
+    const formattedCurrentDate = this.formatDate(currentDate);
+    
+    // Crear contenedor temporal para el reporte
+    const reportContainer = document.createElement('div');
+    reportContainer.style.width = '210mm'; // Ancho A4
+    reportContainer.style.padding = '15mm';
+    reportContainer.style.backgroundColor = '#fff';
+    reportContainer.style.color = '#000';
+    reportContainer.style.fontFamily = 'Arial, sans-serif';
+    
+    // Título y encabezado
+    const header = `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="assets/logo.jpg" alt="InterUnido" style="width: 150px; height: auto;">
+        <h1 style="margin-top: 10px; color: #333;">Informe General</h1>
+        <p style="margin-top: 5px; color: #666;">
+          Período: ${dateInfo.label}<br>
+          ${dateInfo.start && dateInfo.end ? `Del ${this.formatDate(dateInfo.start)} al ${this.formatDate(dateInfo.end)}` : ''}
+        </p>
+        <p style="color: #888;">Generado el: ${formattedCurrentDate}</p>
+      </div>
+    `;
+    reportContainer.innerHTML = header;
+    
+    // Sección de métricas clave
+    const { stats } = dashboardData;
+    const metricsSection = document.createElement('div');
+    metricsSection.innerHTML = `
+      <h2 style="margin-top: 30px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Métricas Clave</h2>
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; margin: 20px 0;">
+        <div style="width: 48%; margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h3 style="margin-top: 0; color: #333; font-size: 18px;">Ventas del Período</h3>
+          <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">$${this.formatVES(stats.totalSales || 0)}</p>
+          <p style="color: ${stats.salesPercentageChange >= 0 ? '#28a745' : '#dc3545'};">
+            ${stats.salesPercentageChange >= 0 ? '↑' : '↓'} ${Math.abs(stats.salesPercentageChange || 0).toFixed(2)}% vs período anterior
+          </p>
+        </div>
+        
+        <div style="width: 48%; margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h3 style="margin-top: 0; color: #333; font-size: 18px;">Operaciones</h3>
+          <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${stats.totalOperations || 0}</p>
+          <p style="color: #666;">operaciones en el período</p>
+        </div>
+        
+        <div style="width: 48%; margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h3 style="margin-top: 0; color: #333; font-size: 18px;">Promedio por Operación</h3>
+          <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">$${this.formatVES(stats.averageOperation || 0)}</p>
+          <p style="color: #666;">por operación</p>
+        </div>
+        
+        <div style="width: 48%; margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h3 style="margin-top: 0; color: #333; font-size: 18px;">Tasa Promedio</h3>
+          <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${this.formatVES(stats.exchangeRate?.average || 0)}</p>
+          <p style="color: #666;">tasa del período</p>
+        </div>
+      </div>
+    `;
+    reportContainer.appendChild(metricsSection);
+    
+    // Sección de ganancias y distribución
+    const profitsSection = document.createElement('div');
+    profitsSection.innerHTML = `
+      <h2 style="margin-top: 30px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Ganancias y Distribución</h2>
+      
+      <div style="margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="background-color: #f8f9fa;">
+            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Concepto</th>
+            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Monto (USD)</th>
+            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Porcentaje</th>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">Ganancia Total</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(stats.totalProfit || 0)}</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">100%</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">Clientes</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(stats.clientProfit || 0)}</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${stats.totalProfit ? ((stats.clientProfit || 0) / stats.totalProfit * 100).toFixed(2) : 0}%</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">Comisiones</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(stats.totalCommissions || 0)}</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${stats.totalProfit ? ((stats.totalCommissions || 0) / stats.totalProfit * 100).toFixed(2) : 0}%</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">Oficina Puerto Ordaz</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(stats.officePZOTotal || 0)}</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${stats.totalProfit ? ((stats.officePZOTotal || 0) / stats.totalProfit * 100).toFixed(2) : 0}%</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">Oficina Caracas</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(stats.officeCCSTotal || 0)}</td>
+            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${stats.totalProfit ? ((stats.officeCCSTotal || 0) / stats.totalProfit * 100).toFixed(2) : 0}%</td>
+          </tr>
+        </table>
+      </div>
+    `;
+    reportContainer.appendChild(profitsSection);
+    
+    // Sección de operaciones por tipo
+    if (dashboardData.operationsByType) {
+      const operationsSection = document.createElement('div');
+      operationsSection.innerHTML = `
+        <h2 style="margin-top: 30px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Distribución de Operaciones</h2>
+        
+        <div style="margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Tipo</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Cantidad</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Porcentaje</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Monto Total (USD)</th>
+            </tr>
+            ${Object.entries(dashboardData.operationsByType).map(([type, data]) => `
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">${type.charAt(0).toUpperCase() + type.slice(1)}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${data.count || 0}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${(data.percentage || 0).toFixed(2)}%</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(data.amount || 0)}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+      reportContainer.appendChild(operationsSection);
+    }
+    
+    // Sección de rendimiento por operadores (si hay datos)
+    if (dashboardData.operatorsPerformance && dashboardData.operatorsPerformance.length > 0) {
+      const operatorsSection = document.createElement('div');
+      operatorsSection.innerHTML = `
+        <h2 style="margin-top: 30px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Rendimiento por Operador</h2>
+        
+        <div style="margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Operador</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Operaciones</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Ventas (USD)</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Canjes (USD)</th>
+              <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Total (USD)</th>
+            </tr>
+            ${dashboardData.operatorsPerformance.map(op => `
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">${op.name || 'Sin nombre'}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${op.totalOperations || 0}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(op.salesAmount || 0)}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(op.exchangeAmount || 0)}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">$${this.formatVES(op.totalAmount || 0)}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+      reportContainer.appendChild(operatorsSection);
+    }
+    
+    // Sección de gráficos si se proporcionan imágenes
+    if (chartImages && chartImages.length > 0) {
+      const chartsSection = document.createElement('div');
+      chartsSection.innerHTML = `
+        <h2 style="margin-top: 30px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Gráficos</h2>
+        
+        <div style="margin: 20px 0; display: flex; flex-wrap: wrap; justify-content: space-between;">
+          ${chartImages.map((chart, index) => `
+            <div style="width: ${index < 2 ? '48%' : '100%'}; margin-bottom: 20px;">
+              <img src="${chart.image}" alt="Gráfico ${index + 1}" style="width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+          `).join('')}
+        </div>
+      `;
+      reportContainer.appendChild(chartsSection);
+    }
+    
+    // Pie de página
+    const footer = document.createElement('div');
+    footer.innerHTML = `
+      <div style="margin-top: 40px; padding-top: 10px; border-top: 1px solid #ddd; text-align: center; color: #888;">
+        <p>© ${new Date().getFullYear()} InterUnido Exchange. Todos los derechos reservados.</p>
+      </div>
+    `;
+    reportContainer.appendChild(footer);
+    
+    // Configurar opciones del PDF
+    const opt = {
+      margin: [0, 0, 0, 0],
+      filename: `InterUnido_Informe_${dateInfo.range}_${new Date().toISOString().split('T')[0]}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    // Generar PDF
+    document.body.appendChild(reportContainer);
+    try {
+      await html2pdf().set(opt).from(reportContainer).save();
+      console.log('Informe generado correctamente');
+    } catch (error) {
+      console.error('Error al generar el informe:', error);
+    } finally {
+      document.body.removeChild(reportContainer);
+    }
+  }
+}
+
 // Exportar la clase
 window.ReportGenerator = ReportGenerator;
+window.DashboardReportGenerator = DashboardReportGenerator;

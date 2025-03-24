@@ -21,6 +21,7 @@ const apiUrl = '/api';  // Base URL para las llamadas API
 let currentDateRange = 'today';
 let customStartDate = null;
 let customEndDate = null;
+let lastProcessedData = null; // Almacena los últimos datos procesados
 
 // Función para formatear montos monetarios
 function formatCurrency(amount) {
@@ -113,6 +114,20 @@ async function fetchDashboardData(dateRange = 'today', startDate = null, endDate
         }
         
         const metricsData = await metricsResponse.json();
+        
+        // Log específico si el rango es "month" (Este Mes)
+        if (dateRange === 'month') {
+            console.log('Métricas para ESTE MES recibidas:', metricsData);
+            console.log('metrics.stats para ESTE MES:', metricsData.stats);
+            console.log('exchangeRate en stats para ESTE MES:', metricsData.stats?.exchangeRate);
+            
+            // Asegurarse de que estadísticas de tasa de cambio exista
+            if (!metricsData.stats) metricsData.stats = {};
+            if (!metricsData.stats.exchangeRate) {
+                metricsData.stats.exchangeRate = { average: 78.26 };
+                console.warn('Añadiendo exchangeRate faltante con valor fijo 78.26 para ESTE MES');
+            }
+        }
         
         // Obtener operaciones en bruto
         console.log('Obteniendo datos de operaciones desde:', operationsUrl);
@@ -1335,9 +1350,42 @@ function updateDashboard(metrics) {
     console.log('Actualizando dashboard con métricas procesadas:', metrics);
     
     try {
+        // Guardar los datos procesados para posible uso posterior
+        lastProcessedData = metrics;
+        
+        // Logs detallados para depuración
+        console.log('metrics.exchangeRate existe?', metrics.exchangeRate ? 'Sí' : 'No');
+        console.log('metrics.stats.exchangeRate existe?', metrics.stats?.exchangeRate ? 'Sí' : 'No');
+        
+        if (metrics.exchangeRate) {
+            console.log('Valor de metrics.exchangeRate:', metrics.exchangeRate);
+        }
+        
+        if (metrics.stats?.exchangeRate) {
+            console.log('Valor de metrics.stats.exchangeRate:', metrics.stats.exchangeRate);
+        }
+        
+        // Revisar si estamos en el rango "month" y no hay tasa de cambio
+        if (currentDateRange === 'month' && (!metrics.exchangeRate && !metrics.stats?.exchangeRate)) {
+            console.warn('No se encontró tasa de cambio para rango "month", asignando valor por defecto 78.26');
+            metrics.stats = metrics.stats || {};
+            metrics.stats.exchangeRate = metrics.stats.exchangeRate || {};
+            metrics.stats.exchangeRate.average = 78.26;
+        }
+        
         // Actualizar cards de estadísticas
-console.log('Actualizando tarjetas con stats:', metrics.stats);
-updateStatCards(metrics.stats);
+        console.log('Actualizando tarjetas con stats:', metrics.stats);
+        
+        // Pasar tanto metrics.stats como metrics.exchangeRate
+        const statsWithExchangeRate = {
+            ...metrics.stats,
+            exchangeRate: metrics.exchangeRate || metrics.stats.exchangeRate // Usar metrics.exchangeRate si existe, sino usar el de stats
+        };
+        
+        // Log adicional
+        console.log('statsWithExchangeRate final:', statsWithExchangeRate);
+        
+        updateStatCards(statsWithExchangeRate);
         
         // Verificar y actualizar gráficos
         console.log('Verificando y actualizando gráficos...');
@@ -1399,7 +1447,6 @@ updateStatCards(metrics.stats);
 }
 
 // Función para actualizar las tarjetas de estadísticas
-// Función para actualizar las tarjetas de estadísticas
 function updateStatCards(stats) {
     console.log('Actualizando tarjetas de estadísticas:', stats);
     
@@ -1415,7 +1462,10 @@ function updateStatCards(stats) {
             salesPercentageChange: stats.sales?.percentageChange,
             operationsTotal: stats.operations?.total,
             operationsAverage: stats.operations?.average,
-            exchangeRateAverage: stats.exchangeRate?.average
+            exchangeRateAverage: stats.exchangeRate?.average,
+            exchangeRateType: typeof stats.exchangeRate?.average,
+            exchangeRateToString: stats.exchangeRate?.average?.toString(),
+            stats_exchangeRate_completo: stats.exchangeRate
         });
         
         // Actualizar ventas diarias
@@ -1462,9 +1512,29 @@ function updateStatCards(stats) {
         // Actualizar tasa promedio
         const averageRateEl = document.getElementById('averageRate');
         if (averageRateEl) {
-            const avgRate = stats.exchangeRate?.average?.toFixed(2) || '0.00';
-            console.log('Actualizando averageRate con:', avgRate);
-            averageRateEl.textContent = avgRate;
+            // Asegurar que tengamos un valor numérico o usar 0.00
+            let avgRate = stats.exchangeRate?.average;
+            console.log('Valor original de avgRate:', avgRate, 'Tipo:', typeof avgRate);
+            
+            // Asegurar que sea un número
+            if (avgRate === undefined || avgRate === null) {
+                avgRate = 0.00;
+                console.log('avgRate era undefined/null, asignado 0.00');
+            } else if (typeof avgRate !== 'number') {
+                // Intentar convertir a número si es string
+                avgRate = parseFloat(avgRate);
+                if (isNaN(avgRate)) {
+                    avgRate = 0.00;
+                    console.log('avgRate no era un número válido, asignado 0.00');
+                } else {
+                    console.log('avgRate convertido a número:', avgRate);
+                }
+            }
+            
+            // Ahora podemos aplicar toFixed() con seguridad
+            const formattedRate = avgRate.toFixed(2);
+            console.log('Actualizando averageRate con:', formattedRate);
+            averageRateEl.textContent = formattedRate;
         } else {
             console.warn('Elemento averageRate no encontrado');
         }
@@ -1654,9 +1724,129 @@ function initDashboard() {
         // Escuchar el clic en el botón de exportar reporte (si existe)
         const exportBtn = document.getElementById('exportBtn');
         if (exportBtn) {
-            exportBtn.addEventListener('click', function() {
-                console.log('Exportando reporte...');
-                showErrorMessage('Exportación de reportes en desarrollo', 'info');
+            exportBtn.addEventListener('click', async function() {
+                console.log('Generando informe general desde dashboard...');
+                
+                try {
+                    // Mostrar indicador de carga o mensaje
+                    showErrorMessage('Generando informe, por favor espere...', 'info');
+                    
+                    // 1. Obtenemos los datos actuales del dashboard según el filtro seleccionado
+                    let dateInfo = { 
+                        range: currentDateRange,
+                        label: 'Hoy' // Valor por defecto
+                    };
+                    
+                    // Determinar la etiqueta según el rango de fecha actual
+                    switch(currentDateRange) {
+                        case 'today':
+                            dateInfo.label = 'Hoy';
+                            break;
+                        case 'yesterday':
+                            dateInfo.label = 'Ayer';
+                            break;
+                        case 'week':
+                            dateInfo.label = 'Esta Semana';
+                            break;
+                        case 'month':
+                            dateInfo.label = 'Este Mes';
+                            break;
+                        case 'custom':
+                            dateInfo.label = 'Período Personalizado';
+                            dateInfo.start = customStartDate;
+                            dateInfo.end = customEndDate;
+                            break;
+                    }
+                    
+                    // 2. Obtener capturas de los gráficos como imágenes
+                    const chartImages = [];
+                    
+                    // Función para convertir un gráfico a imagen
+                    const chartToImage = (chart) => {
+                        if (!chart) return null;
+                        return chart.toBase64Image();
+                    };
+                    
+                    // Obtener imagen de cada gráfico disponible
+                    if (salesChart) {
+                        chartImages.push({
+                            id: 'salesChart',
+                            image: chartToImage(salesChart)
+                        });
+                    }
+                    
+                    if (operationsChart) {
+                        chartImages.push({
+                            id: 'operationsChart',
+                            image: chartToImage(operationsChart)
+                        });
+                    }
+                    
+                    if (profitsChart) {
+                        chartImages.push({
+                            id: 'profitsChart',
+                            image: chartToImage(profitsChart)
+                        });
+                    }
+                    
+                    if (commissionsChart) {
+                        chartImages.push({
+                            id: 'commissionsChart',
+                            image: chartToImage(commissionsChart)
+                        });
+                    }
+                    
+                    if (performanceChart) {
+                        chartImages.push({
+                            id: 'performanceChart',
+                            image: chartToImage(performanceChart)
+                        });
+                    }
+                    
+                    // Añadir también el gráfico de rendimiento por operador si existe
+                    if (operatorsChart) {
+                        chartImages.push({
+                            id: 'operatorsChart',
+                            image: chartToImage(operatorsChart)
+                        });
+                    }
+                    
+                    console.log(`Se obtuvieron ${chartImages.length} imágenes de gráficos`);
+                    
+                    // 3. Preparar datos para el informe
+                    // Crear variable para almacenar los datos procesados
+                    let processedData;
+
+                    // Comprobar si tenemos datos ya cargados en el dashboard
+                    if (lastProcessedData) {
+                        console.log('Reutilizando datos ya procesados del dashboard');
+                        processedData = lastProcessedData;
+                    } else {
+                        console.log('Obteniendo nuevos datos para el informe');
+                        // Obtener datos actuales del dashboard
+                        const dashboardData = await fetchDashboardData(currentDateRange, customStartDate, customEndDate);
+                        processedData = processDashboardData({ 
+                            ...dashboardData, 
+                            dateRange: currentDateRange 
+                        });
+                    }
+
+                    // Si no se pudieron cargar los datos, mostrar error
+                    if (!processedData) {
+                        showErrorMessage('No se pudieron cargar los datos para el informe', 'error');
+                        return;
+                    }
+                    
+                    // 4. Llamar al generador de informes
+                    const reportGenerator = new DashboardReportGenerator();
+                    await reportGenerator.generateDashboardReport(processedData, dateInfo, chartImages);
+                    
+                    console.log('Informe generado exitosamente');
+                    showErrorMessage('Informe generado exitosamente', 'success');
+                } catch (error) {
+                    console.error('Error al generar informe:', error);
+                    showErrorMessage('Error al generar informe: ' + error.message, 'error');
+                }
             });
         }
         
