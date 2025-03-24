@@ -50,8 +50,12 @@
                                     </div>
                                 </div>
                                 <div class="col-md-4 text-end">
-                                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#customDateCollapse" aria-expanded="false" aria-controls="customDateCollapse">
+                                    <button class="btn btn-outline-secondary me-2" type="button" data-bs-toggle="collapse" data-bs-target="#customDateCollapse" aria-expanded="false" aria-controls="customDateCollapse">
                                         Fecha Personalizada
+                                    </button>
+                                    <!-- Botón de exportar informe directamente en esta sección -->
+                                    <button id="exportBtn" class="btn btn-success">
+                                        <i class="fas fa-file-pdf me-1"></i> Exportar PDF
                                     </button>
                                 </div>
                             </div>
@@ -325,7 +329,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="js/reportGenerator.js"></script>
     
-    <script src="js/dashboard.js?v=20250324-1"></script>
+    <script src="js/dashboard.js?v=20250324-2"></script>
     
     <!-- Script de verificación final y fallback -->
     <script>
