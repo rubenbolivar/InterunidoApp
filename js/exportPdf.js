@@ -92,12 +92,224 @@ document.addEventListener('DOMContentLoaded', function() {
             const metricsSection = document.createElement('div');
             metricsSection.style.marginBottom = '25px';
             
-            // Obtener los valores de las métricas
-            const ventas = document.getElementById('dailySales')?.textContent || '$0';
-            const porcentaje = document.querySelector('#percentageChange')?.textContent || '0%';
-            const operaciones = document.getElementById('totalOperations')?.textContent || '0';
-            const promedio = document.getElementById('averageOperation')?.textContent || '$0';
-            const tasa = document.getElementById('averageRate')?.textContent || '0';
+            // Obtener los valores de las métricas - Mejorar la forma de capturar los datos
+            let ventas = '$0,00';
+            let porcentaje = '0%';
+            let operaciones = '0';
+            let promedio = '$0,00';
+            let tasa = '0';
+            
+            // Funciones auxiliares para encontrar los valores correctamente
+            function getTextContent(selector, fallback) {
+                // Intenta múltiples estrategias para encontrar el elemento
+                const element = 
+                    document.getElementById(selector) || 
+                    document.querySelector('#' + selector) ||
+                    document.querySelector('h2:contains("' + selector + '")') ||
+                    document.querySelector('div:contains("' + selector + '")');
+                
+                return element ? element.textContent.trim() : fallback;
+            }
+            
+            // Buscar los valores usando varias estrategias
+            // 1. Intenta encontrar los elementos por su ID exacto
+            console.log("Buscando elementos por ID...");
+            const ventasElement = document.getElementById('dailySales');
+            if (ventasElement) ventas = ventasElement.textContent.trim();
+            
+            const pctElement = document.querySelector('#percentageChange');
+            if (pctElement) porcentaje = pctElement.textContent.trim();
+            
+            const opsElement = document.getElementById('totalOperations');
+            if (opsElement) operaciones = opsElement.textContent.trim();
+            
+            const avgElement = document.getElementById('averageOperation');
+            if (avgElement) promedio = avgElement.textContent.trim();
+            
+            const rateElement = document.getElementById('averageRate');
+            if (rateElement) tasa = rateElement.textContent.trim();
+            
+            // 2. Si no funcionó, intenta buscar por las tarjetas con los títulos
+            console.log("Buscando elementos por tarjetas...");
+            if (ventas === '$0,00') {
+                const ventasCards = Array.from(document.querySelectorAll('.card, .card-body'));
+                for (const card of ventasCards) {
+                    if (card.textContent.includes('Ventas del Período')) {
+                        // Buscar elementos que parezcan valores monetarios
+                        const moneyElements = Array.from(card.querySelectorAll('h2, .card-text, p, span'))
+                            .filter(el => el.textContent.trim().match(/^\$[\d\.,]+/));
+                        if (moneyElements.length > 0) {
+                            ventas = moneyElements[0].textContent.trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (operaciones === '0') {
+                const opsCards = Array.from(document.querySelectorAll('.card, .card-body'));
+                for (const card of opsCards) {
+                    if (card.textContent.includes('Operaciones') && !card.textContent.includes('Promedio')) {
+                        // Buscar números grandes que parezcan conteos
+                        const numElements = Array.from(card.querySelectorAll('h2, .card-text, p, span'))
+                            .filter(el => el.textContent.trim().match(/^\d+$/));
+                        if (numElements.length > 0) {
+                            operaciones = numElements[0].textContent.trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (promedio === '$0,00') {
+                const avgCards = Array.from(document.querySelectorAll('.card, .card-body'));
+                for (const card of avgCards) {
+                    if (card.textContent.includes('Promedio por Operación')) {
+                        // Buscar elementos que parezcan valores monetarios
+                        const moneyElements = Array.from(card.querySelectorAll('h2, .card-text, p, span'))
+                            .filter(el => el.textContent.trim().match(/^\$[\d\.,]+/));
+                        if (moneyElements.length > 0) {
+                            promedio = moneyElements[0].textContent.trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (tasa === '0') {
+                const rateCards = Array.from(document.querySelectorAll('.card, .card-body'));
+                for (const card of rateCards) {
+                    if (card.textContent.includes('Tasa Promedio')) {
+                        // Buscar números grandes que parezcan tasas
+                        const numElements = Array.from(card.querySelectorAll('h2, .card-text, p, span'))
+                            .filter(el => el.textContent.trim().match(/^[\d\.,]+$/));
+                        if (numElements.length > 0) {
+                            tasa = numElements[0].textContent.trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 3. Último recurso: examinar directamente cada tarjeta de estadísticas
+            console.log("Examinando todas las tarjetas...");
+            
+            // Obtener todas las tarjetas de estadísticas (las primeras 4 tarjetas)
+            const statCards = Array.from(document.querySelectorAll('.card')).slice(0, 4);
+            console.log(`Encontradas ${statCards.length} tarjetas de estadísticas`);
+            
+            if (statCards.length >= 4) {
+                // Extraer los valores de estas tarjetas directamente
+                const cardValues = statCards.map(card => {
+                    // Encontrar el elemento con el valor principal (generalmente un h2 o elemento con clase card-text)
+                    const valueElement = card.querySelector('h2, .card-text');
+                    return valueElement ? valueElement.textContent.trim() : '';
+                });
+                
+                console.log("Valores extraídos de las tarjetas:", cardValues);
+                
+                // Asignar valores si todavía son los predeterminados
+                if (ventas === '$0,00' && cardValues[0]) ventas = cardValues[0];
+                if (operaciones === '0' && cardValues[1]) operaciones = cardValues[1];
+                if (promedio === '$0,00' && cardValues[2]) promedio = cardValues[2];
+                if (tasa === '0' && cardValues[3]) tasa = cardValues[3];
+            }
+            
+            // 4. Método directo: capturar mediante selectores específicos
+            console.log("Intentando captura directa de métricas...");
+            
+            // Identificar las métricas por su ubicación específica en el DOM
+            // Añadir una opción más directa: capturar datos directamente de los elementos visuales
+            try {
+                // Obtener todas las tarjetas numéricas del dashboard
+                document.querySelectorAll('.col-md-4, .col-lg-4, .col-xl-4, .col').forEach(col => {
+                    if (col.textContent.includes('Ventas del Período')) {
+                        const numElement = col.querySelector('h2, .h2, .display-4, .card-text, .fs-2, [class*="h"]');
+                        if (numElement && ventas === '$0,00') {
+                            ventas = numElement.textContent.trim();
+                            console.log("Ventas capturadas de la interfaz:", ventas);
+                        }
+                    }
+                    
+                    if (col.textContent.includes('Operaciones') && !col.textContent.includes('Promedio')) {
+                        const numElement = col.querySelector('h2, .h2, .display-4, .card-text, .fs-2, [class*="h"]');
+                        if (numElement && operaciones === '0') {
+                            operaciones = numElement.textContent.trim();
+                            console.log("Operaciones capturadas de la interfaz:", operaciones);
+                        }
+                    }
+                    
+                    if (col.textContent.includes('Promedio por Operación')) {
+                        const numElement = col.querySelector('h2, .h2, .display-4, .card-text, .fs-2, [class*="h"]');
+                        if (numElement && promedio === '$0,00') {
+                            promedio = numElement.textContent.trim();
+                            console.log("Promedio capturado de la interfaz:", promedio);
+                        }
+                    }
+                    
+                    if (col.textContent.includes('Tasa Promedio')) {
+                        const numElement = col.querySelector('h2, .h2, .display-4, .card-text, .fs-2, [class*="h"]');
+                        if (numElement && tasa === '0') {
+                            tasa = numElement.textContent.trim();
+                            console.log("Tasa capturada de la interfaz:", tasa);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Error en la búsqueda directa en la interfaz:", error);
+            }
+            
+            // Como último recurso, extraer datos numéricos de la página
+            if (ventas === '$0,00' || operaciones === '0' || promedio === '$0,00' || tasa === '0') {
+                console.log("Realizando búsqueda general en la página...");
+                
+                // Buscar todos los elementos que parecen contener valores monetarios o numéricos
+                const moneyElements = Array.from(document.querySelectorAll('*')).filter(el => {
+                    const text = el.textContent.trim();
+                    return text.match(/^\$[\d\.,]+$/) || text.match(/^[\d\.]+$/);
+                });
+                
+                console.log(`Encontrados ${moneyElements.length} posibles valores numéricos en la página`);
+                
+                // Intentar identificar los valores por su formato y contexto
+                moneyElements.forEach(el => {
+                    const text = el.textContent.trim();
+                    const parentText = el.parentElement?.textContent || '';
+                    
+                    if (text.startsWith('$') && ventas === '$0,00' && !parentText.includes('Promedio')) {
+                        ventas = text;
+                        console.log("Posible valor de ventas encontrado:", ventas);
+                    }
+                    
+                    if (text.match(/^\d+$/) && operaciones === '0' && (
+                        parentText.includes('operaciones') || 
+                        el.nextElementSibling?.textContent.includes('operaciones')
+                    )) {
+                        operaciones = text;
+                        console.log("Posible valor de operaciones encontrado:", operaciones);
+                    }
+                    
+                    if (text.startsWith('$') && promedio === '$0,00' && (
+                        parentText.includes('promedio') || 
+                        parentText.includes('Promedio') || 
+                        el.nextElementSibling?.textContent.includes('operación')
+                    )) {
+                        promedio = text;
+                        console.log("Posible valor de promedio encontrado:", promedio);
+                    }
+                    
+                    if (text.match(/^[\d\.]+$/) && tasa === '0' && (
+                        parentText.includes('tasa') || 
+                        parentText.includes('Tasa') || 
+                        el.nextElementSibling?.textContent.includes('tasa')
+                    )) {
+                        tasa = text;
+                        console.log("Posible valor de tasa encontrado:", tasa);
+                    }
+                });
+            }
+            
+            console.log("Valores finales capturados:", { ventas, porcentaje, operaciones, promedio, tasa });
             
             // Determinar color para el porcentaje de cambio
             const pctText = porcentaje.replace('%', '').trim();
@@ -135,6 +347,112 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             element.appendChild(metricsSection);
+            
+            // === GANANCIAS Y DISTRIBUCIÓN ===
+            const profitsSection = document.createElement('div');
+            profitsSection.style.marginBottom = '25px';
+            
+            // Intenta obtener datos de ganancias y distribución
+            let gananciasData = {
+                total: '$0,00',
+                clientes: '$0,00',
+                comisiones: '$0,00',
+                oficinaPZO: '$0,00',
+                oficinaCCS: '$0,00'
+            };
+            
+            // Intenta encontrar datos de ganancias en el dashboard
+            console.log("Buscando datos de ganancias...");
+            try {
+                // Buscar gráficos o tablas que contengan datos de distribución
+                const gananciasChart = document.querySelector('.chart-container canvas');
+                if (gananciasChart) {
+                    // Podemos intentar obtener datos del gráfico, pero es difícil...
+                    console.log("Encontrado gráfico de ganancias");
+                }
+                
+                // Buscar directamente en la API del dashboard si está accesible
+                if (window.dashboardData && window.dashboardData.stats) {
+                    const stats = window.dashboardData.stats;
+                    // Formatear los valores
+                    const formatValue = val => '$' + parseFloat(val || 0).toLocaleString('es-ES', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    
+                    gananciasData = {
+                        total: formatValue(stats.totalProfit),
+                        clientes: formatValue(stats.clientProfit),
+                        comisiones: formatValue(stats.totalCommissions),
+                        oficinaPZO: formatValue(stats.officePZOTotal),
+                        oficinaCCS: formatValue(stats.officeCCSTotal)
+                    };
+                    
+                    console.log("Datos de ganancias obtenidos de window.dashboardData:", gananciasData);
+                }
+            } catch (error) {
+                console.error("Error al obtener datos de ganancias:", error);
+            }
+            
+            // Calcular porcentajes (o usar valores por defecto)
+            const calcPercent = (value, total) => {
+                try {
+                    const v = parseFloat(value.replace(/[$,]/g, '')) || 0;
+                    const t = parseFloat(total.replace(/[$,]/g, '')) || 1; // evitar división por cero
+                    return ((v / t) * 100).toFixed(2) + '%';
+                } catch (e) {
+                    return '0%';
+                }
+            };
+            
+            const percents = {
+                clientes: calcPercent(gananciasData.clientes, gananciasData.total),
+                comisiones: calcPercent(gananciasData.comisiones, gananciasData.total),
+                oficinaPZO: calcPercent(gananciasData.oficinaPZO, gananciasData.total),
+                oficinaCCS: calcPercent(gananciasData.oficinaCCS, gananciasData.total)
+            };
+            
+            // Generar HTML para la sección de ganancias
+            profitsSection.innerHTML = `
+                <h2 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #333;">Ganancias y Distribución</h2>
+                
+                <div style="margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Concepto</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Monto (USD)</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Porcentaje</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;">Ganancia Total</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${gananciasData.total}</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">100%</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;">Clientes</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${gananciasData.clientes}</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${percents.clientes}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;">Comisiones</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${gananciasData.comisiones}</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${percents.comisiones}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;">Oficina Puerto Ordaz</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${gananciasData.oficinaPZO}</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${percents.oficinaPZO}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;">Oficina Caracas</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${gananciasData.oficinaCCS}</td>
+                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${percents.oficinaCCS}</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            
+            element.appendChild(profitsSection);
             
             // === GRÁFICOS ===
             const chartsSection = document.createElement('div');
