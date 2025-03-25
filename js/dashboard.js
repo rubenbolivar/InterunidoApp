@@ -978,18 +978,41 @@ function updateOperationsChart(operationsData) {
     
     try {
         const ctx = operationsChartEl.getContext('2d');
+        
+        // Asegurar que tenemos las etiquetas y datos correctos
+        const labels = operationsData.labels || ['Ventas', 'Canjes Externos', 'Canjes Internos'];
+        const data = operationsData.data || [0, 0, 0];
+        
+        // Asignar colores específicos para cada tipo de operación
+        // Crear arrays de colores con el mismo tamaño que el número de etiquetas
+        const backgroundColors = [];
+        const borderColors = [];
+        
+        // Para cada etiqueta, asignar el color correspondiente
+        for (let i = 0; i < labels.length; i++) {
+            const label = labels[i].toLowerCase();
+            
+            if (label.includes('venta')) {
+                // Azul para Ventas
+                backgroundColors.push('rgba(13, 110, 253, 0.8)');
+                borderColors.push('rgba(13, 110, 253, 1)');
+            } else if (label.includes('externo')) {
+                // Naranja para Canjes Externos
+                backgroundColors.push('rgba(255, 143, 0, 0.8)');
+                borderColors.push('rgba(255, 143, 0, 1)');
+            } else {
+                // Verde para Canjes Internos u otros tipos
+                backgroundColors.push('rgba(25, 135, 84, 0.8)');
+                borderColors.push('rgba(25, 135, 84, 1)');
+            }
+        }
+        
         const chartData = {
-            labels: operationsData.labels || ['Ventas', 'Canjes'],
+            labels: labels,
             datasets: [{
-                data: operationsData.data || [0, 0],
-                backgroundColor: [
-                    'rgba(13, 110, 253, 0.8)',
-                    'rgba(25, 135, 84, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(13, 110, 253, 1)',
-                    'rgba(25, 135, 84, 1)'
-                ],
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
                 borderWidth: 1
             }]
         };
