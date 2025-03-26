@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterUnido - Canje</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Estilos comunes -->
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/mobile-menu.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row g-0">
+      <!-- Sidebar -->
+      <div id="sidebar-container" class="col-12 col-md-3 col-lg-2 sidebar">
+        <!-- El sidebar se cargará aquí -->
+      </div>
+      
+      <!-- Main content -->
+      <main class="col-12 col-md-9 col-lg-10 px-md-4">
+        <div class="dashboard-content">
+          <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Canje de Divisas</h1>
+            <button id="themeToggle" class="btn btn-outline-secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Tres columnas (Stage 1, Stage 2, Stage 3) -->
+          <div class="stages-wrapper">
+            
+            <!-- Stage 1: Datos de la Operación (columna izquierda) -->
+            <div class="stage card" id="stage1">
+              <div class="card-header">
+                <h5 class="mb-0">Datos de la Operación</h5>
+              </div>
+              <div class="card-body">
+                <!-- Formulario con Cliente, Tipo de Canje, Monto (total) y Botón -->
+                <form id="operationForm">
+                  <div class="mb-3">
+                    <label for="clientName" class="form-label">Cliente</label>
+                    <input type="text" id="clientName" class="form-control" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="swapType" class="form-label">Tipo de Canje</label>
+                    <select id="swapType" class="form-select" required>
+                      <option value="">Seleccione tipo</option>
+                      <option value="interno">Interno</option>
+                      <option value="externo">Externo</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="totalAmount" class="form-label">Monto (total)</label>
+                    <input type="number" id="totalAmount" class="form-control" step="0.01" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary w-100">
+                    Procesar Operación
+                  </button>
+                </form>
+              </div>
+            </div><!-- /.stage (Stage 1) -->
+
+            <!-- Stage 2: Transacciones de Canje (columna central) -->
+            <div class="stage card" id="stage2" style="display: none;">
+              <div class="card-header">
+                <h5 class="mb-0">Transacciones de Canje</h5>
+              </div>
+              <!-- Scroll interno si hay muchas transacciones -->
+              <div class="card-body scrollable">
+                <!-- Contenedor donde se agregan transacciones -->
+                <div id="transactionsContainer"></div>
+                
+                <!-- Botón para agregar transacciones -->
+                <button id="addTransactionBtn" class="btn btn-primary w-100 mt-3">
+                  Agregar Transacción
+                </button>
+              </div>
+            </div><!-- /.stage (Stage 2) -->
+
+            <!-- Stage 3: Resultado de la Operación (columna derecha) -->
+            <div class="stage card" id="stage3" style="display: none;">
+              <div class="card-header">
+                <h5 class="mb-0">Resultado de la Operación</h5>
+              </div>
+              <!-- Scroll interno para ver resultados -->
+              <div class="card-body scrollable">
+                <div id="resultadoOperacion" class="results-container">
+                  <!-- Aquí se mostrará el resumen final de la operación -->
+                </div>
+                <!-- Botón para finalizar y guardar la operación -->
+                <button id="saveOperationBtn" class="btn btn-success w-100 mt-3" style="display: none;">
+                  Finalizar y Guardar Operación
+                </button>
+              </div>
+            </div><!-- /.stage (Stage 3) -->
+
+          </div><!-- /.stages-wrapper -->
+        </div><!-- /.dashboard-content -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Botón de menú móvil -->
+  <div class="d-md-none position-fixed top-0 start-0 p-3" style="z-index: 1040;">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+
+  <!-- Offcanvas Sidebar -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMenu">
+    <div class="offcanvas-header">
+      <img src="assets/logo.jpg" alt="InterUnido" class="offcanvas-logo">
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <!-- El contenido del sidebar se cargará aquí -->
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/loadSidebar.js"></script>
+  <script src="js/canje.js"></script>
+</body>
+</html>

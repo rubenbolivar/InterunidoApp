@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venta de Divisas - InterUnido</title>
+    <!-- Bootstrap y FontAwesome -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Tus estilos -->
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile-menu.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row g-0">
+            <!-- Sidebar container - visible en todos los dispositivos -->
+            <div id="sidebar-container" class="col-12 col-md-3 col-lg-2 sidebar">
+                <!-- El sidebar se cargará aquí -->
+            </div>
+            
+            <!-- Main content -->
+            <main class="col-12 col-md-9 col-lg-10 ms-sm-auto px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Venta de Divisas</h1>
+                    <button id="themeToggle" class="btn btn-outline-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="content-wrapper">
+                    <div class="stages-wrapper">
+                        <!-- Stage 1: Datos de la Operación -->
+                        <div class="stage card" id="stage1">
+                            <div class="card-header">
+                                <h5 class="text-primary mb-0">Datos de la Operación</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="operationForm">
+                                    <div class="mb-3">
+                                        <label for="clientName" class="form-label">Nombre del Cliente:</label>
+                                        <input type="text" class="form-control" id="clientName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="amountToSell" class="form-label">Monto que desea vender:</label>
+                                        <input type="number" class="form-control" id="amountToSell" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="currencyType" class="form-label">Tipo de Divisa:</label>
+                                        <select class="form-select" id="currencyType" required>
+                                            <option value="">Seleccione una opción</option>
+                                            <option value="Euros en efectivo">Euros en efectivo</option>
+                                            <option value="Euro transferencia">Euro transferencia</option>
+                                            <option value="Dólares en efectivo">Dólares en efectivo</option>
+                                            <option value="Dólares Zelle">Dólares Zelle</option>
+                                            <option value="Dólares en Bancos internacionales">Dólares en Bancos internacionales</option>
+                                            <option value="Binance USDT">Binance USDT</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="clientRate" class="form-label">Tasa Cliente:</label>
+                                        <input type="number" class="form-control" id="clientRate" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="amountClientReceives" class="form-label">Monto que debe recibir el cliente:</label>
+                                        <input type="text" class="form-control" id="amountClientReceives" readonly>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Continuar</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Stage 2: Agregar Transacciones -->
+                        <div class="stage card" id="stage2">
+                            <div class="card-header">
+                                <h5 class="text-primary mb-0">Agregar Transacciones de Venta</h5>
+                            </div>
+                            <!-- Agregamos la clase "scrollable" para que el contenido interno tenga scroll -->
+                            <div class="card-body scrollable">
+                                <div id="transactionsContainer" class="transactions-container">
+                                    <!-- Las transacciones se agregarán aquí -->
+                                </div>
+                                <button id="addTransactionBtn" class="btn btn-primary w-100 mt-3">
+                                    Agregar Transacción
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Stage 3: Resultado -->
+                        <div class="stage card" id="stage3">
+                            <div class="card-header">
+                                <h5 class="text-primary mb-0">Resultado de la Operación</h5>
+                            </div>
+                            <!-- Agregamos la clase "scrollable" para que el contenido interno tenga scroll -->
+                            <div class="card-body scrollable">
+                                <div id="resultadoOperacion" class="results-container">
+                                    <!-- Los resultados se mostrarán aquí -->
+                                </div>
+                                <!-- Botón para enviar la operación completa a la API -->
+                                <button id="submitOperationBtn" class="btn btn-success w-100 mt-3">
+                                    Registrar Operación
+                                </button>
+                            </div>
+                        </div>
+                    </div><!-- /.stages-wrapper -->
+                </div><!-- /.content-wrapper -->
+            </main>
+        </div>
+    </div>
+
+    <!-- Botón de menú móvil -->
+    <div class="d-md-none position-fixed top-0 start-0 p-3" style="z-index: 1040;">
+        <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMenu">
+        <div class="offcanvas-header">
+            <img src="assets/logo.jpg" alt="InterUnido" class="offcanvas-logo">
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <!-- El contenido del sidebar se cargará aquí -->
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/loadSidebar.js"></script>
+    <script src="js/venta-new.js"></script>
+</body>
+</html>

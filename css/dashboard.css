@@ -1,0 +1,581 @@
+/* Layout del Dashboard */
+.layout {
+    display: grid;
+    min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 220px;  /* Reducido de 280px a 220px */
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 20px 0 0;  /* Reducido el padding superior */
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+    background-color: #fff;
+}
+
+/* Header del Sidebar */
+.sidebar-header {
+    padding: 1rem;
+    text-align: center;
+}
+
+.sidebar-header .logo {
+    width: 180px;  /* Aumentado de 120px a 180px */
+    height: auto;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1.5rem;  /* Aumentado el tamaño de fuente */
+    font-weight: 600;
+}
+
+.sidebar-header p {
+    margin: 0;
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+/* Navegación */
+.sidebar-nav {
+    padding: 1rem 0;
+}
+
+.sidebar-nav .nav-link {
+    padding: 0.75rem 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.sidebar-nav .nav-link:hover {
+    background-color: rgba(0, 0, 0, .05);
+}
+
+.sidebar-nav .nav-link.active {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+/* Estilos para los iconos en el sidebar */
+.sidebar-nav .nav-link i {
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+    font-size: 1.1rem;
+}
+
+.sidebar-footer .nav-link i {
+    margin-right: 8px;
+}
+
+/* Footer del Sidebar */
+.sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: 1rem;
+}
+
+/* Ajustes para el contenido principal */
+.col-md-9.ms-sm-auto {
+    margin-left: 220px; /* Ajustado al nuevo ancho del sidebar */
+}
+
+/* Tema oscuro */
+[data-bs-theme="dark"] .sidebar {
+    background-color: #212529 !important; /* Forzar color de fondo oscuro */
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, .1);
+}
+
+[data-bs-theme="dark"] .sidebar .logo-container h1 {
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .sidebar .logo-container p {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link {
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link.active {
+    background-color: #0d6efd;
+    color: #ffffff;
+}
+
+/* Asegurar que el botón de logout sea visible */
+[data-bs-theme="dark"] .sidebar .btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+[data-bs-theme="dark"] .sidebar .btn-outline-danger:hover {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+/* Main content */
+main {
+    padding-top: 1.5rem;
+}
+
+/* Contenido Principal */
+.main-content {
+    padding: var(--spacing-lg);
+}
+
+/* Tarjetas de Operaciones */
+.operation-cards {
+    display: grid;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+}
+
+.operation-card {
+    background: var(--card-background);
+    padding: var(--spacing-lg);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--border-color);
+}
+
+.operation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.operation-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* Stats Cards */
+.stats-grid {
+    display: grid;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+}
+
+.stat-card {
+    background: var(--card-background);
+    padding: var(--spacing-md);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.trend {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.trend.positive {
+    background: rgba(52, 168, 83, 0.1);
+    color: var(--success-color);
+}
+
+.trend.negative {
+    background: rgba(234, 67, 53, 0.1);
+    color: var(--error-color);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Charts */
+.charts-grid {
+    display: grid;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+}
+
+.chart-card {
+    background: var(--card-background);
+    padding: var(--spacing-lg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+/* Responsive */
+@media (min-width: 1024px) {
+    .layout {
+        grid-template-columns: var(--sidebar-width) 1fr;
+    }
+    
+    .operation-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .charts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 767.98px) {
+    /* Ocultar sidebar original en móvil */
+    .sidebar {
+        display: none;
+    }
+
+    /* Estilos para el offcanvas */
+    .offcanvas {
+        max-width: 280px;
+    }
+
+    /* Ajustar el contenido principal */
+    main {
+        margin-left: 0 !important;
+        padding-top: 60px !important;
+    }
+
+    /* Estilo para el botón de menú */
+    .btn-menu {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* Convertir sidebar en navbar para móviles */
+    .sidebar-nav {
+        display: flex;
+        justify-content: space-around;
+        padding: 0;
+    }
+
+    .sidebar-header {
+        display: none; /* Ocultar logo en móvil */
+    }
+
+    .sidebar-footer {
+        position: static;
+        text-align: center;
+    }
+
+    /* Ajustar links de navegación */
+    .sidebar-nav .nav-link {
+        padding: 0.5rem;
+        flex-direction: column;
+        align-items: center;
+        font-size: 0.875rem;
+    }
+
+    .sidebar-nav .nav-link i {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.25rem;
+    }
+
+    .logo-container,
+    .search-box {
+        display: none;
+    }
+    
+    .main-content {
+        padding-bottom: 80px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-content {
+        overflow-x: visible;
+        width: 100%;
+        padding: 0 15px;
+    }
+    
+    .sidebar {
+        display: none; /* Asegurar que el sidebar no ocupe espacio en móviles */
+    }
+
+    main {
+        width: 100% !important;
+        margin-left: 0 !important;
+        padding: 1rem !important;
+    }
+
+    .container-fluid {
+        padding: 0;
+    }
+
+    .col-md-9.ms-sm-auto,
+    .col-lg-10 {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    .stages-wrapper {
+        padding: 1rem;
+        overflow-x: hidden;
+    }
+
+    .stage {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Ajustes específicos para tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: 200px;
+    }
+
+    .col-md-9.ms-sm-auto,
+    .col-lg-10 {
+        margin-left: 200px;
+        width: calc(100% - 200px) !important;
+    }
+}
+
+/* Cards y elementos del dashboard */
+.card {
+    transition: transform .2s ease-in-out, box-shadow .2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+}
+
+/* Gráficos */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Utilidades */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Toggle de tema */
+.theme-toggle {
+    padding: .5rem;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Estilos para el logo */
+.logo-img {
+    padding: 10px;
+    background-color: #ffffff;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.logo-img:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Ajustes para tema oscuro */
+[data-bs-theme="dark"] .logo-img {
+    background-color: #2c3034;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+[data-bs-theme="dark"] .logo-img:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+/* Ajustes responsivos para el logo */
+@media (max-width: 768px) {
+    .logo-img {
+        width: 160px !important;
+    }
+}
+
+/* Asegurar que el contenido siempre sea visible */
+.dashboard-content,
+main {
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Ajustes para el layout */
+@media (min-width: 768px) {
+    /* En desktop */
+    main {
+        margin-left: 220px; /* Mismo ancho que el sidebar */
+        width: calc(100% - 220px) !important;
+    }
+    
+    .sidebar {
+        width: 220px;
+        position: fixed;
+    }
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .stages-wrapper {
+        padding: 1rem;
+        overflow-x: hidden;
+    }
+
+    .stage {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+
+    main {
+        margin-left: 0 !important;
+    }
+}
+
+/* Estilos para el offcanvas */
+.offcanvas {
+    max-width: 280px;
+}
+
+.offcanvas-header {
+    padding: 1.5rem; /* Aumentado el padding también */
+    border-bottom: 1px solid rgba(0,0,0,.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.offcanvas-body {
+    padding: 0;
+}
+
+.offcanvas-body .sidebar-header {
+    padding: 1rem;
+}
+
+.offcanvas-body .logo {
+    width: 120px;
+    height: auto;
+}
+
+.offcanvas-body .nav-link {
+    padding: 0.75rem 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.offcanvas-body .nav-link i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+.offcanvas-body .nav-link:hover {
+    background-color: rgba(0,0,0,.05);
+}
+
+.offcanvas-body .sidebar-footer {
+    position: static;
+    padding: 1rem;
+    border-top: 1px solid rgba(0,0,0,.1);
+}
+
+/* Ajustar posición del botón de menú */
+.menu-button-container {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1040;
+}
+
+/* Ajustar el header para que no solape con el botón */
+.d-flex.justify-content-between {
+    padding-left: 3.5rem !important;
+}
+
+/* Estilo para el logo en el offcanvas */
+.offcanvas-logo {
+    width: 180px; /* Aumentado de 120px a 180px */
+    height: auto;
+    margin-right: 1rem;
+}
+
+/* Estilos para gráficos y contenedores */
+.card-body {
+    padding: 1.25rem;
+    overflow: hidden; /* Prevenir desbordamiento */
+}
+
+/* Limitar la altura de los gráficos */
+canvas {
+    max-height: 400px !important; /* Forzar altura máxima */
+}
+
+/* Ajustes para los contenedores de gráficos */
+.card {
+    margin-bottom: 1.5rem;
+    height: auto !important; /* Evitar altura excesiva */
+}
+
+.card-body canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 400px !important;
+}
+
+/* Corregir el layout de la tabla de operadores */
+#operatorsTable {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Asegurar que la sección de rendimiento por operador no sea excesivamente alta */
+.operators-section .card-body {
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+/* Ajustes adicionales para vista móvil */
+@media (max-width: 767.98px) {
+    canvas {
+        max-height: 300px !important; /* Altura reducida en móviles */
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    /* Mejorar espaciado en móviles */
+    .card-body {
+        padding: 1rem;
+    }
+}

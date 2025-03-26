@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operaciones - InterUnido</title>
+  
+  <!-- Bootstrap CSS y FontAwesome -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  />
+  
+  <!-- Tus estilos -->
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/mobile-menu.css" />
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div class="row g-0">
+      <!-- Sidebar (se carga mediante loadSidebar.js) -->
+      <div id="sidebar-container" class="col-12 col-md-3 col-lg-2 sidebar"></div>
+      
+      <!-- Main content -->
+      <main class="col-12 col-md-9 col-lg-10 ms-sm-auto px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">Operaciones</h1>
+          <button id="themeToggle" class="btn btn-outline-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="dashboard-content">
+          <!-- Filtros -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5>Filtrar Operaciones</h5>
+            </div>
+            <div class="card-body">
+              <form id="filterForm" class="row g-3">
+                <div class="col-md-4">
+                  <label for="filterDate" class="form-label">Fecha</label>
+                  <input type="date" id="filterDate" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label for="filterClient" class="form-label">Cliente</label>
+                  <input
+                    type="text"
+                    id="filterClient"
+                    class="form-control"
+                    placeholder="Buscar por cliente"
+                  />
+                </div>
+                <div class="col-md-4">
+                  <label for="filterType" class="form-label">Tipo de Operación</label>
+                  <select id="filterType" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="venta">Venta</option>
+                    <option value="canje">Canje</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <button type="submit" class="btn btn-primary">Buscar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Lista de Operaciones -->
+          <div class="card">
+            <div class="card-header">
+              <h5>Operaciones</h5>
+            </div>
+            <!-- Agregamos la clase "scrollable" para permitir scroll si hay muchas filas -->
+            <div class="card-body scrollable operations-card-body p-0 p-sm-3">
+              <!-- Este contenedor se llena dinámicamente con filas (columnas) desde operaciones.js -->
+              <div id="operationsList" class="list-group"></div>
+              
+              <!-- Contenedor para paginación -->
+              <div id="pagination" class="mt-4 px-3 pb-3"></div>
+            </div>
+          </div>
+          
+          <style>
+            /* Estilos adicionales para mejorar la visualización en móviles */
+            @media (max-width: 767.98px) {
+              .operations-card-body {
+                overflow-x: hidden; /* Prevenir scroll horizontal */
+              }
+              .card-header h5 {
+                font-size: 1.1rem; /* Título más pequeño en móviles */
+              }
+              #filterForm .btn {
+                width: 100%; /* Botón de filtro a ancho completo */
+                margin-top: 0.5rem;
+              }
+              .form-label {
+                font-size: 0.9rem; /* Etiquetas más pequeñas */
+              }
+            }
+          </style>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal para ver Detalle de la Operación -->
+  <div
+    class="modal fade"
+    id="operationModal"
+    tabindex="-1"
+    aria-labelledby="operationModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="operationModalLabel">Detalle de Operación</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          ></button>
+        </div>
+        <div class="modal-body" id="operationModalBody">
+          <!-- Contenido dinámico del modal (se inyecta desde operaciones.js) -->
+        </div>
+        <div class="modal-footer">
+          <!-- Este botón se configura en showOperationDetailModal() -->
+          <button type="button" class="btn btn-primary" id="modalActionButton">
+            Acción
+          </button>
+          <!-- Nuevo botón para generar PDF -->
+          <button type="button" class="btn btn-secondary" id="generateReportBtn">
+            <i class="fas fa-file-pdf"></i> Generar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botón de menú móvil -->
+  <div
+    class="d-md-none position-fixed top-0 start-0 p-3"
+    style="z-index: 1040;"
+  >
+    <button
+      class="btn btn-primary"
+      type="button"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#sidebarMenu"
+    >
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+  
+  <!-- Offcanvas Sidebar -->
+  <div
+    class="offcanvas offcanvas-start"
+    tabindex="-1"
+    id="sidebarMenu"
+  >
+    <div class="offcanvas-header">
+      <img src="assets/logo.jpg" alt="InterUnido" class="offcanvas-logo" />
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="offcanvas"
+        aria-label="Cerrar"
+      ></button>
+    </div>
+    <div class="offcanvas-body">
+      <!-- El contenido del sidebar se cargará dinámicamente -->
+    </div>
+  </div>
+
+  <!-- Scripts de Bootstrap y tus scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Librería para generación de PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="js/reportGenerator.js"></script>
+  <script src="js/loadSidebar.js"></script>
+  <script src="js/theme.js"></script>
+  <!-- Cargar el archivo operaciones.js actualizado -->
+  <script src="js/operaciones.js"></script>
+</body>
+</html>

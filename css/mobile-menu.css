@@ -1,0 +1,144 @@
+/* Estilos específicos para el menú móvil - SOLUCIÓN RADICAL */
+
+/* Ajustes generales del offcanvas */
+.offcanvas.offcanvas-start {
+    width: 280px !important;
+    max-width: 85vw !important;
+    overflow-x: hidden !important;
+}
+
+/* Contenedor principal del offcanvas */
+.offcanvas-body {
+    display: block !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+}
+
+/* Forzar visualización vertical de los elementos del menú */
+.offcanvas-body .sidebar-header,
+.offcanvas-body .sidebar-nav,
+.offcanvas-body .sidebar-footer,
+.offcanvas-body #admin-links,
+.offcanvas-body .nav-link {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    overflow-x: hidden !important;
+    white-space: normal !important;
+}
+
+/* Ajustes para el header del offcanvas */
+.offcanvas-header {
+    padding: 1rem !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ajuste para el logo en el header del offcanvas */
+.offcanvas-header .offcanvas-logo {
+    width: 120px !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    display: block !important;
+}
+
+/* Navegación del sidebar en el offcanvas */
+.offcanvas-body .sidebar-nav {
+    padding: 1.5rem 0 !important;
+    overflow-y: auto !important;
+    margin-top: 0.5rem !important;
+}
+
+/* Mejora para los enlaces de navegación - ICONOS A LA IZQUIERDA */
+.offcanvas-body .sidebar-nav a.nav-link {
+    padding: 0.75rem 1.5rem !important;
+    color: #333 !important;
+    display: flex !important;
+    align-items: center !important;
+    text-decoration: none !important;
+    transition: all 0.3s ease !important;
+    flex-direction: row !important; /* Asegura que los elementos estén en fila */
+    justify-content: flex-start !important; /* Alinea los elementos a la izquierda */
+    gap: 10px !important; /* Espacio entre el icono y el texto */
+}
+
+.offcanvas-body .sidebar-nav a.nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.offcanvas-body .sidebar-nav a.nav-link.active {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+/* Mejora para los iconos */
+.offcanvas-body .sidebar-nav a.nav-link i {
+    width: 20px !important;
+    text-align: center !important;
+    margin-right: 10px !important;
+    font-size: 1.1rem !important; /* Tamaño ligeramente mayor para los iconos */
+}
+
+/* Contenedor de enlaces de admin */
+.offcanvas-body .sidebar-nav #admin-links {
+    display: block !important;
+}
+
+.offcanvas-body .sidebar-nav #admin-links a.nav-link {
+    display: flex !important;
+    flex-direction: row !important; /* Asegura que los elementos estén en fila */
+}
+
+/* Footer del sidebar en el offcanvas */
+.offcanvas-body .sidebar-footer {
+    padding: 1rem !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.offcanvas-body .sidebar-footer a.nav-link {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.5rem 1.5rem !important;
+    color: #dc3545 !important;
+    flex-direction: row !important; /* Asegura que los elementos estén en fila */
+}
+
+.offcanvas-body .sidebar-footer a.nav-link i {
+    margin-right: 10px !important;
+    width: 20px !important;
+    text-align: center !important;
+}
+
+/* Ajustes para tema oscuro */
+[data-bs-theme="dark"] .offcanvas {
+    background-color: #212529 !important;
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .offcanvas-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-nav a.nav-link {
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-nav a.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .offcanvas-body .sidebar-footer {
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Eliminar cualquier posibilidad de scroll horizontal */
+.offcanvas-body, 
+.offcanvas-body .sidebar,
+.offcanvas-body .sidebar-nav,
+.offcanvas-body .sidebar-header,
+.offcanvas-body .sidebar-footer,
+.offcanvas-body #admin-links {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+} 
