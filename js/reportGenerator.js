@@ -110,7 +110,7 @@ class ReportGenerator {
         }
         
         transactionsDetailedHTML += `
-          <div class="transaction-details" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <div class="transaction-details page-break-avoid" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
             <h3 style="margin-top: 0; color: #333;">Transacción ${index + 1} - ${transaction.operatorName || 'Sin operador'}</h3>
             
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
@@ -203,7 +203,7 @@ class ReportGenerator {
           <p style="font-size: 14px; color: #666; letter-spacing: normal;">Fecha de generación: ${this.formatDate(new Date())}</p>
         </div>
         
-        <div class="report-operation-info" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <div class="report-operation-info page-break-avoid" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
           <h2 style="margin-top: 0; color: #333; letter-spacing: normal;">Información de la Operación</h2>
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
@@ -241,9 +241,9 @@ class ReportGenerator {
           </table>
         </div>
         
-        <div class="report-transactions-summary" style="margin-bottom: 30px;">
+        <div class="report-transactions-summary page-break-before" style="margin-bottom: 30px;">
           <h2 style="color: #333; letter-spacing: normal;">Resumen de Transacciones</h2>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; page-break-inside: auto;">
             <thead>
               <tr style="background-color: #f2f2f2;">
                 <th style="padding: 10px; text-align: left; border: 1px solid #ddd; letter-spacing: normal;">Operador</th>
@@ -258,12 +258,12 @@ class ReportGenerator {
           </table>
         </div>
         
-        <div class="report-transactions-detailed">
+        <div class="report-transactions-detailed page-break-before">
           <h2 style="color: #333; letter-spacing: normal;">Transacciones Detalladas</h2>
           ${transactionsDetailedHTML}
         </div>
         
-        <div class="report-summary" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+        <div class="report-summary page-break-before" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
           <h2 style="margin-top: 0; color: #333; letter-spacing: normal;">Totales de la Operación</h2>
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
@@ -351,7 +351,7 @@ class ReportGenerator {
           <p style="font-size: 14px; color: #666;">Fecha de generación: ${this.formatDate(new Date())}</p>
         </div>
         
-        <div class="report-operation-info" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <div class="report-operation-info page-break-avoid" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
           <h2 style="margin-top: 0; color: #333;">Información de la Operación</h2>
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
@@ -385,9 +385,9 @@ class ReportGenerator {
           </table>
         </div>
         
-        <div class="report-transactions" style="margin-bottom: 30px;">
+        <div class="report-transactions page-break-before" style="margin-bottom: 30px;">
           <h2 style="color: #333;">Transacciones de Canje</h2>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; page-break-inside: auto;">
             <thead>
               <tr style="background-color: #f2f2f2;">
                 <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Operador</th>
@@ -403,7 +403,7 @@ class ReportGenerator {
           </table>
         </div>
         
-        <div class="report-summary" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+        <div class="report-summary page-break-before" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
           <h2 style="margin-top: 0; color: #333;">Resumen</h2>
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
@@ -503,11 +503,27 @@ class ReportGenerator {
       document.body.appendChild(element);
       
       const opt = {
-        margin: 10,
+        margin: [15, 10, 15, 10], // Top, Right, Bottom, Left
         filename: `Reporte_${operationData.type}_${operationData._id}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { 
+          scale: 2,
+          logging: false,
+          letterRendering: true
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait',
+          compress: true,
+          hotfixes: ["px_scaling"]
+        },
+        pagebreak: {
+          mode: ['avoid-all', 'css', 'legacy'],
+          before: '.page-break-before',
+          after: '.page-break-after',
+          avoid: '.page-break-avoid'
+        }
       };
       
       await html2pdf().from(element).set(opt).save();
@@ -733,11 +749,28 @@ class DashboardReportGenerator extends ReportGenerator {
     
     // Configurar opciones del PDF
     const opt = {
-      margin: [0, 0, 0, 0],
+      margin: [15, 10, 15, 10], // Top, Right, Bottom, Left
       filename: `InterUnido_Informe_${dateInfo.range}_${new Date().toISOString().split('T')[0]}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true,
+        logging: false,
+        letterRendering: true
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+        compress: true,
+        hotfixes: ["px_scaling"]
+      },
+      pagebreak: {
+        mode: ['avoid-all', 'css', 'legacy'],
+        before: '.page-break-before',
+        after: '.page-break-after',
+        avoid: '.page-break-avoid'
+      }
     };
     
     // Generar PDF
