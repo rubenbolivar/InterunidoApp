@@ -96,13 +96,13 @@ class ReportGenerator {
         
         // Generar HTML para las comisiones arbitrarias
         let arbitraryCommissionsHTML = '';
-        if (transaction.arbitraryCommissions && Object.keys(transaction.arbitraryCommissions).length > 0) {
+        if (transaction.arbitraryCommissions) {
           for (const [key, value] of Object.entries(transaction.arbitraryCommissions)) {
             if (key !== 'total') {
               arbitraryCommissionsHTML += `
                 <tr>
-                  <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${key} (${transaction.arbitraryCommissionsPercentages?.[key] || 0}%)</td>
-                  <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(value)}</td>
+                  <td style="padding: 4px; border-bottom: 1px solid #eee;">${key} (${transaction.arbitraryCommissionsPercentages?.[key] || 0}%)</td>
+                  <td style="padding: 4px; text-align: right; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(value)}</td>
                 </tr>
               `;
             }
@@ -110,64 +110,64 @@ class ReportGenerator {
         }
         
         transactionsDetailedHTML += `
-          <div class="transaction-details page-break-avoid" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-            <h3 style="margin-top: 0; color: #333;">Transacción ${index + 1} - ${transaction.operatorName || 'Sin operador'}</h3>
+          <div class="transaction-details" style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <h3 style="margin-top: 0; margin-bottom: 8px; color: #333; font-size: 14px;">Transacción ${index + 1} - ${transaction.operatorName || 'Sin operador'}</h3>
             
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; width: 250px; border-bottom: 1px solid #eee;">Monto en ${currency}</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(transaction.amountForeign || 0)}</td>
+                <td style="padding: 3px; font-weight: bold; width: 200px;">Monto en ${currency}</td>
+                <td style="padding: 3px;">${currencySymbol}${this.formatVES(transaction.amountForeign || 0)}</td>
               </tr>
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Tasa de Venta (Bs)</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${this.formatVES(transaction.sellingRate || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Tasa de Venta (Bs)</td>
+                <td style="padding: 3px;">${this.formatVES(transaction.sellingRate || 0)}</td>
               </tr>
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Total de la Venta (Bs)</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${this.formatVES(transaction.totalSaleBs || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Total de la Venta (Bs)</td>
+                <td style="padding: 3px;">${this.formatVES(transaction.totalSaleBs || 0)}</td>
               </tr>
               ${transaction.difference ? `
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Diferencia (Bs)</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${this.formatVES(transaction.difference || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Diferencia (Bs)</td>
+                <td style="padding: 3px;">${this.formatVES(transaction.difference || 0)}</td>
               </tr>
               ` : ''}
             </table>
             
             ${arbitraryCommissionsHTML ? `
-            <h4 style="margin-top: 15px; margin-bottom: 10px; color: #444;">Comisiones Arbitrarias</h4>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <h4 style="margin-top: 8px; margin-bottom: 6px; color: #444; font-size: 13px;">Comisiones Arbitrarias</h4>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
               ${arbitraryCommissionsHTML}
             </table>
             ` : ''}
             
-            <h4 style="margin-top: 15px; margin-bottom: 10px; color: #444;">Distribución</h4>
+            <h4 style="margin-top: 8px; margin-bottom: 6px; color: #444; font-size: 13px;">Distribución</h4>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; width: 250px; border-bottom: 1px solid #eee;">Monto a Repartir (después de comisiones)</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(transaction.amountToDistributeForeign || 0)}</td>
+                <td style="padding: 3px; font-weight: bold; width: 200px;">Monto a Repartir</td>
+                <td style="padding: 3px;">${currencySymbol}${this.formatVES(transaction.amountToDistributeForeign || 0)}</td>
               </tr>
               ${distribution.officePZO ? `
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Oficina PZO</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(distribution.officePZO || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Oficina PZO</td>
+                <td style="padding: 3px;">${currencySymbol}${this.formatVES(distribution.officePZO || 0)}</td>
               </tr>
               ` : ''}
               ${distribution.officeCCS ? `
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Oficina CCS</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(distribution.officeCCS || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Oficina CCS</td>
+                <td style="padding: 3px;">${currencySymbol}${this.formatVES(distribution.officeCCS || 0)}</td>
               </tr>
               ` : ''}
               ${distribution.executive ? `
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Ejecutivo</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(distribution.executive || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Ejecutivo</td>
+                <td style="padding: 3px;">${currencySymbol}${this.formatVES(distribution.executive || 0)}</td>
               </tr>
               ` : ''}
               <tr>
-                <td style="padding: 4px 8px; font-weight: bold; border-bottom: 1px solid #eee;">Ganancia en Cliente</td>
-                <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${currencySymbol}${this.formatVES(distribution.clientProfit || 0)}</td>
+                <td style="padding: 3px; font-weight: bold;">Ganancia en Cliente</td>
+                <td style="padding: 3px;">${currencySymbol}${this.formatVES(distribution.clientProfit || 0)}</td>
               </tr>
             </table>
           </div>
@@ -181,10 +181,10 @@ class ReportGenerator {
       details.transactions.forEach(transaction => {
         transactionsHTML += `
           <tr>
-            <td style="padding: 10px; text-align: left; border: 1px solid #ddd;">${transaction.operatorName || 'Sin operador'}</td>
-            <td style="padding: 10px; text-align: left; border: 1px solid #ddd;">${currencySymbol}${this.formatVES(transaction.amountForeign || 0)}</td>
-            <td style="padding: 10px; text-align: left; border: 1px solid #ddd;">${this.formatVES(transaction.sellingRate || 0)} Bs</td>
-            <td style="padding: 10px; text-align: left; border: 1px solid #ddd;">${this.formatVES(transaction.totalSaleBs || 0)} Bs</td>
+            <td style="padding: 5px; text-align: left; border: 1px solid #ddd;">${transaction.operatorName || 'Sin operador'}</td>
+            <td style="padding: 5px; text-align: right; border: 1px solid #ddd;">${currencySymbol}${this.formatVES(transaction.amountForeign || 0)}</td>
+            <td style="padding: 5px; text-align: right; border: 1px solid #ddd;">${this.formatVES(transaction.sellingRate || 0)}</td>
+            <td style="padding: 5px; text-align: right; border: 1px solid #ddd;">${this.formatVES(transaction.totalSaleBs || 0)}</td>
           </tr>
         `;
       });
@@ -195,119 +195,133 @@ class ReportGenerator {
     const totalAmount = amount || 0;
     const soldAmount = totalAmount - pendingAmount;
     
-    // Crear el HTML completo del reporte
+    // Crear el HTML completo del reporte con diseño de dos columnas
     return `
-      <div class="report-container" style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-        <div class="report-header" style="margin-bottom: 30px; text-align: center;">
-          <h1 style="color: #333; margin-bottom: 5px; letter-spacing: normal;">InterUnido - Reporte de Operación</h1>
-          <p style="font-size: 14px; color: #666; letter-spacing: normal;">Fecha de generación: ${this.formatDate(new Date())}</p>
+      <div class="report-container" style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 10px;">
+        <!-- Encabezado -->
+        <div class="report-header" style="margin-bottom: 15px; text-align: center;">
+          <h1 style="color: #333; margin-bottom: 2px; margin-top: 0;">InterUnido - Reporte de Operación de Venta</h1>
+          <p style="font-size: 12px; color: #666; margin-top: 2px;">Fecha de generación: ${this.formatDate(new Date())}</p>
         </div>
         
-        <div class="report-operation-info page-break-avoid" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-          <h2 style="margin-top: 0; color: #333; letter-spacing: normal;">Información de la Operación</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px; font-weight: bold; width: 150px; letter-spacing: normal;">ID de Operación:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${_id}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Cliente:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${client}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Fecha:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${this.formatDate(createdAt)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Tipo:</td>
-              <td style="padding: 8px; letter-spacing: normal;">Venta</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Divisa:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currency}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Monto Total:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(amount)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Estado:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${estado === 'completa' ? 'Completada' : 'Incompleta'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Operador:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${operator?.username || 'No registrado'}</td>
-            </tr>
-          </table>
+        <!-- Contenido principal en dos columnas -->
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+          <!-- Columna izquierda: Información de la operación y resumen -->
+          <div style="flex: 1; min-width: 48%;">
+            <!-- Información básica -->
+            <div class="report-operation-info" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Información de la Operación</h2>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px; font-weight: bold; width: 140px;">ID de Operación:</td>
+                  <td style="padding: 4px;">${_id}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Cliente:</td>
+                  <td style="padding: 4px;">${client}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Fecha:</td>
+                  <td style="padding: 4px;">${this.formatDate(createdAt)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Tipo:</td>
+                  <td style="padding: 4px;">Venta</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Divisa:</td>
+                  <td style="padding: 4px;">${currency}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Monto Total:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(amount)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Estado:</td>
+                  <td style="padding: 4px;">${estado === 'completa' ? 'Completada' : 'Incompleta'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Operador:</td>
+                  <td style="padding: 4px;">${operator?.username || 'No registrado'}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <!-- Resumen de la operación -->
+            <div class="report-summary" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Totales de la Operación</h2>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px; font-weight: bold; width: 180px;">Total Venta (Bs):</td>
+                  <td style="padding: 4px;">${this.formatVES(totalSaleBs)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Total Comisiones:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(totalArbitraryCommissions)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Total Ganancia Cliente:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(totalClientProfit)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Total Ejecutivo:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(totalExecutive)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Total Oficina PZO:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(totalOfficePZO)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Total Oficina CCS:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(totalOfficeCCS)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Monto Total Operación:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(totalAmount)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Monto Vendido:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(soldAmount)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Monto Restante:</td>
+                  <td style="padding: 4px;">${currencySymbol}${this.formatVES(pendingAmount)}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <!-- Tabla de transacciones -->
+            <div class="report-transactions-summary" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Resumen de Transacciones</h2>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; font-size: 12px;">
+                <thead>
+                  <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 5px; text-align: left; border: 1px solid #ddd;">Operador</th>
+                    <th style="padding: 5px; text-align: right; border: 1px solid #ddd;">Monto</th>
+                    <th style="padding: 5px; text-align: right; border: 1px solid #ddd;">Tasa</th>
+                    <th style="padding: 5px; text-align: right; border: 1px solid #ddd;">Total (Bs)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${transactionsHTML}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Columna derecha: Detalles de transacciones -->
+          <div style="flex: 1; min-width: 48%;">
+            <div class="report-transactions-detailed" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Transacciones Detalladas</h2>
+              ${transactionsDetailedHTML}
+            </div>
+          </div>
         </div>
         
-        <div class="report-transactions-summary page-break-before" style="margin-bottom: 30px;">
-          <h2 style="color: #333; letter-spacing: normal;">Resumen de Transacciones</h2>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; page-break-inside: auto;">
-            <thead>
-              <tr style="background-color: #f2f2f2;">
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd; letter-spacing: normal;">Operador</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd; letter-spacing: normal;">Monto (${currency})</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd; letter-spacing: normal;">Tasa</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd; letter-spacing: normal;">Total (Bs)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transactionsHTML}
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="report-transactions-detailed page-break-before">
-          <h2 style="color: #333; letter-spacing: normal;">Transacciones Detalladas</h2>
-          ${transactionsDetailedHTML}
-        </div>
-        
-        <div class="report-summary page-break-before" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
-          <h2 style="margin-top: 0; color: #333; letter-spacing: normal;">Totales de la Operación</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px; font-weight: bold; width: 250px; letter-spacing: normal;">Total Venta (Bs):</td>
-              <td style="padding: 8px; letter-spacing: normal;">${this.formatVES(totalSaleBs)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Total Comisiones Arbitrarias:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(totalArbitraryCommissions)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Total Ganancia en Cliente:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(totalClientProfit)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Total Ejecutivo:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(totalExecutive)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Total Oficina PZO:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(totalOfficePZO)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Total Oficina CCS:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(totalOfficeCCS)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Monto Total Operación:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(totalAmount)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Monto Vendido:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(soldAmount)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold; letter-spacing: normal;">Monto Restante:</td>
-              <td style="padding: 8px; letter-spacing: normal;">${currencySymbol}${this.formatVES(pendingAmount)}</td>
-            </tr>
-          </table>
-        </div>
-        
-        <div class="report-footer" style="margin-top: 50px; text-align: center; font-size: 12px; color: #666;">
-          <p style="letter-spacing: normal;">Este es un documento generado automáticamente por el sistema de InterUnido.</p>
-          <p style="letter-spacing: normal;">&copy; ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
+        <!-- Pie de página -->
+        <div class="report-footer" style="margin-top: 20px; text-align: center; font-size: 11px; color: #666;">
+          <p style="margin: 2px 0;">Este es un documento generado automáticamente por el sistema de InterUnido.</p>
+          <p style="margin: 2px 0;">&copy; ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
         </div>
       </div>
     `;
@@ -343,121 +357,133 @@ class ReportGenerator {
       });
     }
     
-    // Crear el HTML completo del reporte
+    // Crear el HTML completo del reporte con diseño de dos columnas
     return `
-      <div class="report-container" style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-        <div class="report-header" style="margin-bottom: 30px; text-align: center;">
-          <h1 style="color: #333; margin-bottom: 5px;">InterUnido - Reporte de Operación de Canje</h1>
-          <p style="font-size: 14px; color: #666;">Fecha de generación: ${this.formatDate(new Date())}</p>
+      <div class="report-container" style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 10px;">
+        <!-- Encabezado -->
+        <div class="report-header" style="margin-bottom: 15px; text-align: center;">
+          <h1 style="color: #333; margin-bottom: 2px; margin-top: 0;">InterUnido - Reporte de Operación de Canje</h1>
+          <p style="font-size: 12px; color: #666; margin-top: 2px;">Fecha de generación: ${this.formatDate(new Date())}</p>
         </div>
         
-        <div class="report-operation-info page-break-avoid" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-          <h2 style="margin-top: 0; color: #333;">Información de la Operación</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px; font-weight: bold; width: 150px;">ID de Operación:</td>
-              <td style="padding: 8px;">${_id}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Cliente:</td>
-              <td style="padding: 8px;">${client}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Fecha:</td>
-              <td style="padding: 8px;">${this.formatDate(createdAt)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Tipo:</td>
-              <td style="padding: 8px;">Canje ${details?.tipo || ''}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Monto Total:</td>
-              <td style="padding: 8px;">${this.formatVES(amount)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Estado:</td>
-              <td style="padding: 8px;">${estado === 'completa' ? 'Completada' : 'Incompleta'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Operador:</td>
-              <td style="padding: 8px;">${operator?.username || 'No registrado'}</td>
-            </tr>
-          </table>
-        </div>
-        
-        <div class="report-transactions page-break-before" style="margin-bottom: 30px;">
-          <h2 style="color: #333;">Transacciones de Canje</h2>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; page-break-inside: auto;">
-            <thead>
-              <tr style="background-color: #f2f2f2;">
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Operador</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Monto</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Comisión Costo</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Comisión Venta</th>
-                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Diferencia</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transactionsHTML}
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="report-summary page-break-before" style="margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
-          <h2 style="margin-top: 0; color: #333;">Resumen</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px; font-weight: bold; width: 250px;">Monto Total:</td>
-              <td style="padding: 8px;">${this.formatVES(amount)}</td>
-            </tr>
-            ${details?.totalDiferencia ? `
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Total Diferencia:</td>
-              <td style="padding: 8px;">${this.formatVES(details.totalDiferencia)}</td>
-            </tr>
-            ` : ''}
-          </table>
-          
-          ${details?.tipo === 'externo' && details?.distribucion ? `
-          <h3 style="margin-top: 20px; color: #333;">Distribución (Externo)</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px; font-weight: bold; width: 250px;">Nómina (5%):</td>
-              <td style="padding: 8px;">${this.formatVES(details.distribucion.nomina || 0)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Oficina PZO (30%):</td>
-              <td style="padding: 8px;">${this.formatVES(details.distribucion.oficinaPZO || 0)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Oficina CCS (30%):</td>
-              <td style="padding: 8px;">${this.formatVES(details.distribucion.oficinaCCS || 0)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Ejecutivo (40%):</td>
-              <td style="padding: 8px;">${this.formatVES(details.distribucion.ejecutivo || 0)}</td>
-            </tr>
-          </table>
-          ` : ''}
+        <!-- Contenido principal en dos columnas -->
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+          <!-- Columna izquierda: Información de la operación -->
+          <div style="flex: 1; min-width: 48%;">
+            <div class="report-operation-info" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Información de la Operación</h2>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px; font-weight: bold; width: 140px;">ID de Operación:</td>
+                  <td style="padding: 4px;">${_id}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Cliente:</td>
+                  <td style="padding: 4px;">${client}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Fecha:</td>
+                  <td style="padding: 4px;">${this.formatDate(createdAt)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Tipo:</td>
+                  <td style="padding: 4px;">Canje ${details?.tipo || ''}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Monto Total:</td>
+                  <td style="padding: 4px;">${this.formatVES(amount)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Estado:</td>
+                  <td style="padding: 4px;">${estado === 'completa' ? 'Completada' : 'Incompleta'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Operador:</td>
+                  <td style="padding: 4px;">${operator?.username || 'No registrado'}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <!-- Resumen -->
+            <div class="report-summary" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Resumen</h2>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px; font-weight: bold; width: 150px;">Monto Total:</td>
+                  <td style="padding: 4px;">${this.formatVES(amount)}</td>
+                </tr>
+                ${details?.totalDiferencia ? `
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Total Diferencia:</td>
+                  <td style="padding: 4px;">${this.formatVES(details.totalDiferencia)}</td>
+                </tr>
+                ` : ''}
+              </table>
+              
+              ${details?.tipo === 'externo' && details?.distribucion ? `
+              <h3 style="margin-top: 12px; margin-bottom: 8px; color: #333; font-size: 14px;">Distribución (Externo)</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px; font-weight: bold; width: 150px;">Nómina (5%):</td>
+                  <td style="padding: 4px;">${this.formatVES(details.distribucion.nomina || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Oficina PZO (30%):</td>
+                  <td style="padding: 4px;">${this.formatVES(details.distribucion.oficinaPZO || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Oficina CCS (30%):</td>
+                  <td style="padding: 4px;">${this.formatVES(details.distribucion.oficinaCCS || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Ejecutivo (40%):</td>
+                  <td style="padding: 4px;">${this.formatVES(details.distribucion.ejecutivo || 0)}</td>
+                </tr>
+              </table>
+              ` : ''}
 
-          ${details?.tipo === 'interno' && details?.distribucion ? `
-          <h3 style="margin-top: 20px; color: #333;">Distribución (Interno)</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px; font-weight: bold; width: 250px;">Sede (70%):</td>
-              <td style="padding: 8px;">${this.formatVES(details.distribucion.sede || 0)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; font-weight: bold;">Ejecutivo (30%):</td>
-              <td style="padding: 8px;">${this.formatVES(details.distribucion.ejecutivo || 0)}</td>
-            </tr>
-          </table>
-          ` : ''}
+              ${details?.tipo === 'interno' && details?.distribucion ? `
+              <h3 style="margin-top: 12px; margin-bottom: 8px; color: #333; font-size: 14px;">Distribución (Interno)</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 4px; font-weight: bold; width: 150px;">Sede (70%):</td>
+                  <td style="padding: 4px;">${this.formatVES(details.distribucion.sede || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px; font-weight: bold;">Ejecutivo (30%):</td>
+                  <td style="padding: 4px;">${this.formatVES(details.distribucion.ejecutivo || 0)}</td>
+                </tr>
+              </table>
+              ` : ''}
+            </div>
+          </div>
+          
+          <!-- Columna derecha: Transacciones de canje -->
+          <div style="flex: 1; min-width: 48%;">
+            <div class="report-transactions" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
+              <h2 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">Transacciones de Canje</h2>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; font-size: 13px;">
+                <thead>
+                  <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Operador</th>
+                    <th style="padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Monto</th>
+                    <th style="padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Com. Costo</th>
+                    <th style="padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Com. Venta</th>
+                    <th style="padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${transactionsHTML}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
         
-        <div class="report-footer" style="margin-top: 50px; text-align: center; font-size: 12px; color: #666;">
-          <p>Este es un documento generado automáticamente por el sistema de InterUnido.</p>
-          <p>&copy; ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
+        <!-- Pie de página -->
+        <div class="report-footer" style="margin-top: 20px; text-align: center; font-size: 11px; color: #666;">
+          <p style="margin: 2px 0;">Este es un documento generado automáticamente por el sistema de InterUnido.</p>
+          <p style="margin: 2px 0;">&copy; ${new Date().getFullYear()} InterUnido - Todos los derechos reservados</p>
         </div>
       </div>
     `;
@@ -503,13 +529,14 @@ class ReportGenerator {
       document.body.appendChild(element);
       
       const opt = {
-        margin: [15, 10, 15, 10], // Top, Right, Bottom, Left
+        margin: [10, 10, 10, 10], // Top, Right, Bottom, Left
         filename: `Reporte_${operationData.type}_${operationData._id}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2,
           logging: false,
-          letterRendering: true
+          letterRendering: true,
+          useCORS: true
         },
         jsPDF: { 
           unit: 'mm', 
@@ -519,10 +546,8 @@ class ReportGenerator {
           hotfixes: ["px_scaling"]
         },
         pagebreak: {
-          mode: ['avoid-all', 'css', 'legacy'],
-          before: '.page-break-before',
-          after: '.page-break-after',
-          avoid: '.page-break-avoid'
+          mode: ['css', 'avoid-all', 'legacy'],
+          avoid: '.avoid-break'
         }
       };
       
