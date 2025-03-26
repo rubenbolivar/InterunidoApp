@@ -837,8 +837,19 @@ const COMMISSION_FACTORS = {
       .then(data => {
         alert('Operación registrada/actualizada con éxito');
         console.log('Operación guardada:', data);
-        // Redirigir a operaciones.html
-        window.location.href = 'operaciones.html';
+        
+        // Mostrar el botón para agregar notas y guardar el ID de la transacción antes de redireccionar
+        if (data && data._id) {
+          showAddNoteButton(data._id);
+          
+          // Retardar la redirección para dar tiempo a agregar una nota si se desea
+          setTimeout(() => {
+            window.location.href = 'operaciones.html';
+          }, 3000); // Esperar 3 segundos antes de redireccionar
+        } else {
+          // Redirección inmediata si no hay ID
+          window.location.href = 'operaciones.html';
+        }
       })
       .catch(err => {
         console.error(err);
@@ -849,6 +860,19 @@ const COMMISSION_FACTORS = {
   
   document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inicializando sistema de ventas...');
+    
+    // Variables globales para el manejo de notas
+    window.currentTransactionId = null;
+    const addNoteToOperationBtn = document.getElementById('addNoteToOperationBtn');
+    const saveTransactionNoteBtn = document.getElementById('saveTransactionNoteBtn');
+    
+    // Función para mostrar el botón de agregar nota
+    window.showAddNoteButton = function(transactionId) {
+      window.currentTransactionId = transactionId;
+      if (addNoteToOperationBtn) {
+        addNoteToOperationBtn.style.display = 'block';
+      }
+    };
     
     // Hacemos las funciones de formateo globales
     window.formatAmount = function(value) {
@@ -969,99 +993,95 @@ const COMMISSION_FACTORS = {
     }
   
     // Funcionalidad para manejar notas relacionadas con la operación
-    let currentTransactionId = null;
-    const addNoteToOperationBtn = document.getElementById('addNoteToOperationBtn');
-    const saveTransactionNoteBtn = document.getElementById('saveTransactionNoteBtn');
-    
-    // Mostrar el botón de agregar nota solo después de guardar la operación
-    function showAddNoteButton(transactionId) {
-      currentTransactionId = transactionId;
-      addNoteToOperationBtn.style.display = 'block';
-    }
+    // Utilizamos las variables globales ya definidas: window.currentTransactionId
     
     // Manejador de evento para abrir el modal de nota
-    addNoteToOperationBtn.addEventListener('click', () => {
-      if (!currentTransactionId) {
-        showAlert('No hay operación registrada para agregar una nota', 'warning');
-        return;
-      }
-      
-      // Limpiar el formulario
-      document.getElementById('noteTitle').value = '';
-      document.getElementById('noteContent').value = '';
-      document.getElementById('noteTags').value = 'venta';
-      
-      // Mostrar el modal
-      const noteModal = new bootstrap.Modal(document.getElementById('transactionNoteModal'));
-      noteModal.show();
-    });
-    
-    // Manejar la creación de la nota
-    saveTransactionNoteBtn.addEventListener('click', async () => {
-      if (!currentTransactionId) {
-        showAlert('No hay operación registrada para agregar una nota', 'warning');
-        return;
-      }
-      
-      const title = document.getElementById('noteTitle').value.trim();
-      const content = document.getElementById('noteContent').value.trim();
-      const tagsInput = document.getElementById('noteTags').value.trim();
-      
-      // Validar datos
-      if (!title || !content) {
-        showAlert('El título y el contenido son obligatorios', 'warning');
-        return;
-      }
-      
-      // Procesar etiquetas
-      const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()) : ['venta'];
-      
-      // Preparar datos para enviar
-      const noteData = {
-        title,
-        content,
-        tags,
-        transactionId: currentTransactionId,
-        transactionType: 'venta'
-      };
-      
-      try {
-        // Obtener token
-        const token = getAuthToken();
-        if (!token) {
-          showAlert('No hay sesión activa. Por favor, inicie sesión nuevamente.', 'warning');
+    if (addNoteToOperationBtn) {
+      addNoteToOperationBtn.addEventListener('click', () => {
+        if (!window.currentTransactionId) {
+          showAlert('No hay operación registrada para agregar una nota', 'warning');
           return;
         }
         
-        // Enviar petición al servidor
-        const response = await fetch('/api/v2/notes', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(noteData)
-        });
+        // Limpiar el formulario
+        document.getElementById('noteTitle').value = '';
+        document.getElementById('noteContent').value = '';
+        document.getElementById('noteTags').value = 'venta';
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Error al crear la nota');
+        // Mostrar el modal
+        const noteModal = new bootstrap.Modal(document.getElementById('transactionNoteModal'));
+        noteModal.show();
+      });
+    }
+    
+    // Manejar la creación de la nota
+    if (saveTransactionNoteBtn) {
+      saveTransactionNoteBtn.addEventListener('click', async () => {
+        if (!window.currentTransactionId) {
+          showAlert('No hay operación registrada para agregar una nota', 'warning');
+          return;
         }
         
-        const data = await response.json();
+        const title = document.getElementById('noteTitle').value.trim();
+        const content = document.getElementById('noteContent').value.trim();
+        const tagsInput = document.getElementById('noteTags').value.trim();
         
-        // Cerrar el modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('transactionNoteModal'));
-        modal.hide();
+        // Validar datos
+        if (!title || !content) {
+          showAlert('El título y el contenido son obligatorios', 'warning');
+          return;
+        }
         
-        // Mostrar mensaje de éxito
-        showAlert('Nota agregada correctamente a la operación', 'success');
+        // Procesar etiquetas
+        const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()) : ['venta'];
         
-      } catch (error) {
-        console.error('Error al guardar la nota:', error);
-        showAlert(`Error: ${error.message}`, 'danger');
-      }
-    });
+        // Preparar datos para enviar
+        const noteData = {
+          title,
+          content,
+          tags,
+          transactionId: window.currentTransactionId,
+          transactionType: 'venta'
+        };
+        
+        try {
+          // Obtener token
+          const token = getAuthToken();
+          if (!token) {
+            showAlert('No hay sesión activa. Por favor, inicie sesión nuevamente.', 'warning');
+            return;
+          }
+          
+          // Enviar petición al servidor
+          const response = await fetch('/api/v2/notes', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(noteData)
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al crear la nota');
+          }
+          
+          const data = await response.json();
+          
+          // Cerrar el modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('transactionNoteModal'));
+          modal.hide();
+          
+          // Mostrar mensaje de éxito
+          showAlert('Nota agregada correctamente a la operación', 'success');
+          
+        } catch (error) {
+          console.error('Error al guardar la nota:', error);
+          showAlert(`Error: ${error.message}`, 'danger');
+        }
+      });
+    }
     
     // Función auxiliar para obtener el token de autenticación
     function getAuthToken() {
@@ -1093,23 +1113,5 @@ const COMMISSION_FACTORS = {
         }, 5000);
       }
     }
-
-    // Modificar la función handleSubmitOperation para mostrar el botón de notas después de guardar
-    const originalHandleSubmitOperation = handleSubmitOperation;
-    handleSubmitOperation = async function() {
-      try {
-        const result = await originalHandleSubmitOperation.apply(this, arguments);
-        
-        // Si la operación se guardó exitosamente y tenemos un ID
-        if (result && result._id) {
-          showAddNoteButton(result._id);
-        }
-        
-        return result;
-      } catch (error) {
-        console.error('Error en operación:', error);
-        throw error;
-      }
-    };
   });
   
