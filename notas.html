@@ -76,7 +76,15 @@
                   <label for="filterTags" class="form-label">Etiquetas</label>
                   <input type="text" id="filterTags" class="form-control" placeholder="Separadas por comas" />
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-4">
+                  <label for="filterTransactionType" class="form-label">Tipo de Transacción</label>
+                  <select id="filterTransactionType" class="form-select">
+                    <option value="">Todas</option>
+                    <option value="venta">Venta</option>
+                    <option value="canje">Canje</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
                   <label for="filterSearch" class="form-label">Buscar</label>
                   <div class="input-group">
                     <input type="text" id="filterSearch" class="form-control" placeholder="Buscar en título o contenido..." />

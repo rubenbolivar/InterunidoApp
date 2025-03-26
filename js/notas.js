@@ -180,6 +180,22 @@ class NotesManager {
         `<span class="badge bg-secondary me-1">${this.escapeHtml(tag)}</span>`
       ).join('');
       
+      // Información de transacción relacionada
+      let transactionInfo = '';
+      if (note.transactionId) {
+        const transactionType = note.transactionType === 'venta' ? 'Venta' : 'Canje';
+        transactionInfo = `
+          <div class="mt-2 pt-2 border-top">
+            <small class="text-muted">
+              <i class="fas fa-link me-1"></i> Relacionada con ${transactionType} 
+              <a href="${note.transactionType}.html?id=${note.transactionId}" class="text-primary">
+                Ver transacción
+              </a>
+            </small>
+          </div>
+        `;
+      }
+      
       const noteCard = document.createElement('div');
       noteCard.className = 'col-md-6 col-lg-4 mb-4';
       noteCard.innerHTML = `
@@ -197,10 +213,11 @@ class NotesManager {
             </div>
           </div>
           <div class="card-body">
-            <p class="card-text">${this.escapeHtml(note.content)}</p>
+            <p class="card-text">${this.truncateText(this.escapeHtml(note.content), 150)}</p>
             <div class="mt-3">
               ${tagsHtml}
             </div>
+            ${transactionInfo}
           </div>
           <div class="card-footer text-muted">
             <small>${this.formatDate(note.createdAt)}</small>
@@ -243,6 +260,14 @@ class NotesManager {
   }
   
   /**
+   * Truncate text to specified length
+   */
+  truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+  
+  /**
    * Aplica los filtros seleccionados
    */
   applyFilters() {
@@ -250,19 +275,21 @@ class NotesManager {
     const endDate = document.getElementById('filterEndDate').value;
     const tags = document.getElementById('filterTags').value;
     const search = document.getElementById('filterSearch').value;
+    const transactionType = document.getElementById('filterTransactionType').value;
     
     let queryParams = '?';
     if (startDate) queryParams += `startDate=${startDate}&`;
     if (endDate) queryParams += `endDate=${endDate}&`;
     if (tags) queryParams += `tags=${encodeURIComponent(tags)}&`;
     if (search) queryParams += `search=${encodeURIComponent(search)}&`;
+    if (transactionType) queryParams += `transactionType=${transactionType}&`;
     
     // Eliminar el último '&' o '?' si no hay parámetros
     queryParams = queryParams.endsWith('&') 
       ? queryParams.slice(0, -1) 
       : (queryParams === '?' ? '' : queryParams);
     
-    console.log('Aplicando filtros:', { startDate, endDate, tags, search });
+    console.log('Aplicando filtros:', { startDate, endDate, tags, search, transactionType });
     console.log('Query params:', queryParams);
     
     this.fetchNotes(queryParams);

@@ -61,7 +61,10 @@ const NoteSchema = new mongoose.Schema({
   tags: [String],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  // Nuevos campos para relacionar con transacciones
+  transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' },
+  transactionType: { type: String, enum: ['venta', 'canje', null] }
 });
 const Note = mongoose.model('Note', NoteSchema);
 
@@ -1321,22 +1324,42 @@ app.delete('/api/notes/:id', verifyToken, async (req, res) => {
 // 1. Crear una nueva nota
 app.post('/api/v2/notes', verifyToken, async (req, res) => {
   try {
-    const { title, content, tags } = req.body;
+    const { title, content, tags, transactionId, transactionType } = req.body;
     
     // Validar datos
     if (!title || !content) {
       return res.status(400).json({ error: 'El título y el contenido son obligatorios' });
     }
     
+    // Si hay transactionId, verificar que existe y que el usuario tiene acceso
+    if (transactionId) {
+      try {
+        const transaction = await Transaction.findById(transactionId);
+        if (!transaction) {
+          return res.status(404).json({ error: 'Transacción no encontrada' });
+        }
+        
+        // Verificar que el usuario tiene permiso para esta transacción
+        if (req.user.role !== 'admin' && transaction.operatorId.toString() !== req.user.id) {
+          return res.status(403).json({ error: 'No tiene permiso para asociar notas a esta transacción' });
+        }
+      } catch (error) {
+        logger.error('Error al verificar transacción:', { error: error.message });
+        return res.status(400).json({ error: 'ID de transacción inválido' });
+      }
+    }
+    
     const newNote = new Note({
       title,
       content,
       tags: tags || [],
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      transactionId: transactionId || null,
+      transactionType: transactionType || null
     });
     
     await newNote.save();
-    logger.info(`Nota creada por usuario ${req.user.id}`);
+    logger.info(`Nota creada por usuario ${req.user.id}${transactionId ? ` asociada a transacción ${transactionId}` : ''}`);
     res.status(201).json(newNote);
   } catch (error) {
     logger.error('Error al crear nota v2:', { error: error.message });
@@ -1347,7 +1370,7 @@ app.post('/api/v2/notes', verifyToken, async (req, res) => {
 // 2. Obtener todas las notas (con filtros opcionales)
 app.get('/api/v2/notes', verifyToken, async (req, res) => {
   try {
-    const { search, startDate, endDate, tags } = req.query;
+    const { search, startDate, endDate, tags, transactionId, transactionType } = req.query;
     let query = { createdBy: req.user.id };
     
     // Filtro por texto (título o contenido)
@@ -1374,6 +1397,16 @@ app.get('/api/v2/notes', verifyToken, async (req, res) => {
     if (tags) {
       const tagArray = tags.split(',').map(tag => tag.trim());
       query.tags = { $in: tagArray };
+    }
+    
+    // Filtro por transacción
+    if (transactionId) {
+      query.transactionId = transactionId;
+    }
+    
+    // Filtro por tipo de transacción
+    if (transactionType) {
+      query.transactionType = transactionType;
     }
     
     logger.info(`Consultando notas para usuario ${req.user.id}`);
@@ -1448,6 +1481,37 @@ app.delete('/api/v2/notes/:id', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('Error al eliminar nota v2:', { error: error.message });
     res.status(500).json({ error: 'Error al eliminar la nota' });
+  }
+});
+
+// 6. Obtener notas relacionadas con una transacción
+app.get('/api/v2/notes/transaction/:id', verifyToken, async (req, res) => {
+  try {
+    const transactionId = req.params.id;
+    
+    // Verificar que la transacción existe y el usuario tiene permiso
+    try {
+      const transaction = await Transaction.findById(transactionId);
+      if (!transaction) {
+        return res.status(404).json({ error: 'Transacción no encontrada' });
+      }
+      
+      // Verificar permisos a menos que sea admin
+      if (req.user.role !== 'admin' && transaction.operatorId.toString() !== req.user.id) {
+        return res.status(403).json({ error: 'No tiene permiso para ver notas de esta transacción' });
+      }
+    } catch (error) {
+      logger.error('Error al verificar transacción:', { error: error.message });
+      return res.status(400).json({ error: 'ID de transacción inválido' });
+    }
+    
+    // Obtener notas relacionadas con la transacción
+    const notes = await Note.find({ transactionId }).sort({ createdAt: -1 });
+    logger.info(`Consultadas ${notes.length} notas para transacción ${transactionId}`);
+    res.json(notes);
+  } catch (error) {
+    logger.error('Error al obtener notas de transacción:', { error: error.message });
+    res.status(500).json({ error: 'Error al obtener las notas' });
   }
 });
 
