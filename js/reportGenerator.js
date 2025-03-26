@@ -439,6 +439,20 @@ class ReportGenerator {
             </tr>
           </table>
           ` : ''}
+
+          ${details?.tipo === 'interno' && details?.distribucion ? `
+          <h3 style="margin-top: 20px; color: #333;">Distribución (Interno)</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px; font-weight: bold; width: 250px;">Sede (70%):</td>
+              <td style="padding: 8px;">${this.formatVES(details.distribucion.sede || 0)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Ejecutivo (30%):</td>
+              <td style="padding: 8px;">${this.formatVES(details.distribucion.ejecutivo || 0)}</td>
+            </tr>
+          </table>
+          ` : ''}
         </div>
         
         <div class="report-footer" style="margin-top: 50px; text-align: center; font-size: 12px; color: #666;">

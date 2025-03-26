@@ -351,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       operationData.totalParcial = totalParcial;
       operationData.totalDiferencia = totalDiferencia;
 
-      // Distribución si es Externo
+      // Distribución según el tipo de canje
       let distribucionHTML = '';
       let distribucion = null;
       if (operationData.tipo === 'externo') {
@@ -379,6 +379,24 @@ document.addEventListener('DOMContentLoaded', async function() {
             <li>Oficina PZO (30%): ${oficinaPZO.toFixed(2)}</li>
             <li>Oficina CCS (30%): ${oficinaCCS.toFixed(2)}</li>
             <li>Ejecutivo (40%): ${ejecutivo.toFixed(2)}</li>
+          </ul>
+        `;
+      } else if (operationData.tipo === 'interno') {
+        // Nueva distribución para canjes internos (70% Sede, 30% Ejecutivo)
+        const sede = totalDiferencia * 0.70;
+        const ejecutivo = totalDiferencia * 0.30;
+
+        // Guardar distribución para enviar al servidor
+        distribucion = {
+          sede,
+          ejecutivo
+        };
+
+        distribucionHTML = `
+          <h6>Distribución (Interno)</h6>
+          <ul>
+            <li>Sede (70%): ${sede.toFixed(2)}</li>
+            <li>Ejecutivo (30%): ${ejecutivo.toFixed(2)}</li>
           </ul>
         `;
       }
