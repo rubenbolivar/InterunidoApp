@@ -1,0 +1,33 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno
+.env
+.env.backup
+.env.local
+
+# Logs
+logs/
+*.log
+
+# Archivos macOS
+._*
+.DS_Store
+
+# Backups
+*.backup
+*.backup.*
+*.bak
+
+# Temporales
+tmp/
+tmp_scripts/
+
+# CGI
+cgi-bin/
+
+# Archivos de PM2
+cript de inicio de PM2
+
+# Archivos de validación SSL (ya no necesarios en git)
+.well-known/
